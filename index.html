@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AcademiaEdu | Educación, Regularización y Cursos de Tecnología</title>
+  <meta name="description" content="Clases particulares, regularización académica, programación, tecnología e ingreso a la universidad (UNAM, IPN, UAM)." />
+  <link rel="stylesheet" href="style.css" />
+  <!-- Iconos de Lucide -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+<!--
+  <div class="promo-bar">
+    <i data-lucide="sparkles"></i>
+    <span>¡Inscripciones abiertas! Obtén hasta un <strong>20% de descuento</strong> en cursos grupales.</span>
+    <a href="https://wa.me/5215614592265?text=Hola,%20quisiera%20recibir%20mas%20informacion" target="_blank">Consultar promo &rarr;</a>
+  </div>
+-->
+  <!-- NAVEGACIÓN -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="RegistroCursos.html" class="logo">
+        <img src="logon.png" alt="DOCÉRE" class="brand-logo" />
+      </a>
+
+      <div class="nav-actions">
+        <div class="search-box-nav">
+          <i data-lucide="search"></i>
+          <input type="text" placeholder="" />
+        </div>
+        <a href="#contacto" class="btn btn-dark">Inscribirme</a>
+        <a href="https://wa.me/5215614592265?text=Hola,%20quisiera%20recibir%20mas%20informacion" target="_blank" class="btn btn-emerald">
+          <i data-lucide="message-circle"></i> WhatsApp
+        </a>
+        <a href="login.html" class="btn btn-outline">
+          <i data-lucide="log-in"></i> Log in
+        </a>
+        <button id="menuToggle" class="icon-btn mobile-only" aria-label="Menú">
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <nav class="secondary-navbar">
+    <div class="container">
+      <ul class="nav-links secondary-nav-links" id="navLinks">
+        <li><a href="#servicios">Servicios</a></li>
+        <li><a href="tareas-express.html">Tareas Express</a></li>
+        <li class="nav-dropdown">
+          <a href="#">Cursos <i data-lucide="chevron-down"></i></a>
+          <ul class="dropdown-menu">
+            <li><a href="#servicios">Regularización</a></li>
+            <li class="nav-dropdown-sub">
+              <a href="#">Admisión <i data-lucide="chevron-right"></i></a>
+              <ul class="dropdown-submenu">
+                <li><a href="admisionUNAM.html">UNAM</a></li>
+                <li><a href="admisionIPN.html">IPN</a></li>
+                <li><a href="admisionUAM.html">UAM</a></li>
+              </ul>
+            </li>
+            <li class="nav-dropdown-sub">
+              <a href="#">Cursos de tecnología <i data-lucide="chevron-right"></i></a>
+              <ul class="dropdown-submenu">
+                <li><a href="#imp3d">Impresión 3D y Modelado</a></li>
+                <li><a href="#diseno">Diseño e impresión de piezas</a></li>
+                <li><a href="#electronica">Electrónica básica</a></li>
+                <li><a href="#automatizacion">Automatización</a></li>
+              </ul>
+            </li>
+            <li class="nav-dropdown-sub">
+              <a href="#">Programación <i data-lucide="chevron-right"></i></a>
+              <ul class="dropdown-submenu">
+                <li><a href="#c">C</a></li>
+                <li><a href="#python">Python</a></li>
+                <li><a href="#arduino">Arduino</a></li>
+                <li><a href="#html">HTML</a></li>
+                <li><a href="#css">CSS</a></li>
+                <li><a href="#js">JavaScript</a></li>
+              </ul>
+            </li>
+            <li><a href="#servicios">Cursos propedéuticos</a></li>
+            <li class="nav-dropdown-sub">
+              <a href="#">Matemáticas <i data-lucide="chevron-right"></i></a>
+              <ul class="dropdown-submenu">
+                <li><a href="#calculo-diferencial">Cálculo diferencial</a></li>
+                <li><a href="#calculo-integral">Cálculo integral</a></li>
+                <li><a href="#probabilidad">Probabilidad</a></li>
+                <li><a href="#estadistica">Estadística</a></li>
+                <li><a href="#matematica-primaria">Matemáticas para primaria</a></li>
+                <li><a href="#matematica-secundaria">Matemáticas para secundaria</a></li>
+                <li><a href="#matematica-i">Matemáticas I - Preparatoria</a></li>
+                <li><a href="#matematica-ii">Matemáticas II - Preparatoria</a></li>
+                <li><a href="#matematica-iii">Matemáticas III - Preparatoria</a></li>
+                <li><a href="#algebra">Álgebra</a></li>
+                <li><a href="#algebra-lineal">Álgebra lineal</a></li>
+              </ul>
+            </li>
+            <li><a href="#servicios">Ofimática</a></li>
+          </ul>
+        </li>
+        <li><a href="#fechas">Próximos Cursos</a></li>
+        <li class="nav-dropdown-sub">
+          <a href="#">Matemáticas <i data-lucide="chevron-right"></i></a>
+          <ul class="dropdown-submenu">
+            <li><a href="#calculo-diferencial">Cálculo diferencial</a></li>
+            <li><a href="#calculo-integral">Cálculo integral</a></li>
+            <li><a href="#probabilidad">Probabilidad</a></li>
+            <li><a href="#estadistica">Estadística</a></li>
+            <li><a href="#matematica-primaria">Matemáticas para primaria</a></li>
+            <li><a href="#matematica-secundaria">Matemáticas para secundaria</a></li>
+            <li><a href="#matematica-i">Matemáticas I - Preparatoria</a></li>
+            <li><a href="#matematica-ii">Matemáticas II - Preparatoria</a></li>
+            <li><a href="#matematica-iii">Matemáticas III - Preparatoria</a></li>
+            <li><a href="#algebra">Álgebra</a></li>
+            <li><a href="#algebra-lineal">Álgebra lineal</a></li>
+          </ul>
+        </li>
+        <li><a href="#faq">Preguntas</a></li>
+        <li><a href="#contacto">Contacto</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- CARRUSEL SLIDER -->
+  <div class="carousel-container">
+    <div class="carousel-track" id="carouselTrack">
+      
+      <!-- Slide 1 -->
+      <div class="carousel-slide slide-1">
+        <div class="slide-image-only">
+        </div>
+      </div>
+
+      <!-- Slide 2 -->
+      <div class="carousel-slide slide-2">
+        <div class="slide-content">
+          <span class="slide-badge">Tecnología y Futuro</span>
+          <h2>Aprende Programación, Python y Arduino</h2>
+          <p>Desarrolla proyectos prácticos y domina las tecnologías del mañana.</p>
+          <a href="#servicios" class="btn btn-primary">Ver temario</a>
+        </div>
+      </div>
+
+      <!-- Slide 3 -->
+      <div class="carousel-slide slide-3">
+        <div class="slide-content">
+          <span class="slide-badge">Regularización Personalizada</span>
+          <h2>Supera tus materias más difíciles</h2>
+          <p>Asesorías 1 a 1 de Matemáticas, Física, Química y Cálculo.</p>
+          <a href="https://wa.me/5215614592265?text=Hola,%20quisiera%20recibir%20mas%20informacion" target="_blank" class="btn btn-emerald">Chatear por WhatsApp</a>
+        </div>
+      </div>
+
+      <!-- Slide 4 -->
+      <div class="carousel-slide slide-4">
+        <div class="slide-content">
+          <span class="slide-badge">Regularización Personalizada</span>
+          <h2>Supera tus materias más difíciles</h2>
+          <p>Asesorías 1 a 1 de Matemáticas, Física, Química y Cálculo.</p>
+          <a href="https://wa.me/5215614592265?text=Hola,%20quisiera%20recibir%20mas%20informacion" target="_blank" class="btn btn-emerald">Chatear por WhatsApp</a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Indicadores (Puntitos) -->
+    <div class="carousel-dots">
+      <span class="dot active" data-slide="0"></span>
+      <span class="dot" data-slide="1"></span>
+      <span class="dot" data-slide="2"></span>
+      <span class="dot" data-slide="3"></span>
+    </div>
+  </div>
+
+  <!-- HERO SECTION -->
+  <section class="hero">
+    <div class="hero-bg-glow"></div>
+    <div class="container hero-grid">
+      <div class="hero-text">
+        <div class="badge">
+          <i data-lucide="sparkles"></i> Innovación Académica y Tecnología
+        </div>
+        <h1>Aprende hoy, <br><span class="gradient-text">alcanza tus metas mañana.</span></h1>
+        <p>Clases particulares, regularización académica, cursos tecnológicos de vanguardia y preparación integral para ingresar a la universidad.</p>
+        
+        <div class="hero-buttons">
+          <a href="tareas-express.html" class="btn btn-primary">Ver Tareas Express <i data-lucide="arrow-right"></i></a>
+          <a href="https://wa.me/5215614592265?text=Hola,%20quisiera%20recibir%20mas%20informacion" target="_blank" class="btn btn-whatsapp-outline">
+            <i data-lucide="message-circle"></i> Enviar WhatsApp
+          </a>
+          <a href="#servicios" class="btn btn-outline">Ver cursos</a>
+        </div>
+
+        <div class="hero-stats">
+          <div class="stat">
+            <h3>+1,200</h3>
+            <p>Alumnos inscritos</p>
+          </div>
+          <div class="stat">
+            <h3>+90%</h3>
+            <p>Satisfechos e ingresados</p>
+          </div>
+          <div class="stat">
+            <h3>100%</h3>
+            <p>Personalizado</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-image">
+        <div class="img-card">
+          <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80" alt="Estudiantes aprendiendo" />
+          <div class="img-badge">
+            <i data-lucide="check-circle-2"></i>
+            <div>
+              <strong>Clases Presenciales y Online</strong>
+              <p>Aprende a tu ritmo con docentes expertos.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICIOS -->
+  <section id="servicios" class="section container">
+    <div class="section-title">
+      <span>OFERTA ACADÉMICA</span>
+      <h2>Nuestros Servicios de Excelencia</h2>
+      <p>Programas diseñados tanto para reforzar materias difíciles como para desarrollar habilidades del futuro.</p>
+    </div>
+
+    <div class="cards-grid">
+      <!-- Card Regularización -->
+      <div class="card">
+        <div class="card-icon blue"><i data-lucide="book-open"></i></div>
+        <h3>Regularización Escolar</h3>
+        <p>Apoyo integral desde primaria hasta nivel universitario.</p>
+        <div class="tags">
+          <span>Matemáticas</span><span>Física</span><span>Química</span><span>Electrónica</span><span>Programación</span><span>Álgebra</span><span>Cálculo</span><span>Inglés</span>
+        </div>
+        <div class="card-footer blue">Modalidad Presencial y En Línea &rarr;</div>
+      </div>
+
+      <!-- Card Cursos Personalizados -->
+      <div class="card">
+        <div class="card-icon emerald"><i data-lucide="code"></i></div>
+        <h3>Cursos Personalizados</h3>
+        <p>Ofimática avanzada y desarrollo de software moderno.</p>
+        <div class="sub-list">
+          <p><strong>Ofimática:</strong> Word, Excel, PowerPoint, Access, Outlook, Teams.</p>
+          <p><strong>Programación:</strong> C, Python, Arduino, HTML, CSS, JavaScript.</p>
+        </div>
+        <div class="card-footer emerald">Aprende desde cero a avanzado &rarr;</div>
+      </div>
+
+      <!-- Card Tecnología -->
+      <div class="card">
+        <div class="card-icon purple"><i data-lucide="cpu"></i></div>
+        <h3>Cursos de Tecnología</h3>
+        <p>Aprende la tecnología con más demanda laboral con proyectos reales.</p>
+        <ul class="check-list">
+          <li><i data-lucide="check"></i> Impresión 3D y Modelado</li>
+          <li><i data-lucide="check"></i> Diseño e impresión de piezas</li>
+          <li><i data-lucide="check"></i> Electrónica básica</li>
+          <li><i data-lucide="check"></i> Automatización</li>
+        </ul>
+        <div class="card-footer purple">Proyectos 100% Prácticos &rarr;</div>
+      </div>
+
+      <!-- Card Propedéutico -->
+      <div class="card">
+        <div class="card-icon indigo"><i data-lucide="award"></i></div>
+        <h3>Curso Propedéutico</h3>
+        <p>Cimenta las bases necesarias para carreras universitarias de alta exigencia.</p>
+        <div class="tags">
+          <span>Ingeniería</span><span>Arquitectura</span><span>Medicina</span><span>Derecho</span><span>Contabilidad</span>
+        </div>
+        <div class="card-footer indigo">Nivelación de alto rendimiento &rarr;</div>
+      </div>
+
+      <!-- Card Ingreso Universidad -->
+      <div class="card card-wide blue-gradient">
+        <div class="card-header-wide">
+          <div class="card-icon white"><i data-lucide="graduation-cap"></i></div>
+          <span class="badge-accent">Alta Tasa de Aceptación</span>
+        </div>
+        <h3>Curso de Ingreso a Universidad</h3>
+        <p>Preparación intensiva enfocada en los exámenes de admisión para: <strong>UNAM, IPN, UAM, UAEM y Tecnológicos</strong>.</p>
+        <div class="features-3">
+          <div><strong>Simuladores</strong><p>Exámenes prueba bajo tiempo real.</p></div>
+          <div><strong>Bancos de Preguntas</strong><p>Reactivos actualizados y resueltos.</p></div>
+          <div><strong>Seguimiento</strong><p>Evaluación continua individual.</p></div>
+        </div>
+        <a href="admision.html" class="card-footer blue">Ver cursos de admisión &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAREAS EXPRESS -->
+  <section id="express" class="section express-section">
+    <div class="container">
+      <div class="express-box">
+        <div class="express-content">
+          <span class="badge-amber"><i data-lucide="zap"></i> ¿Poco tiempo o dudas urgentes?</span>
+          <h2>Asesoría Personalizada y Tareas Express</h2>
+          <p>Te brindamos guía y acompañamiento acelerado para resolver tus dudas complejas en:</p>
+          <div class="express-grid">
+            <span>✔ Tareas y Trabajos</span><span>✔ Investigaciones</span><span>✔ Presentaciones</span>
+            <span>✔ Ensayos y Reportes</span><span>✔ Programación</span><span>✔ Proyectos Escolares</span>
+            <span>✔ Hojas de Cálculo</span><span>✔ Bases de Datos</span><span>✔ Diagramas</span>
+          </div>
+          <div class="ethics-note">
+            <i data-lucide="shield-check"></i>
+            <p><strong>Compromiso Ético Académico:</strong> Este servicio se ofrece como tutoría explicativa y acompañamiento paso a paso para maximizar tu aprendizaje autónomo.</p>
+          </div>
+        </div>
+
+        <div class="express-cta">
+          <h3>Cotización Inmediata</h3>
+          <p>Envíanos los detalles por WhatsApp y te respondemos en minutos.</p>
+          <ul>
+            <li>✔ Entrega rápida</li>
+            <li>✔ Atención 24/7 por WhatsApp</li>
+            <li>✔ Explicación de la solución</li>
+          </ul>
+          <a href="https://wa.me/5215614592265?text=Hola,%20quisiera%20recibir%20mas%20informacion" target="_blank" class="btn btn-white">
+            <i data-lucide="message-circle"></i> Cotizar por WhatsApp
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ¿POR QUÉ ELEGIRNOS? -->
+  <section id="nosotros" class="section container">
+    <div class="section-title">
+      <span>NUESTRA GARANTÍA</span>
+      <h2>¿Por qué elegir nuestro centro académico?</h2>
+    </div>
+    <div class="why-grid">
+      <div class="why-item"><i data-lucide="users"></i><h4>Atención Personalizada</h4><p>Grupos reducidos o clases 1 a 1 adaptadas a ti.</p></div>
+      <div class="why-item"><i data-lucide="award"></i><h4>Profesores Capacitados</h4><p>Especialistas con experiencia pedagógica.</p></div>
+      <div class="why-item"><i data-lucide="clock"></i><h4>Modalidad Flexible</h4><p>Presencial u online en vivo según prefieras.</p></div>
+      <div class="why-item"><i data-lucide="calendar"></i><h4>Horarios Acomodables</h4><p>Opciones en mañanas, tardes o fines de semana.</p></div>
+      <div class="why-item"><i data-lucide="file-text"></i><h4>Material Incluido</h4><p>Guías y simuladores sin costos extra.</p></div>
+      <div class="why-item"><i data-lucide="shield-check"></i><h4>Seguimiento Individual</h4><p>Evaluación continua de tus fortalezas.</p></div>
+      <div class="why-item"><i data-lucide="cpu"></i><h4>Clases Prácticas</h4><p>Aprende realizando proyectos reales.</p></div>
+      <div class="why-item"><i data-lucide="star"></i><h4>+90% Satisfechos</h4><p>Nuestros alumnos avalan la efectividad.</p></div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIOS -->
+  <section class="section testimonials-bg">
+    <div class="container">
+      <div class="section-title">
+        <span>OPINIONES REALES</span>
+        <h2>Lo que dicen nuestros estudiantes</h2>
+      </div>
+      <div class="testimonials-grid">
+        <div class="testimonial-card">
+          <img src="Test3.png" alt="Arceo M." class="testimonial-avatar" />
+          <div class="stars">★★★★★</div>
+          <p>"Gracias a las clases intensivas y los simuladores logré ingresar a la UNAM."</p>
+          <strong>Arceo M.</strong>
+          <small>Curso Ingreso UNAM</small>
+        </div>
+        <div class="testimonial-card">
+          <img src="Test2.png" alt="Paola R." class="testimonial-avatar" />
+          <div class="stars">★★★★★</div>
+          <p>"Excelente profesor, explica con mucha paciencia. Pasé Cálculo con excelente nota."</p>
+          <strong>Paola R.</strong>
+          <small>Regularización de Matemáticas</small>
+        </div>
+        <div class="testimonial-card">
+          <img src="Test1.png" alt="Joshua López" class="testimonial-avatar" />
+          <div class="stars">★★★★★</div>
+          <p>"Aprendí Excel desde cero y ahora lo aplico a diario en mi nuevo trabajo."</p>
+          <strong>Joshua López</strong>
+          <small>Curso de Excel Profesional</small>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRÓXIMOS INICIOS -->
+  <section id="fechas" class="section container">
+    <div class="section-title">
+      <span>CALENDARIO ACADÉMICO</span>
+      <h2>Próximos Inicios de Curso</h2>
+    </div>
+    <div class="dates-grid">
+      <div class="date-card">
+        <div class="date-content">
+          <span class="date-badge"><i data-lucide="calendar"></i> Inicio: 01 de Septiembre</span>
+          <h4>Curso Intensivo UNAM / IPN</h4>
+          <p>Horarios: Sabatino y Semanal</p>
+          <p>Modalidad: Presencial / Online</p>
+          <a href="Registro_UNAM.html" class="btn btn-outline-sm">Apartar mi lugar</a>
+        </div>
+        <img src="curso1.png" alt="Curso Intensivo UNAM / IPN" class="date-image" />
+      </div>
+      <div class="date-card">
+        <div class="date-content">
+          <span class="date-badge"><i data-lucide="calendar"></i> Inicio: 03 de Agosto</span>
+          <h4>Masterclass de Excel y Power BI</h4>
+          <p>Horarios: Fines de Semana</p>
+          <p>Modalidad: En Línea en Vivo</p>
+          <a href="RegistroCursos.html" class="btn btn-outline-sm">Apartar mi lugar</a>
+        </div>
+        <img src="curso2.jpg" alt="Masterclass de Excel y Power BI" class="date-image" />
+      </div>
+      <div class="date-card">
+        <div class="date-content">
+          <span class="date-badge"><i data-lucide="calendar"></i> Inicio: 22 de Agosto</span>
+          <h4>Bootcamp de Python & Arduino</h4>
+          <p>Horarios: Entre semana</p>
+          <p>Modalidad: Presencial</p>
+          <a href="RegistroCursos.html" class="btn btn-outline-sm">Apartar mi lugar</a>
+        </div>
+        <img src="curso3.png" alt="Bootcamp de Python & Arduino" class="date-image" />
+      </div>
+    </div>
+  </section>
+
+  <!-- PREGUNTAS FRECUENTES -->
+  <section id="faq" class="section container max-width-md">
+    <div class="section-title">
+      <span>DUDAS HABITUALES</span>
+      <h2>Preguntas Frecuentes</h2>
+    </div>
+    <div class="faq-accordion">
+      <div class="faq-item">
+        <button class="faq-question">¿Las clases son en línea o presenciales? <i data-lucide="chevron-down"></i></button>
+        <div class="faq-answer"><p>Contamos con ambas modalidades. Puedes asistir a nuestras instalaciones equipadas o tomar clases en vivo a través de nuestra plataforma digital.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question">¿Cuánto duran los cursos? <i data-lucide="chevron-down"></i></button>
+        <div class="faq-answer"><p>La duración varía: la regularización es por horas ajustables, mientras que los cursos intensivos duran entre 8 y 16 semanas.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question">¿Entregan constancia de participación? <i data-lucide="chevron-down"></i></button>
+        <div class="faq-answer"><p>Sí, al finalizar entregamos un certificado digital o físico con valor curricular con las horas completadas.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question">¿Puedo pagar por sesión individual? <i data-lucide="chevron-down"></i></button>
+        <div class="faq-answer"><p>¡Sí! Ofrecemos esquemas por clase individual, por paquetes de horas con descuento o colegiatura para cursos completos.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACTO Y MAPA -->
+  <section id="contacto" class="section contact-section">
+    <div class="container contact-grid">
+      <div class="contact-form-box">
+        <h3>Ponte en contacto</h3>
+        <p>Llena el formulario y un asesor académico te contactará a la brevedad.</p>
+        <form id="contactForm">
+          <div class="form-row">
+            <input type="text" placeholder="Nombre completo" required />
+            <input type="email" placeholder="Correo electrónico" required />
+          </div>
+          <div class="form-row">
+            <input type="tel" placeholder="Teléfono / WhatsApp" required />
+            <select>
+              <option>Regularización Escolar</option>
+              <option>Programación / Ofimática</option>
+              <option>Curso Ingreso Universidad (UNAM/IPN)</option>
+              <option>Curso Propedéutico</option>
+              <option>Tareas y Asesoría Express</option>
+            </select>
+          </div>
+          <textarea rows="4" placeholder="¿En qué materia o tema necesitas apoyo?" required></textarea>
+          <button type="submit" class="btn btn-primary btn-full"><i data-lucide="send"></i> Enviar Solicitud</button>
+        </form>
+      </div>  
+
+      <div class="contact-info">
+        <h3>Visita nuestras instalaciones</h3>
+        <ul class="info-list">
+          <li><i data-lucide="map-pin"></i> Los Heroes Tecamac, 55764 Ojo de Agua, Méx.</li>
+          <li><i data-lucide="phone"></i> +52 (56) 1459 2265</li>
+          <li><i data-lucide="mail"></i> cursosdocerecontacto@gmail.com</li>
+          <li><i data-lucide="clock"></i> Lun - Vie: 08:00 - 23:00 | Sáb: 09:00 - 15:00</li>
+        </ul>
+        <div class="map-container">
+          <iframe title="Mapa de ubicación" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3763.712613200922!2d-99.16782!3d19.38012!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTksMjInNDguNCJOIDk5wrAwOSc0NC4yIlc!5e0!3m2!1ses!2smx!4v1620000000000!5m2!1ses!2smx" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOTÓN FLOTANTE DE WHATSAPP -->
+  <a href="https://wa.me/521234567890?text=Hola,%20busco%20asesoria" target="_blank" class="whatsapp-float" aria-label="Contacto por WhatsApp">
+    <i data-lucide="message-circle"></i>
+    <span class="float-text">¿Dudas? Chatea con nosotros</span>
+  </a>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container footer-top">
+      <div class="footer-brand">
+        <div class="logo footer-logo">
+          <img src="logob.png" alt="Logo Docére" />
+        </div>
+        <p>Asesoría académica, cursos y apoyo para aspirantes y estudiantes en México.</p>
+      </div>
+
+      <div class="footer-columns">
+        <div class="footer-column">
+          <h4>NOSOTROS</h4>
+          <ul>
+            <li><a href="#nosotros">Nuestra empresa</a></li>
+            <li><a href="#nosotros">Historia</a></li>
+            <li><a href="#nosotros">Nuestra misión</a></li>
+            <li><a href="trabaja-con-nosotros.html">Trabaja con nosotros</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>SERVICIO AL CLIENTE</h4>
+          <ul>
+            <li><a href="index.html#contacto">Contáctanos</a></li>
+            <li><a href="#faq">Preguntas frecuentes</a></li>
+            <li><a href="mailto:cursosdocerecontacto@gmail.com">Correo electrónico</a></li>
+            <li><a href="index.html#contacto">Formas de pago</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>CURSOS ADMISIÓN</h4>
+          <ul>
+            <li><a href="admisionUNAM.html">Admisión UNAM</a></li>
+            <li><a href="admisionIPN.html">Admisión IPN</a></li>
+            <li><a href="admisionUAM.html">Admisión UAM</a></li>
+            <li><a href="admision.html">Todos los cursos de admisión</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>VÍNCULOS</h4>
+          <ul>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">Escritorio de ejercicios</a></li>
+            <li><a href="#">Iniciar sesión</a></li>
+            <li><a href="#">Sistema de Monitoreo para Padres (SIMOP)</a></li>
+          </ul>
+        </div>
+        <div class="footer-column footer-right">
+          <h4>YOUTUBE</h4>
+          <ul>
+            <li><a href="#">Ciencia a tu alcance</a></li>
+            <li><a href="#">Cursos docere</a></li>
+          </ul>
+          <button class="language-selector">
+            ES <i data-lucide="chevron-down"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>Los héroes Tecámac, Edo. México Los héroes Tecámac II, 55764 Ciudad de México, Méx.</p>
+      <p>Atención a clientes y registro. 5614592265</p>
+      <p>Docére ® copyright</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
