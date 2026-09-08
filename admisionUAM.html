@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Curso de Ingreso a la UAM 2025 | DOCÉRE</title>
+  <meta name="description" content="Curso de ingreso a la UAM 2025 con preparación integral, materiales, seguimiento personalizado y garantía DOCÉRE." />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --primary: #00a8e8;
+      --primary-hover: #0077b6;
+      --dark-navy: #03045e;
+      --emerald: #10b981;
+      --bg-color: #f4f8fb;
+      --card-bg: #ffffff;
+      --text-color: #0d1b2a;
+      --gray-sub: #4a5568;
+      --border-color: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(180deg, #f7fbff 0%, #f4f8fb 100%);
+      color: var(--text-color);
+      line-height: 1.6;
+    }
+
+    .page-shell {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .hero-section {
+      background: linear-gradient(135deg, var(--dark-navy), var(--primary));
+      color: white;
+      padding: 96px 20px 96px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-section::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top right, rgba(255,255,255,0.22), transparent 40%);
+      pointer-events: none;
+    }
+
+    .hero-content {
+      position: relative;
+      max-width: 900px;
+      margin:0 auto;
+      text-align: left;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.16);
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .hero-title {
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      line-height: 1.15;
+      margin-bottom: 12px;
+      font-weight: 800;
+    }
+
+    .hero-text {
+      font-size: 1.05rem;
+      max-width: 700px;
+      color: rgba(255,255,255,0.95);
+      margin-bottom: 20px;
+    }
+
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 18px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 700;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary { background: var(--emerald); color: white; box-shadow: 0 10px 24px rgba(16,185,129,0.2); }
+    .btn-outline { background: white; color: var(--dark-navy); }
+
+    main {
+      max-width: 1100px;
+      margin: -40px auto 0;
+      padding: 0 20px 40px;
+      width: 100%;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 28px;
+      margin-bottom: 20px;
+      box-shadow: 0 16px 40px rgba(3,4,94,0.08);
+    }
+
+    .rating { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; color: var(--gray-sub); }
+    .stars { color: #fbbf24; letter-spacing: 1px; }
+
+    h2, h3 { color: var(--dark-navy); }
+    h2 { font-size: 1.6rem; margin-bottom: 12px; }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+      margin-top: 16px;
+    }
+
+    ul { list-style: none; padding-left: 0; }
+    ul li { padding: 7px 0; position: relative; }
+
+    .pricing-container { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+    .price-box { border: 1px solid var(--border-color); border-radius: 20px; padding: 22px; background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); text-align: center; }
+    .price { font-size: 2rem; font-weight: 800; color: var(--primary); margin: 10px 0 16px; }
+
+    .info-box {
+      border-radius: 20px;
+      padding: 18px 20px;
+      margin-top: 18px;
+      background: linear-gradient(135deg, rgba(0,168,232,0.09), rgba(3,4,94,0.05));
+      border: 1px solid rgba(0,168,232,0.14);
+    }
+
+    .testimonials { display: block; margin-top: 18px; }
+    .testimonials-list { display:block; }
+    .testimonial-entry { padding: 18px 0; border-bottom: 1px solid rgba(226,232,240,0.8); }
+    .testimonial-entry:last-child { border-bottom: none; }
+    .testimonial-name { font-weight: 700; color: var(--dark-navy); display:flex; align-items:center; gap:10px; }
+    .testimonial-stars { color: #f6c84c; font-size: 0.95rem; margin-left:6px; }
+    .testimonial-quote { margin-top: 8px; margin-left: 4px; font-style: italic; color: var(--gray-sub); }
+    .testimonial-meta { margin-top: 6px; color: rgba(13,27,42,0.7); font-size: 0.95rem; }
+    .testimonial-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+    .testimonial-badge { display:inline-flex; align-items:center; gap:10px; padding:8px 16px; border-radius:999px; background: rgba(255,255,255,0.95); color: #000; font-weight:800; font-size: 1rem; margin-top: 8px; box-shadow: 0 6px 18px rgba(3,4,94,0.06); }
+
+    footer {
+      background: linear-gradient(90deg, #03152d 0%, #06244b 100%);
+      color: white;
+      padding: 36px 20px;
+      margin-top: 20px;
+    }
+    .footer-content { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 20px; }
+    .footer-title { font-weight: 700; margin-bottom: 10px; color: #9adcfb; }
+    .footer-links a { color: white; text-decoration: none; display: block; margin-bottom: 8px; }
+
+    @media (max-width: 800px) {
+      .details-grid, .pricing-container, .testimonials, .footer-content { grid-template-columns: 1fr; }
+      main { margin-top: -20px; }
+      .card { padding: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <nav class="navbar">
+      <div class="nav-container">
+        <a href="index.html" class="logo">
+          <img src="logon.png" alt="DOCÉRE" class="brand-logo" />
+        </a>
+        <div class="nav-actions">
+          <div class="search-box-nav">
+            <i data-lucide="search"></i>
+            <input type="text" placeholder="" />
+          </div>
+          <a href="index.html#contacto" class="btn btn-dark">Inscribirme</a>
+          <a href="https://wa.me/5215614592265?text=Hola,%20quisiera%20recibir%20mas%20informacion" target="_blank" class="btn btn-emerald">
+            <i data-lucide="message-circle"></i> WhatsApp
+          </a>
+          <a href="#" class="btn btn-outline">
+            <i data-lucide="log-in"></i> Log in
+          </a>
+          <button id="menuToggle" class="icon-btn mobile-only" aria-label="Menú">
+            <i data-lucide="menu"></i>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <nav class="secondary-navbar">
+      <div class="container">
+        <ul class="nav-links secondary-nav-links" id="navLinks">
+          <li><a href="index.html">Inicio</a></li>
+          <li><a href="index.html#servicios">Servicios</a></li>
+          <li><a href="cursos.html">Todos los cursos</a></li>
+          <li><a href="admision.html">Admisión</a></li>
+          <li><a href="tareas-express.html">Tareas Express</a></li>
+          <li><a href="trabaja-con-nosotros.html">Trabaja con nosotros</a></li>
+          <li><a href="index.html#contacto">Contacto</a></li>
+        </ul>
+      </div>
+    </nav>
+        <li><a href="#fechas">Próximos Cursos</a></li>
+        <li class="nav-dropdown-sub">
+          <a href="#">Matemáticas <i data-lucide="chevron-right"></i></a>
+          <ul class="dropdown-submenu">
+            <li><a href="#calculo-diferencial">Cálculo diferencial</a></li>
+            <li><a href="#calculo-integral">Cálculo integral</a></li>
+            <li><a href="#probabilidad">Probabilidad</a></li>
+            <li><a href="#estadistica">Estadística</a></li>
+            <li><a href="#matematica-primaria">Matemáticas para primaria</a></li>
+            <li><a href="#matematica-secundaria">Matemáticas para secundaria</a></li>
+            <li><a href="#matematica-i">Matemáticas I - Preparatoria</a></li>
+            <li><a href="#matematica-ii">Matemáticas II - Preparatoria</a></li>
+            <li><a href="#matematica-iii">Matemáticas III - Preparatoria</a></li>
+            <li><a href="#algebra">Álgebra</a></li>
+            <li><a href="#algebra-lineal">Álgebra lineal</a></li>
+          </ul>
+        </li>
+        <li><a href="#faq">Preguntas</a></li>
+        <li><a href="#contacto">Contacto</a></li>
+      </ul>
+    </div>
+  </nav>
+
+    <section class="hero-section">
+      <div class="hero-content">
+        <div class="hero-badge">Curso destacado</div>
+        <h1 class="hero-title">Curso de ingreso a la UAM 2025</h1>
+        <p class="hero-text">Domina el examen de la UAM con práctica de lógica, estrategia en matemáticas y orientación familiar desde el primer día.</p>
+        <div class="hero-actions">
+          <a href="registro-aspirante.html?curso=UAM" target="_blank" class="btn btn-primary">Inscribirme ahora</a>
+          <a href="#registro" class="btn btn-outline">Ver precios</a>
+        </div>
+      </div>
+    </section>
+
+    <main>
+      <section class="card" id="acerca">
+        <br>
+        <div class="rating">
+          <span class="stars"> ★★★★★</span>
+          <strong>5.0 estrellas</strong>
+          <span>• 542,180 visitas recientes</span>
+        </div>
+        <h2>Acerca de este curso</h2>
+        <p>Prepara tu ingreso a la UAM con sesiones diseñadas para los ejercicios de matemáticas, física y razonamiento verbal que realmente caen en la convocatoria. Nuestro método combina clases en vivo, ejercicios guiados y seguimiento familiar para que avances con seguridad y claridad.</p>
+        <p style="margin-top: 12px;"><strong>Inicio:</strong> 6 de enero del 2025</p>
+      </section>
+
+      <section class="card">
+        <h2>¿Qué incluye?</h2>
+        <div class="details-grid">
+          <div>
+            <h3>Plataforma y asesorías</h3>
+            <ul>
+              <li>Acceso a la plataforma 24/7</li>
+              <li>Garantía DOCÉRE FOR EDUCATION</li>
+              <li>Clases en vivo con profesores expertos en UAM</li>
+              <li>Ejercicios específicos para la convocatoria</li>
+              <li>Eventos digitales gratuitos</li>
+              <li>Live Chat para dudas</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Materiales didácticos</h3>
+            <ul>
+              <li>Examen diagnóstico</li>
+              <li>Guía UAM</li>
+              <li>Habilidad Lectora</li>
+              <li>Aritmética y Álgebra</li>
+              <li>Exámenes parciales</li>
+              <li>Cuadernillo de repaso</li>
+              <li>Exámenes simulación</li>
+              <li>Envío gratis a toda la república</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="registro">
+        <h2>Precios e inscripción</h2>
+        <div class="pricing-container">
+          <div class="price-box">
+            <h3>En línea</h3>
+            <div class="price">$12,000 MXN</div>
+            <a href="registro-aspirante.html?curso=UAM" target="_blank" class="btn btn-primary">Elegir línea</a>
+          </div>
+          <div class="price-box">
+            <h3>Presencial</h3>
+            <div class="price">$8,500 MXN</div>
+            <a href="registro-aspirante.html?curso=UAM" target="_blank" class="btn btn-outline">Elegir presencial</a>
+          </div>
+        </div>
+
+        <div class="info-box">
+          <h3>📍 Ubicación presencial</h3>
+          <p>Paseo de la reforma 199 2º, 3º y 4º pisos, Col. Cuauhtémoc, C.P. 06500, Ciudad de México.</p>
+          <div style="margin-top: 14px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border-color);">
+            <iframe
+              src="https://www.google.com/maps?q=Paseo%20de%20la%20Reforma%20199%20Ciudad%20de%20Mexico&z=15&output=embed"
+              width="100%"
+              height="280"
+              style="border:0;"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              title="Mapa de la ubicación del curso">
+            </iframe>
+          </div>
+        </div>
+
+      </section>
+
+      <section class="card" style="background: linear-gradient(135deg, #f8fbff 0%, #eef7ff 100%); border: 1px solid rgba(0,168,232,0.18);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+          <div style="width:48px; height:48px; border-radius:50%; background:rgba(0,168,232,0.12); display:flex; align-items:center; justify-content:center; font-size:1.3rem;">🛡️</div>
+          <div>
+            <h2 style="margin-bottom:0;">Garantía DOCÉRE</h2>
+            <p style="margin:0; color:var(--gray-sub);">Tu inversión tiene respaldo y acompañamiento.</p>
+          </div>
+        </div>
+        <p style="margin-bottom: 12px;">Si en caso de no quedarte en esta convocatoria, te ofrecemos dos opciones claras:</p>
+        <div class="pricing-container" style="margin-top: 10px;">
+          <div class="price-box" style="background:white;">
+            <h3>Reentrenamiento</h3>
+            <p style="margin:0; color:var(--gray-sub);">Podrás recibir una nueva capacitación para seguir preparándote con nosotros.</p>
+          </div>
+          <div class="price-box" style="background:white;">
+            <h3>Reembolso</h3>
+            <p style="margin:0; color:var(--gray-sub);">Si así lo prefieres, puedes solicitar la devolución de tu dinero.</p>
+          </div>
+        </div>
+        <p style="margin-top: 14px; font-weight: 700; color: var(--dark-navy);">Tu confianza y tu futuro son prioridad para nosotros. 📚</p>
+      </section>
+
+      <section class="card" style="background: linear-gradient(135deg, #f9fcff 0%, #eef9ff 100%);">
+        <div class="testimonial-header">
+          <div>
+            <h2 style="margin-bottom: 4px;">Comentarios de nuestros clientes</h2>
+            <p style="margin: 0; color: var(--gray-sub);">Historias reales de estudiantes que encontraron confianza, claridad y resultados.</p>
+          </div>
+          <div class="testimonial-badge">★★★★★ <strong>5.0 estrellas</strong> • 542,180 visitas recientes</div>
+        </div>
+          <div class="testimonials-list">
+            <div class="testimonial-entry">
+              <div class="testimonial-name">Rodrigo Vargas P. <span class="testimonial-stars">★★★★★</span></div>
+              <div class="testimonial-quote">“Cada duda fue resuelta con paciencia y dedicación. ¡Gran atención al alumno!”</div>
+            </div>
+
+            <div class="testimonial-entry">
+              <div class="testimonial-name">Claudia Ríos V. <span class="testimonial-stars">★★★★☆</span></div>
+              <div class="testimonial-quote">“Los ejercicios de la convocatoria UAM me dieron seguridad desde el primer día.”</div>
+            </div>
+
+            <div class="testimonial-entry">
+              <div class="testimonial-name">Andrés Velázquez M. <span class="testimonial-stars">★★★★★</span></div>
+              <div class="testimonial-quote">“La calidad del curso es impresionante, con explicaciones claras y ejemplos útiles.”</div>
+            </div>
+
+            <div class="testimonial-entry">
+              <div class="testimonial-name">Liliana Cruz T. <span class="testimonial-stars">★★★★☆</span></div>
+              <div class="testimonial-quote">“Las asesorías personalizadas me ayudaron a reforzar mis puntos débiles.”</div>
+            </div>
+
+            <div class="testimonial-entry">
+              <div class="testimonial-name">Esteban Martínez J. <span class="testimonial-stars">★★★★★</span></div>
+              <div class="testimonial-quote">“Nunca pensé que entender ecuaciones diferenciales sería tan fácil. ¡Gracias!”</div>
+            </div>
+          </div>
+      </section>
+    </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container footer-top">
+      <div class="footer-brand">
+        <div class="logo footer-logo">
+          <img src="logob.png" alt="Logo Docére" />
+        </div>
+        <p>Asesoría académica, cursos y apoyo para aspirantes y estudiantes en México.</p>
+      </div>
+
+      <div class="footer-columns">
+        <div class="footer-column">
+          <h4>NOSOTROS</h4>
+          <ul>
+            <li><a href="#nosotros">Nuestra empresa</a></li>
+            <li><a href="#nosotros">Historia</a></li>
+            <li><a href="#nosotros">Nuestra misión</a></li>
+            <li><a href="trabaja-con-nosotros.html">Trabaja con nosotros</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>SERVICIO AL CLIENTE</h4>
+          <ul>
+            <li><a href="#contacto">Contáctanos</a></li>
+            <li><a href="#faq">Preguntas frecuentes</a></li>
+            <li><a href="mailto:cursosdocerecontacto@gmail.com">Correo electrónico</a></li>
+            <li><a href="#contacto">Formas de pago</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>CURSOS ADMISIÓN</h4>
+          <ul>
+            <li><a href="#servicios">Admisión a la UNAM</a></li>
+            <li><a href="#servicios">Admisión a la IPN</a></li>
+            <li><a href="#servicios">Admisión a la UAM</a></li>
+            <li><a href="#servicios">COMIPEMS</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>VÍNCULOS</h4>
+          <ul>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">Escritorio de ejercicios</a></li>
+            <li><a href="#">Iniciar sesión</a></li>
+            <li><a href="#">Sistema de Monitoreo para Padres (SIMOP)</a></li>
+          </ul>
+        </div>
+        <div class="footer-column footer-right">
+          <h4>YOUTUBE</h4>
+          <ul>
+            <li><a href="#">Ciencia a tu alcance</a></li>
+            <li><a href="#">Cursos docere</a></li>
+          </ul>
+          <button class="language-selector">
+            ES <i data-lucide="chevron-down"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>Los héroes Tecámac, Edo. México Los héroes Tecámac II, 55764 Ciudad de México, Méx.</p>
+      <p>Atención a clientes y registro. 5614592265</p>
+      <p>Docére ® copyright</p>
+    </div>
+  </footer>
+  </div>
+
+  <script src="script.js"></script>
+
+</body>
+</html>

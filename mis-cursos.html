@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mis Cursos - Portal Académico</title>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --bg-primary: #f8fafc;
+      --bg-card: #ffffff;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* --- NAVBAR --- */
+    .navbar {
+      background-color: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .nav-links a.active {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background-color: #f1f5f9;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      transition: background-color 0.2s;
+    }
+
+    .user-pill:hover {
+      background-color: #e2e8f0;
+    }
+
+    /* --- CONTENEDOR PRINCIPAL --- */
+    .courses-container {
+      max-width: 1100px;
+      margin: 30px auto;
+      padding: 0 20px;
+      flex: 1;
+      width: 100%;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+    }
+
+    /* --- TARJETA PRINCIPAL DEL CURSO --- */
+    .course-hero-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .course-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .course-title {
+      font-size: 1.4rem;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .badge-status {
+      padding: 4px 12px;
+      background-color: #dcfce7;
+      color: #166534;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 9999px;
+      white-space: nowrap;
+    }
+
+    .course-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Barra de Progreso */
+    .progress-section {
+      margin-top: 16px;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 10px;
+      background-color: #e2e8f0;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 45%;
+      background-color: var(--accent);
+      border-radius: 9999px;
+    }
+
+    /* --- GRID DE MATERIAS --- */
+    .subjects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .subject-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .subject-info h3 {
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+    }
+
+    .subject-info p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    @media (max-width: 640px) {
+      .course-header {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="panel_estudiante.html" class="brand">
+        <i data-lucide="graduation-cap"></i>
+        <span>Portal Académico</span>
+      </a>
+
+      <ul class="nav-links" id="navLinks">
+        <li><a href="panel_estudiante.html">Mi panel</a></li>
+        <li><a href="mis-cursos.html">Mis Cursos</a></li>
+        <li><a href="mis-cursos.html">Apuntes</a></li>
+        <li><a href="https://www.bidi.unam.mx/" target="_blank">Material de Estudio</a></li>
+        <li><a href="https://www.bidi.unam.mx/" target="_blank">Libreria</a></li>
+
+      </ul>
+
+      <!-- AL HACER CLIC EN EL NOMBRE/PILL NOS LLEVA A PERFIL.HTML -->
+      <a href="perfil.html" class="user-pill">
+        <i data-lucide="user" style="width: 16px; height: 16px;"></i>
+        <span id="userNameLabel">Cargando...</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="courses-container">
+
+    <h1 class="page-title">Mi Inscripción Activa</h1>
+
+    <!-- Tarjeta Principal del Curso Inscrito -->
+    <section class="course-hero-card">
+      <div class="course-header">
+        <div>
+          <h2 class="course-title" id="registeredCourseTitle">Cargando curso...</h2>
+          <p style="color: var(--text-secondary); font-size: 14px;" id="registeredFolio">Folio: --</p>
+        </div>
+        <span class="badge-status" id="registeredStatus">Inscrito / Activo</span>
+      </div>
+
+      <div class="course-meta">
+        <div class="meta-item">
+          <i data-lucide="clock" style="width: 16px;"></i>
+          <span id="registeredTurno">Turno: --</span>
+        </div>
+        <div class="meta-item">
+          <i data-lucide="calendar" style="width: 16px;"></i>
+          <span id="registeredStartDate">Inicio: Ciclo 2026</span>
+        </div>
+        <div class="meta-item">
+          <i data-lucide="monitor" style="width: 16px;"></i>
+          <span>Modalidad: En Línea</span>
+        </div>
+      </div>
+
+      <div class="progress-section">
+        <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600;">
+          <span>Avance General del Programa</span>
+          <span id="progressText">45%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressBarFill"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Módulos / Materias del Curso -->
+    <h2 style="font-size: 1.2rem; margin-bottom: 16px;">Materias e Temarios del Curso</h2>
+    <div class="subjects-grid">
+      
+      <div class="subject-card">
+        <div class="subject-info">
+          <h3>Matemáticas y Álgebra</h3>
+          <p>Ecuaciones, funciones, trigonometría y cálculo básico.</p>
+        </div>
+        <button class="btn btn-primary">
+          <i data-lucide="play-circle"></i>
+          <span>Ver Clases</span>
+        </button>
+      </div>
+
+      <div class="subject-card">
+        <div class="subject-info">
+          <h3>Física General</h3>
+          <p>Mecánica, termodinámica, electromagnetismo y óptica.</p>
+        </div>
+        <button class="btn btn-primary">
+          <i data-lucide="play-circle"></i>
+          <span>Ver Clases</span>
+        </button>
+      </div>
+
+      <div class="subject-card">
+        <div class="subject-info">3 3 3
+          <h3>Química</h3>
+          <p>Estructura atómica, enlace químico y estequiometría.</p>
+        </div>
+        <button class="btn btn-primary">
+          <i data-lucide="play-circle"></i>
+          <span>Ver Clases</span>
+        </button>
+      </div>
+
+      <div class="subject-card">
+        <div class="subject-info">
+          <h3>Español y Literatura</h3>
+          <p>Comprensión lectora, gramática y análisis de textos.</p>
+        </div>
+        <button class="btn btn-primary">
+          <i data-lucide="play-circle"></i>
+          <span>Ver Clases</span>
+        </button>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- SCRIPT CONECTADO CON EL JS GLOBAL / FIREBASE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
+      authDomain: "docere-931ec.firebaseapp.com",
+      projectId: "docere-931ec",
+      storageBucket: "docere-931ec.firebasestorage.app",
+      messagingSenderId: "1005663843239",
+      appId: "1:1005663843239:web:d8f6c7524a5d10bf797c82",
+      measurementId: "G-B6TDT4VE7S"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    function actualizarInterfaz(data, docId) {
+      const nombre = data.nombre || data.asp_nombre || 'Alumno';
+      const curso = data.curso || data.datosAcademicos?.curso || 'Curso de Preparación UNAM';
+      const turno = data.turno || data.datosAcademicos?.modalidad || 'Matutino / En Línea';
+
+      document.getElementById('userNameLabel').textContent = nombre;
+      document.getElementById('registeredCourseTitle').textContent = curso;
+      document.getElementById('registeredFolio').textContent = `Folio de inscripción: ${docId || 'DOC-2026-001'}`;
+      document.getElementById('registeredTurno').textContent = `Turno: ${turno}`;
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userSnap = await getDoc(doc(db, "users", user.uid));
+        if (userSnap.exists()) {
+          actualizarInterfaz(userSnap.data(), user.uid);
+        } else {
+          cargarDeAspirantes();
+        }
+      } else {
+        const localSession = localStorage.getItem('studentSession');
+        if (localSession) {
+          actualizarInterfaz(JSON.parse(localSession));
+        } else {
+          cargarDeAspirantes();
+        }
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+
+    async function cargarDeAspirantes() {
+      const q = query(collection(db, "aspirantes_admision"), orderBy("fechaRegistro", "desc"), limit(1));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const snap = querySnapshot.docs[0];
+        actualizarInterfaz(snap.data(), snap.id);
+      }
+    }
+  </script>
+</body>
+</html>

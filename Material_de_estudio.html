@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel del Alumno</title>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --bg-primary: #f8fafc;
+      --bg-card: #ffffff;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #e2e8f0;
+      --footer-bg: #0f172a;
+      --footer-text: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* --- MENÚ / NAVBAR --- */
+    .navbar {
+      background-color: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.current {
+      color: var(--accent);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: background-color 0.2s;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    .btn-outline:hover {
+      background-color: var(--border);
+    }
+
+    /* Foto y Perfil Alumno (convertido en botón/enlace) */
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-left: 10px;
+      border-left: 1px solid var(--border);
+      text-decoration: none;
+      cursor: pointer;
+      border-radius: 8px;
+      padding: 4px 8px;
+      transition: background-color 0.2s;
+    }
+
+    .user-profile:hover {
+      background-color: rgba(37, 99, 235, 0.08);
+    }
+
+    .avatar-wrapper {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #e0e7ff;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 2px solid var(--accent);
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .user-role {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    /* --- MAIN CONTENT --- */
+    .dashboard-container {
+      max-width: 1200px;
+      margin: 30px auto;
+      padding: 0 20px;
+      flex: 1;
+      width: 100%;
+    }
+
+    .welcome-header {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .welcome-text h1 {
+      font-size: 1.5rem;
+      margin-bottom: 6px;
+    }
+
+    .welcome-text p {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    /* --- SECCIÓN HORARIOS Y CALENDARIO SEMANAL --- */
+    .schedule-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 30px;
+    }
+
+    .schedule-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .schedule-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .schedule-title h2 {
+      font-size: 1.25rem;
+      color: var(--text-primary);
+    }
+
+    .calendar-wrapper {
+      position: relative;
+      width: 100%;
+      height: 0;
+      padding-bottom: 75%;
+      overflow: hidden;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background-color: #ffffff;
+    }
+
+    .calendar-wrapper iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* --- FOOTER --- */
+    footer {
+      background-color: var(--footer-bg);
+      color: var(--footer-text);
+      padding: 50px 20px 20px;
+      margin-top: auto;
+      font-size: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .footer-top {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+
+    .footer-brand .footer-logo img {
+      max-width: 160px;
+      height: auto;
+      margin-bottom: 16px;
+    }
+
+    .footer-brand p {
+      line-height: 1.6;
+      color: var(--footer-text);
+      font-size: 13.5px;
+    }
+
+    .footer-columns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 24px;
+    }
+
+    .footer-column h4 {
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+
+    .footer-column ul {
+      list-style: none;
+    }
+
+    .footer-column li {
+      margin-bottom: 10px;
+    }
+
+    .footer-column a {
+      color: var(--footer-text);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s ease;
+    }
+
+    .footer-column a:hover {
+      color: #ffffff;
+    }
+
+    .language-selector {
+      margin-top: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid #334155;
+      color: #ffffff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .language-selector:hover {
+      background-color: #1e293b;
+    }
+
+    .footer-bottom {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding-top: 24px;
+      border-top: 1px solid #334155;
+      text-align: center;
+      font-size: 12.5px;
+      line-height: 1.8;
+      color: var(--footer-text);
+    }
+
+    /* --- RESPONSIVE --- */
+    @media (min-width: 768px) {
+      .calendar-wrapper {
+        padding-bottom: 600px;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .footer-top {
+        grid-template-columns: 1fr;
+        gap: 30px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .menu-toggle { display: block; }
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: var(--bg-card);
+        flex-direction: column;
+        padding: 20px;
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      }
+      .nav-links.active { display: flex; }
+      .user-info { display: none; }
+
+      .footer-columns {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .footer-columns {
+        grid-template-columns: 1fr;
+      }
+      .schedule-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .btn-download {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+
+    /* Ocultar elementos secundarios al imprimir */
+    @media print {
+      .navbar, footer, .welcome-header, .schedule-header {
+        display: none !important;
+      }
+      .dashboard-container {
+        margin: 0;
+        padding: 0;
+      }
+      .calendar-wrapper {
+        height: 100vh;
+        padding-bottom: 0;
+        border: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="brand">
+        <i data-lucide="graduation-cap"></i>
+        <span>Portal <br>Académico</span>
+      </a>
+
+      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">
+        <i data-lucide="menu"></i>
+      </button>
+
+      <ul class="nav-links" id="navLinks">
+        <li><a href="panel_estudiante.html">Mi panel</a></li>
+        <li><a href="mis-cursos.html">Mis Cursos</a></li>
+        <li><a href="Material_de_estudio.html">Material de Estudio</a></li  >
+        <li><a href="https://www.bidi.unam.mx/">Libreria</a></li>      
+      </ul> 
+
+      <div class="nav-actions">
+        <!-- Foto / Perfil Alumno (Enlace a perfil.html) -->
+        <a href="perfil.html" class="user-profile" title="Ir a mi perfil">
+          <div class="avatar-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="user-info">
+            <span class="user-name" id="userNameLabel">Alumno</span>
+            <span class="user-role">Estudiante</span>
+          </div>
+        </a>
+
+        <!-- Botón Entrar a Clase -->
+        <a href="https://us05web.zoom.us/j/3748692842?pwd=w3a0SbHHfhjyhOa3kc7uJWQ19B9EQd.1" target="_blank" class="btn btn-primary" id="btnIngresarClase">
+          <i data-lucide="video"></i>
+          <span>Entrar a clase</span>
+        </a>
+
+        <!-- Botón Cerrar Sesión -->
+        <button class="btn btn-outline" id="btnCerrarSesion">
+          <i data-lucide="log-out"></i>
+          <span>Cerrar sesión</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="dashboard-container">
+    <section class="welcome-header">
+      <div class="welcome-text">
+        <h1 id="welcomeTitle">¡Bienvenido a tu panel de alumno! 👋</h1>
+        <p>Presiona el botón "Entrar a clase" en el menú para conectarte a tu clase en vivo.</p>
+      </div>
+    </section>
+
+    <!-- APARTADO DE HORARIOS (VISTA SEMANAL ÚNICA) -->
+    <div id="panelContent">
+      <section id="horarios" class="schedule-card">
+        <div class="schedule-header">
+          <div class="schedule-title">
+            <i data-lucide="calendar" style="color: var(--accent);"></i>
+            <h2>Horario Semanal de Clases</h2>
+          </div>
+          <button class="btn btn-outline btn-download" id="btnDownloadPDF">
+            <i data-lucide="download"></i>
+            <span>Descargar PDF</span>
+          </button>
+        </div>
+
+        <!-- Iframe Google Calendar configurado exclusivamente en MODO SEMANAL -->
+        <div class="calendar-wrapper">
+          <iframe 
+            src="https://calendar.google.com/calendar/embed?mode=WEEK&showNav=0&showDate=1&showPrint=0&showTabs=0&showCalendars=0&showTz=0&src=classroom101698178766648638093%40group.calendar.google.com&ctz=America%2FMexico_City" 
+            style="border: 0" 
+            width="800" 
+            height="600" 
+            frameborder="0" 
+            scrolling="no">
+          </iframe>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- FOOTER SINCRO INDEX -->
+  <footer>
+    <div class="container footer-top">
+      <div class="footer-brand">
+        <div class="logo footer-logo">
+          <img src="logob.png" alt="Logo Docére" />
+        </div>
+        <p>Asesoría académica, cursos y apoyo para aspirantes y estudiantes en México.</p>
+      </div>
+
+      <div class="footer-columns">
+        <div class="footer-column">
+          <h4>NOSOTROS</h4>
+          <ul>
+            <li><a href="#nosotros">Nuestra empresa</a></li>
+            <li><a href="#nosotros">Historia</a></li>
+            <li><a href="#nosotros">Nuestra misión</a></li>
+            <li><a href="trabaja-con-nosotros.html">Trabaja con nosotros</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>SERVICIO AL CLIENTE</h4>
+          <ul>
+            <li><a href="index.html#contacto">Contáctanos</a></li>
+            <li><a href="#faq">Preguntas frecuentes</a></li>
+            <li><a href="mailto:cursosdocerecontacto@gmail.com">Correo electrónico</a></li>
+            <li><a href="index.html#contacto">Formas de pago</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>CURSOS ADMISIÓN</h4>
+          <ul>
+            <li><a href="admisionUNAM.html">Admisión UNAM</a></li>
+            <li><a href="admisionIPN.html">Admisión IPN</a></li>
+            <li><a href="admisionUAM.html">Admisión UAM</a></li>
+            <li><a href="admision.html">Todos los cursos de admisión</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>VÍNCULOS</h4>
+          <ul>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">Escritorio de ejercicios</a></li>
+            <li><a href="#">Iniciar sesión</a></li>
+            <li><a href="#">Sistema de Monitoreo para Padres (SIMOP)</a></li>
+          </ul>
+        </div>
+        <div class="footer-column footer-right">
+          <h4>YOUTUBE</h4>
+          <ul>
+            <li><a href="#">Ciencia a tu alcance</a></li>
+            <li><a href="#">Cursos docere</a></li>
+          </ul>
+          <button class="language-selector">
+            ES <i data-lucide="chevron-down"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>Los héroes Tecámac, Edo. México Los héroes Tecámac II, 55764 Ciudad de México, Méx.</p>
+      <p>Atención a clientes y registro. 5614592265</p>
+      <p>Docére ® copyright</p>
+    </div>
+  </footer>
+
+  <!-- JAVASCRIPT -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. Cargar datos del alumno en la sesión
+      const sessionRaw = localStorage.getItem('studentSession');
+      if (sessionRaw) {
+        try {
+          const session = JSON.parse(sessionRaw);
+          if (session && session.nombre) {
+            const userNameLabel = document.getElementById('userNameLabel');
+            const welcomeTitle = document.getElementById('welcomeTitle');
+
+            if (userNameLabel) userNameLabel.textContent = session.nombre;
+            if (welcomeTitle) welcomeTitle.textContent = `¡Bienvenido, ${session.nombre}! 👋`;
+          }
+        } catch (e) {
+          console.error("Error al parsear la sesión:", e);
+        }
+      }
+
+      // 2. Inicializar Lucide Icons
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+
+      // 3. Menú Responsive
+      const menuToggleBtn = document.getElementById('menuToggle');
+      const navLinks = document.getElementById('navLinks');
+
+      if (menuToggleBtn && navLinks) {
+        menuToggleBtn.addEventListener('click', () => {
+          navLinks.classList.toggle('active');
+        });
+      }
+
+      // 4. Cerrar Sesión
+      const btnCerrarSesion = document.getElementById('btnCerrarSesion');
+      if (btnCerrarSesion) {
+        btnCerrarSesion.addEventListener('click', () => {
+          if (confirm('¿Deseas cerrar sesión?')) {
+            localStorage.removeItem('studentSession');
+            window.location.href = 'index.html';
+          }
+        });
+      }
+
+      // 5. Descarga e Impresión a PDF Directa
+      const btnDownloadPDF = document.getElementById('btnDownloadPDF');
+      if (btnDownloadPDF) {
+        btnDownloadPDF.addEventListener('click', () => {
+          const calendarUrl = "https://calendar.google.com/calendar/u/0/r/week";
+          window.open(calendarUrl, '_blank');
+        });
+      }
+    });
+  </script>
+</body>
+</html>
