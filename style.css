@@ -432,7 +432,7 @@ body.dark-mode .brand-name {
 }
 
 .carousel-slide {
-  width: 100%;
+  flex: 0 0 25%;
   min-height: 360px;
   display: flex;
   align-items: center;

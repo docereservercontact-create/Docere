@@ -315,7 +315,54 @@ document.addEventListener('DOMContentLoaded', () => {
   const blogEntries = document.getElementById('blogEntries');
   if (blogEntries) cargarEntradasBlog(blogEntries);
 
-  // 3. Menú Responsive (Móvil)
+  // 3. Carrusel principal
+  const carouselTrack = document.getElementById('carouselTrack');
+  const carouselContainer = document.querySelector('.carousel-container');
+  const carouselDots = document.querySelectorAll('.carousel-dots .dot');
+
+  if (carouselTrack && carouselContainer && carouselDots.length) {
+    let currentSlide = 0;
+    let carouselTimer;
+
+    const showSlide = (slideIndex) => {
+      currentSlide = (slideIndex + carouselDots.length) % carouselDots.length;
+      carouselTrack.style.transform = `translateX(-${currentSlide * 25}%)`;
+
+      carouselDots.forEach((dot, index) => {
+        dot.classList.toggle('active', index === currentSlide);
+        dot.setAttribute('aria-current', index === currentSlide ? 'true' : 'false');
+      });
+    };
+
+    const startCarousel = () => {
+      clearInterval(carouselTimer);
+      carouselTimer = setInterval(() => showSlide(currentSlide + 1), 3000);
+    };
+
+    carouselDots.forEach((dot, index) => {
+      dot.setAttribute('role', 'button');
+      dot.setAttribute('tabindex', '0');
+      dot.setAttribute('aria-label', `Mostrar diapositiva ${index + 1}`);
+      dot.addEventListener('click', () => {
+        showSlide(index);
+        startCarousel();
+      });
+      dot.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          showSlide(index);
+          startCarousel();
+        }
+      });
+    });
+
+    carouselContainer.addEventListener('mouseenter', () => clearInterval(carouselTimer));
+    carouselContainer.addEventListener('mouseleave', startCarousel);
+    showSlide(0);
+    startCarousel();
+  }
+
+  // 4. Menú Responsive (Móvil)
   const menuToggleBtn = document.getElementById('menuToggle');
   const navLinks = document.getElementById('navLinks');
 
