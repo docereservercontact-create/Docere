@@ -253,6 +253,40 @@
       height: 100%;
     }
 
+    .goodnotes-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 30px;
+    }
+
+    .goodnotes-frame {
+      position: relative;
+      width: 100%;
+      height: 0;
+      padding-bottom: 67%;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+    }
+
+    .goodnotes-frame iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #ffffff;
+    }
+
+    .goodnotes-note {
+      margin-top: 12px;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
     /* --- FOOTER --- */
     footer {
       background-color: var(--footer-bg);
@@ -475,6 +509,30 @@
         <h1 id="welcomeTitle">¡Bienvenido a tu panel de alumno! 👋</h1>
         <p>Presiona el botón "Entrar a clase" en el menú para conectarte a tu clase en vivo.</p>
       </div>
+    </section>
+
+    <section class="goodnotes-card">
+      <div class="schedule-header">
+        <div class="schedule-title">
+          <i data-lucide="book-open-text" style="color: var(--accent);"></i>
+          <h2>Apuntes digitales</h2>
+        </div>
+        <a href="https://web.goodnotes.com/s/WdLVostvH867Nq2f8Sq7Rs" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+          <i data-lucide="external-link"></i>
+          <span>Abrir en GoodNotes</span>
+        </a>
+      </div>
+
+      <div class="goodnotes-frame">
+        <iframe
+          src="https://web.goodnotes.com/s/WdLVostvH867Nq2f8Sq7Rs"
+          title="Apuntes de GoodNotes"
+          loading="lazy"
+          allow="fullscreen">
+        </iframe>
+      </div>
+
+      <p class="goodnotes-note">Si la vista embebida no se carga, puedes abrir el contenido directamente en GoodNotes con el botón de arriba.</p>
     </section>
 
     <!-- APARTADO DE HORARIOS (VISTA SEMANAL ÚNICA) -->
