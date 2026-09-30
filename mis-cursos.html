@@ -248,31 +248,55 @@
 </head>
 <body>
 
-  <!-- NAVBAR -->
-  <nav class="navbar">
+<nav class="navbar">
     <div class="nav-container">
-      <a href="panel_estudiante.html" class="brand">
+      <a href="index.html" class="brand">
         <i data-lucide="graduation-cap"></i>
-        <span>Portal Académico</span>
+        <span>Portal <br>Académico</span>
       </a>
+
+      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">
+        <i data-lucide="menu"></i>
+      </button>
 
       <ul class="nav-links" id="navLinks">
         <li><a href="panel_estudiante.html">Mi panel</a></li>
         <li><a href="mis-cursos.html">Mis Cursos</a></li>
-        <li><a href="mis-cursos.html">Apuntes</a></li>
-        <li><a href="https://www.bidi.unam.mx/" target="_blank">Material de Estudio</a></li>
-        <li><a href="https://www.bidi.unam.mx/" target="_blank">Libreria</a></li>
-
+        <li><a href="Material_de_estudio.html">Apuntes</a></li>
+        <li><a href="Material_de_estudio.html" target="_blank">Material de Estudio</a></li>
+        <li><a href="https://www.bidi.unam.mx/" target="_blank">Libreria</a></li>      
       </ul>
 
-      <!-- AL HACER CLIC EN EL NOMBRE/PILL NOS LLEVA A PERFIL.HTML -->
-      <a href="perfil.html" class="user-pill">
-        <i data-lucide="user" style="width: 16px; height: 16px;"></i>
-        <span id="userNameLabel">Cargando...</span>
-      </a>
+      <div class="nav-actions">
+        <!-- Foto / Perfil Alumno (Enlace a perfil.html) -->
+        <a href="perfil.html" class="user-profile" title="Ir a mi perfil">
+          <div class="avatar-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="user-info">
+            <span class="user-name" id="userNameLabel">Alumno</span>
+            <span class="user-role">Estudiante</span>
+          </div>
+        </a>
+
+        <!-- Botón Entrar a Clase --> 
+        <a href="https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1" target="_blank" class="btn btn-primary" id="btnIngresarClase">
+          <i data-lucide="video"></i>
+          <span>Entrar a clase</span>
+        </a>
+
+        <!-- Botón Cerrar Sesión -->
+        <button class="btn btn-outline" id="btnCerrarSesion">
+          <i data-lucide="log-out"></i>
+          <span>Cerrar sesión</span>
+        </button>
+      </div>
     </div>
   </nav>
-
+  
   <!-- CONTENIDO PRINCIPAL -->
   <main class="courses-container">
 
