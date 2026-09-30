@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Registro de Aspirante - Curso Ingreso</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     .form-container{max-width:900px;margin:24px auto;padding:20px;background:#fff;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
     fieldset{border:1px solid #ddd;padding:16px;margin-bottom:16px}
@@ -25,7 +26,66 @@
     .btn:disabled{opacity:0.6;cursor:not-allowed}
   </style>
 </head>
+
 <body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="logo">
+        <img src="logon.png" alt="DOCÉRE" class="brand-logo">
+      </a>
+      <div class="nav-actions">
+        <div class="search-box-nav">
+          <i data-lucide="search"></i>
+          <input type="text" placeholder="">
+        </div>
+        <a href="https://wa.me/5215614592265?text=Hola,%20quisiera%20recibir%20mas%20informacion" target="_blank" class="btn btn-emerald">
+          <i data-lucide="message-circle"></i> WhatsApp
+        </a>
+        <a href="login.html" class="btn btn-login">
+          <i data-lucide="log-in"></i> Log in
+        </a>
+        <button id="menuToggle" class="icon-btn mobile-only" aria-label="Menú" aria-expanded="false">
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <nav class="secondary-navbar">
+    <div class="container">
+      <ul class="nav-links secondary-nav-links" id="navLinks">
+        <li class="nav-dropdown">
+          <a href="index.html#servicios">Servicios <i data-lucide="chevron-down"></i></a>
+          <ul class="dropdown-menu">
+            <li><a href="index.html#servicios">Nuestros servicios</a></li>
+            <li><a href="tareas-express.html">Tareas Express</a></li>
+          </ul>
+        </li>
+        <li class="nav-dropdown">
+          <a href="index.html#servicios">Cursos <i data-lucide="chevron-down"></i></a>
+          <ul class="dropdown-menu">
+            <li><a href="index.html#servicios">Regularización</a></li>
+            <li class="nav-dropdown-sub">
+              <a href="admision.html">Admisión <i data-lucide="chevron-right"></i></a>
+              <ul class="dropdown-submenu">
+                <li><a href="admisionUNAM.html">UNAM</a></li>
+                <li><a href="admisionIPN.html">IPN</a></li>
+                <li><a href="admisionUAM.html">UAM</a></li>
+              </ul>
+            </li>
+            <li><a href="index.html#fechas">Próximos cursos</a></li>
+            <li><a href="RegistroCursos.html">Cursos de tecnología y programación</a></li>
+          </ul>
+        </li>
+        <li><a href="index.html#blog">Blog</a></li>
+        <li><a href="index.html#fechas">Próximos Cursos</a></li>
+        <li><a href="index.html#faq">Preguntas</a></li>
+        <li><a href="index.html#contacto">Contacto</a></li>
+        <li class="mobile-login-link"><a href="login.html"><i data-lucide="log-in"></i> Log in</a></li>
+      </ul>
+    </div>
+  </nav>
+
   <main class="form-container">
     <h1>Registro de Aspirante — Curso Ingreso UNAM 2027</h1>
     <p style="font-size:0.9rem;color:#555;margin-bottom:8px">Complete los campos requeridos marcados con *.</p>
@@ -343,5 +403,6 @@
       }
     });
   </script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
