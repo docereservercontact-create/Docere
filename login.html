@@ -298,6 +298,7 @@
             coleccion: estudiante.coleccion
           };
           localStorage.setItem("studentSession", JSON.stringify(sessionData));
+          localStorage.setItem("studentSessionLastActivity", String(Date.now()));
 
           showMessage("¡Acceso correcto! Redirigiendo...");
 

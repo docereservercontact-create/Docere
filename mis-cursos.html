@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mis Cursos - Portal Académico</title>
+  <script src="student-session.js"></script>
   
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -424,7 +425,7 @@
           <h3>Español</h3>
           <p>Unidad 1: Lenguaje y Comunicación</p>
         </div>
-        <a class="btn btn-primary" href="https://google.com" target="_blank" rel="noopener noreferrer">
+        <a class="btn btn-primary" href="https://globalsite.my.canva.site/unidad-1-lengua-y-comunicaci-n" target="_blank" rel="noopener noreferrer">
           <i data-lucide="external-link"></i>
           <span>Consultar apunte</span>
         </a>
@@ -471,7 +472,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, collection, query, where, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -502,6 +503,7 @@
         console.error('Error al cerrar sesión:', error);
       }
       localStorage.removeItem('studentSession');
+      localStorage.removeItem('studentSessionLastActivity');
       window.location.href = 'index.html';
     });
 
@@ -517,30 +519,43 @@
     }
 
     onAuthStateChanged(auth, async (user) => {
+      const sessionRaw = localStorage.getItem('studentSession');
+      if (!sessionRaw) {
+        window.location.replace('login.html');
+        return;
+      }
+
+      let studentSession;
+      try {
+        studentSession = JSON.parse(sessionRaw);
+      } catch {
+        window.location.replace('login.html');
+        return;
+      }
+
       if (user) {
         const userSnap = await getDoc(doc(db, "users", user.uid));
         if (userSnap.exists()) {
           actualizarInterfaz(userSnap.data(), user.uid);
         } else {
-          cargarDeAspirantes();
+          await cargarDeAspirantes(user.email || studentSession.email);
         }
       } else {
-        const localSession = localStorage.getItem('studentSession');
-        if (localSession) {
-          actualizarInterfaz(JSON.parse(localSession));
-        } else {
-          cargarDeAspirantes();
-        }
+        await cargarDeAspirantes(studentSession.email);
       }
       if (typeof lucide !== 'undefined') lucide.createIcons();
     });
 
-    async function cargarDeAspirantes() {
-      const q = query(collection(db, "aspirantes_admision"), orderBy("fechaRegistro", "desc"), limit(1));
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-        const snap = querySnapshot.docs[0];
-        actualizarInterfaz(snap.data(), snap.id);
+    async function cargarDeAspirantes(email) {
+      if (!email) return;
+      for (const collectionName of ["aspirantes_admision", "Cursos"]) {
+        const q = query(collection(db, collectionName), where("email", "==", email), limit(1));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const snap = querySnapshot.docs[0];
+          actualizarInterfaz(snap.data(), snap.id);
+          return;
+        }
       }
     }
   </script>
