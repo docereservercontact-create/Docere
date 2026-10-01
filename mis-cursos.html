@@ -82,6 +82,65 @@
       font-weight: 600;
     }
 
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 8px;
+      border-left: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .user-profile:hover {
+      background-color: rgba(37, 99, 235, 0.08);
+    }
+
+    .avatar-wrapper {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #e0e7ff;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 2px solid var(--accent);
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .user-role {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
     .user-pill {
       display: flex;
       align-items: center;
@@ -244,6 +303,24 @@
         flex-direction: column;
       }
     }
+
+    @media (max-width: 768px) {
+      .menu-toggle { display: block; }
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: var(--bg-card);
+        flex-direction: column;
+        padding: 20px;
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      }
+      .nav-links.active { display: flex; }
+      .user-info { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -261,7 +338,7 @@
 
       <ul class="nav-links" id="navLinks">
         <li><a href="panel_estudiante.html">Mi panel</a></li>
-        <li><a href="mis-cursos.html">Mis Cursos</a></li>
+        <li><a href="mis-cursos.html" class="active" aria-current="page">Mis Cursos</a></li>
         <li><a href="Material_de_estudio.html">Apuntes</a></li>
         <li><a href="Material_de_estudio.html" target="_blank">Material de Estudio</a></li>
         <li><a href="https://www.bidi.unam.mx/" target="_blank">Libreria</a></li>      
@@ -393,7 +470,7 @@
   <!-- SCRIPT CONECTADO CON EL JS GLOBAL / FIREBASE -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getFirestore, doc, getDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -409,6 +486,24 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+
+    const menuToggleBtn = document.getElementById('menuToggle');
+    const navLinks = document.getElementById('navLinks');
+    menuToggleBtn.addEventListener('click', () => {
+      const isOpen = navLinks.classList.toggle('active');
+      menuToggleBtn.setAttribute('aria-expanded', String(isOpen));
+    });
+
+    document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
+      if (!confirm('¿Deseas cerrar sesión?')) return;
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error('Error al cerrar sesión:', error);
+      }
+      localStorage.removeItem('studentSession');
+      window.location.href = 'index.html';
+    });
 
     function actualizarInterfaz(data, docId) {
       const nombre = data.nombre || data.asp_nombre || 'Alumno';
