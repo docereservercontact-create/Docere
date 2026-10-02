@@ -263,6 +263,10 @@
       justify-content: space-between;
     }
 
+    .subject-card[hidden] {
+      display: none;
+    }
+
     .subject-info h3 {
       font-size: 1.1rem;
       margin-bottom: 6px;
@@ -420,7 +424,7 @@
     <h2 style="font-size: 1.2rem; margin-bottom: 16px;">Pizarrón Digital</h2>
     <div class="subjects-grid">
       
-      <div class="subject-card">
+      <div class="subject-card" id="modulo-espanol" hidden>
         <div class="subject-info">
           <h3>Español</h3>
           <p>Unidad 1: Lenguaje y Comunicación</p>
@@ -531,6 +535,21 @@
       } catch {
         window.location.replace('login.html');
         return;
+      }
+
+      const moduloEspanol = document.getElementById('modulo-espanol');
+      const applicantEmail = user?.email || studentSession.email;
+      try {
+        const applicantQuery = query(
+          collection(db, 'aspirantes_admision'),
+          where('email', '==', applicantEmail),
+          limit(1)
+        );
+        const applicantRecords = await getDocs(applicantQuery);
+        moduloEspanol.hidden = applicantRecords.empty;
+      } catch (error) {
+        moduloEspanol.hidden = true;
+        console.error('No se pudo verificar el registro del aspirante:', error);
       }
 
       if (user) {
