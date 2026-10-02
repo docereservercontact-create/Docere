@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Registro de docentes para colaborar con Docére.">
+  <title>Registro de Profesorado | Docére</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .teacher-registration {
+      width: min(760px, calc(100% - 32px));
+      margin: 40px auto;
+      padding: 28px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(13, 27, 42, 0.08);
+    }
+
+    .teacher-registration h1 {
+      margin-bottom: 8px;
+      font-size: 1.8rem;
+    }
+
+    .teacher-registration > p {
+      margin-bottom: 24px;
+      color: var(--gray-sub);
+    }
+
+    .teacher-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .teacher-field { min-width: 0; }
+    .teacher-field.full { grid-column: 1 / -1; }
+
+    .teacher-field label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .teacher-field input,
+    .teacher-field select,
+    .teacher-field textarea {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--card-bg);
+      color: var(--text-color);
+      font: inherit;
+    }
+
+    .teacher-field textarea { min-height: 112px; resize: vertical; }
+
+    .teacher-field input:focus,
+    .teacher-field select:focus,
+    .teacher-field textarea:focus {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    .teacher-submit {
+      margin-top: 22px;
+      padding: 11px 18px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--primary);
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .teacher-submit:hover { background: var(--primary-hover); }
+    .teacher-submit:disabled { opacity: 0.65; cursor: wait; }
+
+    .teacher-result {
+      margin-top: 18px;
+      padding: 12px 14px;
+      border-radius: 6px;
+    }
+
+    .teacher-result.success { background: #e6ffed; border: 1px solid #b7f0c9; color: #14532d; }
+    .teacher-result.error { background: #ffe6e6; border: 1px solid #ffb3b3; color: #7f1d1d; }
+
+    @media (max-width: 560px) {
+      .teacher-registration { margin: 20px auto; padding: 20px 16px; }
+      .teacher-registration h1 { font-size: 1.5rem; }
+      .teacher-grid { grid-template-columns: 1fr; gap: 14px; }
+      .teacher-field.full { grid-column: auto; }
+      .teacher-submit { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="teacher-registration">
+    <h1>Registro de Profesorado</h1>
+    <p>Comparte tu experiencia y las materias que puedes impartir. El equipo Docére se pondrá en contacto contigo.</p>
+
+    <form id="teacherForm">
+      <div class="teacher-grid">
+        <div class="teacher-field">
+          <label for="nombre">Nombre completo *</label>
+          <input id="nombre" name="nombre" autocomplete="name" required maxlength="120">
+        </div>
+        <div class="teacher-field">
+          <label for="email">Correo electrónico *</label>
+          <input id="email" name="email" type="email" autocomplete="email" required maxlength="254">
+        </div>
+        <div class="teacher-field">
+          <label for="telefono">Teléfono / WhatsApp *</label>
+          <input id="telefono" name="telefono" type="tel" autocomplete="tel" required pattern="[0-9()+\-\s]{7,20}" maxlength="20">
+        </div>
+        <div class="teacher-field">
+          <label for="especialidad">Área o materia que impartes *</label>
+          <input id="especialidad" name="especialidad" required maxlength="160" placeholder="Ej. Matemáticas, Física, Programación">
+        </div>
+        <div class="teacher-field">
+          <label for="formacion">Formación académica *</label>
+          <input id="formacion" name="formacion" required maxlength="180" placeholder="Carrera, grado o certificación">
+        </div>
+        <div class="teacher-field">
+          <label for="experiencia">Años de experiencia *</label>
+          <input id="experiencia" name="experiencia" type="number" min="0" max="60" step="1" required>
+        </div>
+        <div class="teacher-field">
+          <label for="modalidad">Modalidad preferida *</label>
+          <select id="modalidad" name="modalidad" required>
+            <option value="">Selecciona una opción</option>
+            <option value="Presencial">Presencial</option>
+            <option value="En línea">En línea</option>
+            <option value="Presencial y en línea">Presencial y en línea</option>
+          </select>
+        </div>
+        <div class="teacher-field">
+          <label for="disponibilidad">Disponibilidad *</label>
+          <input id="disponibilidad" name="disponibilidad" required maxlength="180" placeholder="Ej. Lunes a viernes por la tarde">
+        </div>
+        <div class="teacher-field full">
+          <label for="semblanza">Experiencia y presentación</label>
+          <textarea id="semblanza" name="semblanza" maxlength="1500" placeholder="Cuéntanos brevemente sobre tu experiencia docente."></textarea>
+        </div>
+      </div>
+
+      <button class="teacher-submit" id="submitTeacher" type="submit">Enviar registro</button>
+    </form>
+
+    <div class="teacher-result" id="teacherResult" role="status" aria-live="polite" hidden></div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
+      authDomain: "docere-931ec.firebaseapp.com",
+      projectId: "docere-931ec",
+      storageBucket: "docere-931ec.firebasestorage.app",
+      messagingSenderId: "1005663843239",
+      appId: "1:1005663843239:web:d8f6c7524a5d10bf797c82",
+      measurementId: "G-B6TDT4VE7S"
+    };
+
+    const db = getFirestore(initializeApp(firebaseConfig));
+    const form = document.getElementById('teacherForm');
+    const result = document.getElementById('teacherResult');
+    const submitButton = document.getElementById('submitTeacher');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+
+      submitButton.disabled = true;
+      submitButton.textContent = 'Enviando...';
+      result.hidden = true;
+
+      const formData = new FormData(form);
+      const teacherData = Object.fromEntries(
+        Array.from(formData.entries(), ([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+      );
+
+      try {
+        await addDoc(collection(db, 'Profesores'), {
+          ...teacherData,
+          experiencia: Number(teacherData.experiencia),
+          fechaRegistro: serverTimestamp(),
+          estado: 'pendiente'
+        });
+
+        result.className = 'teacher-result success';
+        result.textContent = 'Tu registro fue enviado correctamente. El equipo Docére se pondrá en contacto contigo.';
+        result.hidden = false;
+        form.reset();
+      } catch (error) {
+        console.error('Error al guardar el registro de profesorado:', error);
+        result.className = 'teacher-result error';
+        result.textContent = 'No se pudo enviar el registro. Inténtalo de nuevo más tarde.';
+        result.hidden = false;
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Enviar registro';
+      }
+    });
+  </script>
+</body>
+</html>
