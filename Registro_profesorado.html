@@ -57,6 +57,51 @@
 
     .teacher-field textarea { min-height: 112px; resize: vertical; }
 
+    .field-hint {
+      display: block;
+      margin-top: 5px;
+      color: var(--gray-sub);
+      font-size: 0.85rem;
+    }
+
+    .availability-grid { display: grid; gap: 8px; }
+
+    .availability-row {
+      display: grid;
+      grid-template-columns: minmax(110px, 1fr) repeat(2, minmax(120px, 1fr));
+      align-items: center;
+      gap: 12px;
+      padding: 8px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
+
+    .day-select {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      font-weight: 600;
+    }
+
+    .day-select input { width: 18px; min-height: 18px; }
+
+    .time-field {
+      display: grid !important;
+      gap: 4px;
+      margin: 0 !important;
+      color: var(--gray-sub);
+      font-size: 0.8rem;
+      font-weight: 500 !important;
+    }
+
+    .availability-row input[type="time"]:disabled {
+      background: var(--bg-color);
+      opacity: 0.6;
+    }
+
+    .schedule-label { display: block; margin-bottom: 4px; font-weight: 600; }
+
     .teacher-field input:focus,
     .teacher-field select:focus,
     .teacher-field textarea:focus {
@@ -94,6 +139,8 @@
       .teacher-grid { grid-template-columns: 1fr; gap: 14px; }
       .teacher-field.full { grid-column: auto; }
       .teacher-submit { width: 100%; }
+      .availability-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .day-select { grid-column: 1 / -1; }
     }
   </style>
 </head>
@@ -105,12 +152,25 @@
     <form id="teacherForm">
       <div class="teacher-grid">
         <div class="teacher-field">
-          <label for="nombre">Nombre completo *</label>
-          <input id="nombre" name="nombre" autocomplete="name" required maxlength="120">
+          <label for="nombre">Nombre(s) *</label>
+          <input id="nombre" name="nombre" autocomplete="given-name" required maxlength="80">
+        </div>
+        <div class="teacher-field">
+          <label for="apellidoPaterno">Apellido paterno *</label>
+          <input id="apellidoPaterno" name="apellidoPaterno" autocomplete="family-name" required maxlength="80">
+        </div>
+        <div class="teacher-field">
+          <label for="apellidoMaterno">Apellido materno</label>
+          <input id="apellidoMaterno" name="apellidoMaterno" maxlength="80">
         </div>
         <div class="teacher-field">
           <label for="email">Correo electrónico *</label>
           <input id="email" name="email" type="email" autocomplete="email" required maxlength="254">
+        </div>
+        <div class="teacher-field full">
+          <label for="password">Contraseña *</label>
+          <input id="password" name="password" type="password" autocomplete="new-password" required minlength="6" maxlength="8" pattern="(?=.*[^A-Za-z0-9]).{6,8}" aria-describedby="passwordHint">
+          <small class="field-hint" id="passwordHint">De 6 a 8 caracteres e incluye al menos un carácter especial, por ejemplo ! o #.</small>
         </div>
         <div class="teacher-field">
           <label for="telefono">Teléfono / WhatsApp *</label>
@@ -137,9 +197,46 @@
             <option value="Presencial y en línea">Presencial y en línea</option>
           </select>
         </div>
-        <div class="teacher-field">
-          <label for="disponibilidad">Disponibilidad *</label>
-          <input id="disponibilidad" name="disponibilidad" required maxlength="180" placeholder="Ej. Lunes a viernes por la tarde">
+        <div class="teacher-field full">
+          <span class="schedule-label">Disponibilidad por día y horario *</span>
+          <small class="field-hint">Selecciona los días y define la hora de inicio y fin para cada uno.</small>
+          <div class="availability-grid" id="availabilityGrid">
+            <div class="availability-row">
+              <label class="day-select"><input type="checkbox" data-day="Lunes"> Lunes</label>
+              <label class="time-field">Desde<input type="time" aria-label="Hora de inicio, lunes" data-start="Lunes" disabled></label>
+              <label class="time-field">Hasta<input type="time" aria-label="Hora de fin, lunes" data-end="Lunes" disabled></label>
+            </div>
+            <div class="availability-row">
+              <label class="day-select"><input type="checkbox" data-day="Martes"> Martes</label>
+              <label class="time-field">Desde<input type="time" aria-label="Hora de inicio, martes" data-start="Martes" disabled></label>
+              <label class="time-field">Hasta<input type="time" aria-label="Hora de fin, martes" data-end="Martes" disabled></label>
+            </div>
+            <div class="availability-row">
+              <label class="day-select"><input type="checkbox" data-day="Miércoles"> Miércoles</label>
+              <label class="time-field">Desde<input type="time" aria-label="Hora de inicio, miércoles" data-start="Miércoles" disabled></label>
+              <label class="time-field">Hasta<input type="time" aria-label="Hora de fin, miércoles" data-end="Miércoles" disabled></label>
+            </div>
+            <div class="availability-row">
+              <label class="day-select"><input type="checkbox" data-day="Jueves"> Jueves</label>
+              <label class="time-field">Desde<input type="time" aria-label="Hora de inicio, jueves" data-start="Jueves" disabled></label>
+              <label class="time-field">Hasta<input type="time" aria-label="Hora de fin, jueves" data-end="Jueves" disabled></label>
+            </div>
+            <div class="availability-row">
+              <label class="day-select"><input type="checkbox" data-day="Viernes"> Viernes</label>
+              <label class="time-field">Desde<input type="time" aria-label="Hora de inicio, viernes" data-start="Viernes" disabled></label>
+              <label class="time-field">Hasta<input type="time" aria-label="Hora de fin, viernes" data-end="Viernes" disabled></label>
+            </div>
+            <div class="availability-row">
+              <label class="day-select"><input type="checkbox" data-day="Sábado"> Sábado</label>
+              <label class="time-field">Desde<input type="time" aria-label="Hora de inicio, sábado" data-start="Sábado" disabled></label>
+              <label class="time-field">Hasta<input type="time" aria-label="Hora de fin, sábado" data-end="Sábado" disabled></label>
+            </div>
+            <div class="availability-row">
+              <label class="day-select"><input type="checkbox" data-day="Domingo"> Domingo</label>
+              <label class="time-field">Desde<input type="time" aria-label="Hora de inicio, domingo" data-start="Domingo" disabled></label>
+              <label class="time-field">Hasta<input type="time" aria-label="Hora de fin, domingo" data-end="Domingo" disabled></label>
+            </div>
+          </div>
         </div>
         <div class="teacher-field full">
           <label for="semblanza">Experiencia y presentación</label>
@@ -155,6 +252,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, deleteUser, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -167,40 +265,101 @@
       measurementId: "G-B6TDT4VE7S"
     };
 
-    const db = getFirestore(initializeApp(firebaseConfig));
+    const app = initializeApp(firebaseConfig, 'teacherRegistration');
+    const auth = getAuth(app);
+    const db = getFirestore(app);
     const form = document.getElementById('teacherForm');
     const result = document.getElementById('teacherResult');
     const submitButton = document.getElementById('submitTeacher');
 
+    document.querySelectorAll('[data-day]').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        const day = checkbox.dataset.day;
+        const start = document.querySelector(`[data-start="${day}"]`);
+        const end = document.querySelector(`[data-end="${day}"]`);
+        start.disabled = !checkbox.checked;
+        end.disabled = !checkbox.checked;
+        start.required = checkbox.checked;
+        end.required = checkbox.checked;
+        if (!checkbox.checked) {
+          start.value = '';
+          end.value = '';
+        }
+      });
+    });
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!form.reportValidity()) return;
+
+      const availability = Array.from(document.querySelectorAll('[data-day]:checked'), (checkbox) => {
+        const day = checkbox.dataset.day;
+        return {
+          dia: day,
+          desde: document.querySelector(`[data-start="${day}"]`).value,
+          hasta: document.querySelector(`[data-end="${day}"]`).value
+        };
+      });
+
+      if (!availability.length) {
+        result.className = 'teacher-result error';
+        result.textContent = 'Selecciona al menos un día e indica su horario.';
+        result.hidden = false;
+        return;
+      }
 
       submitButton.disabled = true;
       submitButton.textContent = 'Enviando...';
       result.hidden = true;
 
       const formData = new FormData(form);
-      const teacherData = Object.fromEntries(
+      const formValues = Object.fromEntries(
         Array.from(formData.entries(), ([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
       );
+      const { password, ...teacherData } = formValues;
+      let createdUser = null;
 
       try {
+        const credential = await createUserWithEmailAndPassword(auth, teacherData.email, password);
+        createdUser = credential.user;
         await addDoc(collection(db, 'Profesores'), {
           ...teacherData,
           experiencia: Number(teacherData.experiencia),
+          disponibilidad: availability,
+          authUid: createdUser.uid,
           fechaRegistro: serverTimestamp(),
           estado: 'pendiente'
         });
+
+        try {
+          await signOut(auth);
+        } catch (error) {
+          console.error('La cuenta fue creada, pero no se pudo cerrar su sesión temporal:', error);
+        }
 
         result.className = 'teacher-result success';
         result.textContent = 'Tu registro fue enviado correctamente. El equipo Docére se pondrá en contacto contigo.';
         result.hidden = false;
         form.reset();
+        document.querySelectorAll('[data-start], [data-end]').forEach((input) => {
+          input.disabled = true;
+          input.required = false;
+        });
       } catch (error) {
         console.error('Error al guardar el registro de profesorado:', error);
+        if (createdUser) {
+          try {
+            await deleteUser(createdUser);
+          } catch (deleteError) {
+            console.error('No se pudo limpiar la cuenta incompleta de Firebase Auth:', deleteError);
+          }
+        }
         result.className = 'teacher-result error';
-        result.textContent = 'No se pudo enviar el registro. Inténtalo de nuevo más tarde.';
+        result.textContent = error.code === 'auth/email-already-in-use'
+          ? 'Ya existe una cuenta con ese correo electrónico.'
+          : error.code === 'auth/weak-password'
+            ? 'La contraseña debe tener al menos 6 caracteres.'
+            : 'No se pudo enviar el registro. Verifica los datos e inténtalo de nuevo.';
         result.hidden = false;
       } finally {
         submitButton.disabled = false;
