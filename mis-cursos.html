@@ -337,14 +337,14 @@
         <span>Portal <br>Académico</span>
       </a>
 
-      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">
+      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú" aria-expanded="false">
         <i data-lucide="menu"></i>
       </button>
 
       <ul class="nav-links" id="navLinks">
         <li><a href="panel_estudiante.html">Mi panel</a></li>
-        <li><a href="mis-cursos.html" class="active" aria-current="page">Mis Cursos</a></li>
-        <li><a href="Material_de_estudio.html">Apuntes</a></li>
+        <li><a href="mis-cursos.html" class="current" aria-current="page">Mis Cursos</a></li>
+        <li><a href="Apuntes_admision.html">Apuntes</a></li>
         <li><a href="Material_de_estudio.html" target="_blank">Material de Estudio</a></li>
         <li><a href="https://www.bidi.unam.mx/" target="_blank">Libreria</a></li>      
       </ul>
@@ -420,58 +420,7 @@
       </div>
     </section>
 
-    <!-- Módulos / Materias del Curso -->
-    <h2 style="font-size: 1.2rem; margin-bottom: 16px;">Pizarrón Digital</h2>
-    <div class="subjects-grid">
-      
-      <div class="subject-card" id="modulo-espanol" hidden>
-        <div class="subject-info">
-          <h3>Español</h3>
-          <p>Unidad 1: Lenguaje y Comunicación</p>
-        </div>
-        <a class="btn btn-primary" href="https://globalsite.my.canva.site/unidad-1-lengua-y-comunicaci-n" target="_blank" rel="noopener noreferrer">
-          <i data-lucide="external-link"></i>
-          <span>Consultar apunte</span>
-        </a>
-      </div>
-<!--
-      <div class="subject-card">
-        <div class="subject-info">
-          <h3>Física General</h3>
-          <p>Mecánica, termodinámica, electromagnetismo y óptica.</p>
-        </div>
-        <button class="btn btn-primary">
-          <i data-lucide="play-circle"></i>
-          <span>Ver Clases</span>
-        </button>
-      </div>
-
-      <div class="subject-card">
-        <div class="subject-info">3 3 3
-          <h3>Química</h3>
-          <p>Estructura atómica, enlace químico y estequiometría.</p>
-        </div>
-        <button class="btn btn-primary">
-          <i data-lucide="play-circle"></i>
-          <span>Ver Clases</span>
-        </button>
-      </div>
-
-      <div class="subject-card">
-        <div class="subject-info">
-          <h3>Español y Literatura</h3>
-          <p>Comprensión lectora, gramática y análisis de textos.</p>
-        </div>
-        <button class="btn btn-primary">
-          <i data-lucide="play-circle"></i>
-          <span>Ver Clases</span>
-        </button>
-      </div>
-
-    </div>
-
   </main>
--->
   <!-- SCRIPT CONECTADO CON EL JS GLOBAL / FIREBASE -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -499,6 +448,9 @@
       menuToggleBtn.setAttribute('aria-expanded', String(isOpen));
     });
 
+    const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+    if (session?.nombre) document.getElementById('userNameLabel').textContent = session.nombre;
+
     document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
       if (!confirm('¿Deseas cerrar sesión?')) return;
       try {
@@ -515,8 +467,16 @@
       const nombre = data.nombre || data.asp_nombre || 'Alumno';
       const curso = data.curso || data.datosAcademicos?.curso || 'Curso de Preparación UNAM';
       const turno = data.turno || data.datosAcademicos?.turno || 'No asignado';
-      const inicio = data.inicio || data.fechaInicio || data.datosAcademicos?.inicio || 'No asignado';
       const modalidad = data.modalidad || data.datosAcademicos?.modalidad || 'No asignada';
+      const fechaRegistro = data.fechaRegistro;
+      const fecha = typeof fechaRegistro?.toDate === 'function'
+        ? fechaRegistro.toDate()
+        : fechaRegistro?.seconds
+          ? new Date(fechaRegistro.seconds * 1000)
+          : fechaRegistro ? new Date(fechaRegistro) : null;
+      const inicio = fecha && !Number.isNaN(fecha.getTime())
+        ? new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }).format(fecha)
+        : 'Fecha no disponible';
 
       document.getElementById('userNameLabel').textContent = nombre;
       document.getElementById('registeredCourseTitle').textContent = curso;
@@ -548,7 +508,6 @@
         return;
       }
 
-      const moduloEspanol = document.getElementById('modulo-espanol');
       const applicantEmail = user?.email || studentSession.email;
       let applicantFound = false;
       try {
@@ -558,7 +517,6 @@
           limit(1)
         );
         const applicantRecords = await getDocs(applicantQuery);
-        moduloEspanol.hidden = applicantRecords.empty;
         if (applicantRecords.empty) {
           actualizarAvance(0);
         } else {
@@ -568,7 +526,6 @@
           const defaultFields = {};
           if (!Object.prototype.hasOwnProperty.call(applicantData, 'avance')) defaultFields.avance = 0;
           if (!applicantData.turno) defaultFields.turno = applicantData.datosAcademicos?.turno || 'No asignado';
-          if (!applicantData.inicio) defaultFields.inicio = applicantData.fechaInicio || applicantData.datosAcademicos?.inicio || 'Ciclo 2026';
           if (!applicantData.modalidad) defaultFields.modalidad = applicantData.datosAcademicos?.modalidad || 'En Línea';
 
           if (Object.keys(defaultFields).length) {
@@ -583,7 +540,6 @@
           actualizarInterfaz({ ...applicantData, ...defaultFields }, applicantRecord.id);
         }
       } catch (error) {
-        moduloEspanol.hidden = true;
         actualizarAvance(0);
         console.error('No se pudo verificar el registro del aspirante:', error);
       }

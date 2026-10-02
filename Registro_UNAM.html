@@ -379,7 +379,6 @@
         await addDoc(collection(db, "aspirantes_admision"), {
           ...obj,
           turno: obj.turno || "No asignado",
-          inicio: "Ciclo 2026",
           modalidad: "En Línea",
           avance: 0,
           fechaRegistro: serverTimestamp()
