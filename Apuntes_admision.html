@@ -65,12 +65,16 @@
     .nav-links a {
       color: var(--text-secondary);
       font-size: 14px;
+      font-weight: 500;
       text-decoration: none;
       transition: color 0.2s;
     }
 
     .nav-links a:hover,
-    .nav-links a.current { color: var(--accent); }
+    .nav-links a.current {
+      color: var(--accent);
+      font-weight: 500;
+    }
 
     .nav-actions {
       display: flex;
@@ -213,10 +217,15 @@
     }
 
     @media (max-width: 520px) {
+      .nav-container { gap: 8px; padding: 10px 12px; }
+      .brand { font-size: 1rem; gap: 6px; }
+      .brand svg { width: 20px; }
+      .nav-actions { gap: 6px; }
+      .nav-actions .btn { padding: 9px 10px; }
+      .user-profile { padding: 4px; }
       main { width: min(100% - 28px, 1120px); margin-top: 26px; }
       h1 { font-size: 24px; }
       .subject-card { padding: 20px; }
-      .nav-actions { gap: 8px; }
       #btnIngresarClase span,
       #btnCerrarSesion span { display: none; }
     }

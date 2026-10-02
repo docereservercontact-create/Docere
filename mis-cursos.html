@@ -80,7 +80,10 @@
 
     .nav-links a.active {
       color: var(--accent);
-      font-weight: 600;
+    }
+
+    .nav-links a.current {
+      color: var(--accent);
     }
 
     .nav-actions {
@@ -311,6 +314,7 @@
 
     @media (max-width: 768px) {
       .menu-toggle { display: block; }
+      .nav-container { position: relative; }
       .nav-links {
         display: none;
         position: absolute;
@@ -325,6 +329,16 @@
       }
       .nav-links.active { display: flex; }
       .user-info { display: none; }
+    }
+
+    @media (max-width: 480px) {
+      .nav-container { gap: 8px; padding: 10px 12px; }
+      .brand { font-size: 1rem; gap: 6px; }
+      .brand svg { width: 20px; }
+      .nav-actions { gap: 6px; }
+      .nav-actions .btn { padding: 9px 10px; }
+      .nav-actions .btn span { display: none; }
+      .user-profile { padding: 4px; }
     }
   </style>
 </head>
