@@ -485,9 +485,8 @@
 
       teacherSelect.replaceChildren(new Option('Selecciona un profesor', ''));
       teachers.forEach(({ id, data }) => {
-        const uid = data.authUid || id;
         const label = `${displayStudentName(data)}${data.email ? ` · ${data.email}` : ''}`;
-        teacherSelect.add(new Option(label, uid));
+        teacherSelect.add(new Option(label, id));
       });
 
       studentSelect.replaceChildren(createStudentPicker(students));
@@ -590,11 +589,14 @@
           editTeacherSelect.add(new Option('Selecciona un profesor', ''));
           const teachers = cache.get('Profesores') || [];
           teachers.forEach(({ id: teacherId, data: teacherData }) => {
-            const teacherUid = teacherData.authUid || teacherId;
             const label = `${displayStudentName(teacherData)}${teacherData.email ? ` · ${teacherData.email}` : ''}`;
-            editTeacherSelect.add(new Option(label, teacherUid));
+            editTeacherSelect.add(new Option(label, teacherId));
           });
-          editTeacherSelect.value = data.profesorUid || '';
+          const assignedTeacher = teachers.find(({ id: teacherId, data: teacherData }) =>
+            teacherId === data.profesorDocId
+            || (data.profesorUid && [teacherData.authUid, teacherId, teacherData.email].includes(data.profesorUid))
+          );
+          editTeacherSelect.value = assignedTeacher?.id || '';
           teacherLabel.append(editTeacherSelect);
           const rosterHint = document.createElement('p');
           rosterHint.className = 'roster-message';
@@ -616,7 +618,7 @@
           editForm.append(editHeading, nameLabel, courseLabel, teacherLabel, rosterHint, studentPicker, actions, editMessage);
           editForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            const selectedTeacher = teachers.find(({ id: teacherId, data: teacherData }) => (teacherData.authUid || teacherId) === editTeacherSelect.value);
+            const selectedTeacher = teachers.find(({ id: teacherId }) => teacherId === editTeacherSelect.value);
             if (!selectedTeacher) {
               editMessage.textContent = 'Selecciona un profesor registrado.';
               return;
@@ -631,6 +633,7 @@
                 alumnos,
                 nombre: nameInput.value.trim(),
                 curso: courseInput.value.trim(),
+                profesorDocId: selectedTeacher.id,
                 profesorUid: selectedTeacher.data.authUid || selectedTeacher.id,
                 profesor: {
                   nombre: displayStudentName(selectedTeacher.data),
@@ -645,6 +648,7 @@
                   alumnos,
                   nombre: nameInput.value.trim(),
                   curso: courseInput.value.trim(),
+                  profesorDocId: selectedTeacher.id,
                   profesorUid: selectedTeacher.data.authUid || selectedTeacher.id,
                   profesor: {
                     nombre: displayStudentName(selectedTeacher.data),
@@ -739,7 +743,7 @@
       if (!classroomForm.reportValidity()) return;
 
       const selectedTeacher = teacherSelect.selectedOptions[0];
-      const teacher = (cache.get('Profesores') || []).find(({ id, data }) => (data.authUid || id) === selectedTeacher.value);
+      const teacher = (cache.get('Profesores') || []).find(({ id }) => id === selectedTeacher.value);
       const students = getSelectedStudents(studentSelect, getAssignableStudents());
 
       if (!teacher || students.length === 0) {
@@ -753,6 +757,7 @@
         const aulaData = {
           nombre: classroomForm.elements.nombre.value.trim(),
           curso: classroomForm.elements.curso.value.trim(),
+          profesorDocId: teacher.id,
           profesorUid: teacher.data.authUid || teacher.id,
           profesor: {
             nombre: displayStudentName(teacher.data),

@@ -295,10 +295,20 @@
             return;
           }
 
-          const teacherIds = [...new Set([session.uid, session.teacherDocId, session.email].filter(Boolean))];
-          const aulaQuery = query(collection(db, 'Aulas'), where('profesorUid', 'in', teacherIds));
-          const aulaSnapshot = await getDocs(aulaQuery);
-          const aulas = aulaSnapshot.docs.map((document) => ({ id: document.id, ...document.data() }));
+          const legacyTeacherIds = [...new Set([session.uid, session.teacherDocId, session.email].filter(Boolean))];
+          const aulaSnapshots = await Promise.all([
+            getDocs(query(collection(db, 'Aulas'), where('profesorDocId', '==', session.teacherDocId))),
+            ...legacyTeacherIds.map((teacherId) =>
+              getDocs(query(collection(db, 'Aulas'), where('profesorUid', '==', teacherId)))
+            )
+          ]);
+          const aulasById = new Map();
+          aulaSnapshots.forEach((snapshot) => {
+            snapshot.docs.forEach((document) => {
+              aulasById.set(document.id, { id: document.id, ...document.data() });
+            });
+          });
+          const aulas = Array.from(aulasById.values());
           status.textContent = aulas.length
             ? `${aulas.length} aulas asignadas`
             : 'No se encontraron aulas para este profesor. Verifica la asignación desde el panel administrativo.';
