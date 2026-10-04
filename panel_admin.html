@@ -160,6 +160,9 @@
     .roster-actions .delete-classroom { background: var(--red); }
     .roster-actions button:disabled { opacity: 0.6; cursor: wait; }
     .roster-message { min-height: 18px; margin: 0; color: var(--muted); font-size: 13px; }
+    .record-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .record-actions button { min-height: 38px; padding: 0 13px; border: 0; border-radius: 5px; background: var(--red); color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
+    .record-actions button:disabled { opacity: 0.6; cursor: wait; }
     .classroom-form button {
       display: inline-flex;
       min-height: 40px;
@@ -318,7 +321,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -519,6 +522,7 @@
       }
 
       visibleRecords.forEach(({ id, data }) => {
+        const recordCollection = activeCollection;
         const details = document.createElement('details');
         details.className = 'record';
         const summary = document.createElement('summary');
@@ -561,6 +565,90 @@
         idItem.append(idLabel, idValue);
         grid.append(idItem);
         detailContainer.append(grid);
+        if (['Profesores', 'aspirantes_admision', 'Cursos'].includes(recordCollection)) {
+          const actions = document.createElement('div');
+          actions.className = 'record-actions';
+          const deleteRecordButton = document.createElement('button');
+          deleteRecordButton.type = 'button';
+          deleteRecordButton.textContent = recordCollection === 'Profesores' ? 'Eliminar profesor' : 'Eliminar alumno';
+          const deleteMessage = document.createElement('p');
+          deleteMessage.className = 'roster-message';
+          deleteMessage.setAttribute('role', 'status');
+          actions.append(deleteRecordButton);
+          detailContainer.append(actions, deleteMessage);
+          deleteRecordButton.addEventListener('click', async () => {
+            const recordName = displayStudentName(data);
+            const isTeacher = recordCollection === 'Profesores';
+            const confirmation = isTeacher
+              ? `¿Eliminar el registro del profesor "${recordName}"? Se quitará su asignación de las aulas, pero no se eliminará una cuenta independiente de Firebase Authentication.`
+              : `¿Eliminar el registro del alumno "${recordName}"? Se quitará de las aulas; el historial de asistencia se conservará.`;
+            if (!window.confirm(confirmation)) return;
+
+            deleteRecordButton.disabled = true;
+            deleteRecordButton.textContent = 'Eliminando...';
+            deleteMessage.textContent = '';
+            try {
+              const aulasSnapshot = await getDocs(collection(db, 'Aulas'));
+              const batch = writeBatch(db);
+              const updatedClassrooms = [];
+              let operationCount = 1;
+
+              aulasSnapshot.docs.forEach((aulaDoc) => {
+                const aula = aulaDoc.data();
+                if (isTeacher) {
+                  const matchesTeacher = aula.profesorDocId === id
+                    || [data.authUid, id, data.email].filter(Boolean).includes(aula.profesorUid);
+                  if (!matchesTeacher) return;
+
+                  const update = {
+                    profesorDocId: '',
+                    profesorUid: '',
+                    profesor: { nombre: 'Sin asignar', email: '' },
+                    actualizadoEn: serverTimestamp()
+                  };
+                  batch.update(aulaDoc.ref, update);
+                  updatedClassrooms.push({ id: aulaDoc.id, update });
+                  operationCount += 1;
+                  return;
+                }
+
+                const currentStudents = Array.isArray(aula.alumnos) ? aula.alumnos : [];
+                const alumnos = currentStudents.filter((student) =>
+                  !(student.id === id && student.coleccion === recordCollection)
+                );
+                if (alumnos.length === currentStudents.length) return;
+
+                const update = { alumnos, actualizadoEn: serverTimestamp() };
+                batch.update(aulaDoc.ref, update);
+                updatedClassrooms.push({ id: aulaDoc.id, update });
+                operationCount += 1;
+              });
+
+              if (operationCount > 500) {
+                throw new Error('La operación excede el límite de escrituras por lote de Firestore.');
+              }
+              batch.delete(doc(db, recordCollection, id));
+              await batch.commit();
+
+              cache.set(recordCollection, (cache.get(recordCollection) || []).filter((record) => record.id !== id));
+              document.getElementById(collections[recordCollection].countId).textContent = String(cache.get(recordCollection).length);
+              const classroomCache = cache.get('Aulas') || [];
+              updatedClassrooms.forEach(({ id: aulaId, update }) => {
+                const aulaRecord = classroomCache.find((record) => record.id === aulaId);
+                if (aulaRecord) Object.assign(aulaRecord.data, update);
+              });
+              statusLine.textContent = isTeacher
+                ? 'Profesor eliminado y aulas relacionadas liberadas.'
+                : 'Alumno eliminado y retirado de las aulas. El historial de asistencia se conservó.';
+              renderRecords();
+            } catch (error) {
+              console.error(`No se pudo eliminar el registro ${recordCollection}/${id}:`, error);
+              deleteMessage.textContent = 'No se pudo eliminar el registro y actualizar sus aulas. Revisa permisos de Firestore y conexión.';
+              deleteRecordButton.disabled = false;
+              deleteRecordButton.textContent = isTeacher ? 'Eliminar profesor' : 'Eliminar alumno';
+            }
+          });
+        }
         if (activeCollection === 'Aulas') {
           const editForm = document.createElement('form');
           editForm.className = 'roster-editor';
