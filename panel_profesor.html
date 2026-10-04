@@ -38,6 +38,16 @@
     .student { min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 6px; }
     .student-name { display: block; margin-bottom: 3px; font-weight: 650; overflow-wrap: anywhere; }
     .student-email { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+    .attendance { display: grid; gap: 12px; padding: 0 18px 18px; }
+    .attendance-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; }
+    .attendance-controls label { display: grid; gap: 5px; color: var(--muted); font-size: 13px; font-weight: 650; }
+    .attendance-controls input { min-height: 38px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); font: inherit; }
+    .attendance-list { display: grid; gap: 7px; }
+    .attendance-student { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+    .attendance-student input { width: 17px; height: 17px; margin: 0; accent-color: var(--blue); }
+    .attendance-save { min-height: 38px; padding: 0 13px; border: 0; border-radius: 5px; background: var(--blue); color: white; font: inherit; font-weight: 650; cursor: pointer; }
+    .attendance-save:disabled { opacity: .6; cursor: wait; }
+    .attendance-status { min-height: 18px; margin: 0; color: var(--muted); font-size: 13px; }
     .empty { padding: 32px 18px; border: 1px dashed var(--line); border-radius: 8px; background: rgba(255,255,255,.6); color: var(--muted); text-align: center; }
     @media (max-width: 620px) {
       .topbar { padding: 11px 14px; }
@@ -46,6 +56,7 @@
       h1 { font-size: 23px; }
       .students { grid-template-columns: 1fr; padding: 12px; }
       .classroom-header { padding: 14px 12px; }
+      .attendance { padding: 0 12px 12px; }
       .logout { padding: 0 9px; }
       .logout span { display: none; }
     }
@@ -72,7 +83,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, query, where, getDocs, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -123,6 +134,60 @@
       return element;
     }
 
+    function getLocalDateString() {
+      const now = new Date();
+      const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+      return localDate.toISOString().slice(0, 10);
+    }
+
+    async function loadAttendance(aula, dateInput, attendanceList, statusText, saveButton) {
+      const date = dateInput.value;
+      if (!date) {
+        statusText.textContent = 'Selecciona una fecha para consultar la asistencia.';
+        return;
+      }
+
+      saveButton.disabled = true;
+      dateInput.disabled = true;
+      statusText.textContent = 'Cargando asistencia...';
+      try {
+        const attendanceSnapshot = await getDoc(doc(db, 'Aulas', aula.id, 'asistencias', date));
+        const attendanceData = attendanceSnapshot.exists() ? attendanceSnapshot.data() : {};
+        const attendanceByStudent = new Map(
+          (Array.isArray(attendanceData.alumnos) ? attendanceData.alumnos : [])
+            .map((student) => [`${student.coleccion}/${student.id}`, student.presente === true])
+        );
+
+        attendanceList.replaceChildren();
+        (Array.isArray(aula.alumnos) ? aula.alumnos : []).forEach((student) => {
+          const label = document.createElement('label');
+          label.className = 'attendance-student';
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.value = `${student.coleccion}/${student.id}`;
+          checkbox.checked = attendanceByStudent.get(checkbox.value) === true;
+          const name = document.createElement('span');
+          name.textContent = student.nombre || 'Alumno';
+          label.append(checkbox, name);
+          attendanceList.append(label);
+        });
+
+        if (!aula.alumnos?.length) {
+          addText(attendanceList, 'p', 'attendance-status', 'Este grupo aún no tiene alumnos asignados.');
+        }
+        statusText.textContent = attendanceSnapshot.exists()
+          ? `Asistencia del ${date} cargada. Marca a los alumnos presentes.`
+          : `Sin asistencia guardada para el ${date}. Marca a los alumnos presentes.`;
+      } catch (error) {
+        console.error(`No se pudo cargar la asistencia del aula ${aula.id} para ${date}:`, error);
+        attendanceList.replaceChildren();
+        statusText.textContent = 'No se pudo cargar la asistencia. Revisa los permisos de Firestore y la conexión.';
+      } finally {
+        dateInput.disabled = false;
+        saveButton.disabled = false;
+      }
+    }
+
     function renderClasses(records) {
       classList.replaceChildren();
       if (!records.length) {
@@ -152,7 +217,67 @@
           students.append(studentCard);
         });
         classroom.append(students);
+
+        const attendance = document.createElement('form');
+        attendance.className = 'attendance';
+        const controls = document.createElement('div');
+        controls.className = 'attendance-controls';
+        const dateLabel = document.createElement('label');
+        dateLabel.textContent = 'Fecha de asistencia';
+        const dateInput = document.createElement('input');
+        dateInput.type = 'date';
+        dateInput.value = getLocalDateString();
+        dateLabel.append(dateInput);
+        const saveButton = document.createElement('button');
+        saveButton.className = 'attendance-save';
+        saveButton.type = 'submit';
+        saveButton.textContent = 'Guardar asistencia';
+        controls.append(dateLabel, saveButton);
+        const attendanceList = document.createElement('div');
+        attendanceList.className = 'attendance-list';
+        const attendanceStatus = document.createElement('p');
+        attendanceStatus.className = 'attendance-status';
+        attendanceStatus.setAttribute('role', 'status');
+        attendance.append(controls, attendanceList, attendanceStatus);
+        attendance.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          if (!dateInput.value) {
+            attendanceStatus.textContent = 'Selecciona una fecha para guardar la asistencia.';
+            return;
+          }
+          saveButton.disabled = true;
+          attendanceStatus.textContent = 'Guardando asistencia...';
+          try {
+            const alumnos = Array.from(attendanceList.querySelectorAll('input[type="checkbox"]'), (checkbox) => {
+              const [coleccion, id] = checkbox.value.split('/');
+              const student = aula.alumnos.find((item) => item.id === id && item.coleccion === coleccion);
+              return {
+                id,
+                coleccion,
+                nombre: student?.nombre || 'Alumno',
+                presente: checkbox.checked
+              };
+            });
+            await setDoc(doc(db, 'Aulas', aula.id, 'asistencias', dateInput.value), {
+              fecha: dateInput.value,
+              profesorUid: session.uid,
+              alumnos,
+              actualizadoEn: serverTimestamp()
+            });
+            attendanceStatus.textContent = `Asistencia del ${dateInput.value} guardada correctamente.`;
+          } catch (error) {
+            console.error(`No se pudo guardar la asistencia del aula ${aula.id}:`, error);
+            attendanceStatus.textContent = 'No se pudo guardar la asistencia. Revisa los permisos de Firestore y la conexión.';
+          } finally {
+            saveButton.disabled = false;
+          }
+        });
+        dateInput.addEventListener('change', () => {
+          loadAttendance(aula, dateInput, attendanceList, attendanceStatus, saveButton);
+        });
+        classroom.append(attendance);
         classList.append(classroom);
+        loadAttendance(aula, dateInput, attendanceList, attendanceStatus, saveButton);
       });
     }
 
