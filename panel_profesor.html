@@ -216,6 +216,9 @@
           addText(studentCard, 'span', 'student-email', student.email || 'Correo no disponible');
           students.append(studentCard);
         });
+        if (!record.alumnos?.length) {
+          addText(students, 'p', 'attendance-status', 'Este grupo todavía no tiene alumnos asignados.');
+        }
         classroom.append(students);
 
         const attendance = document.createElement('form');
@@ -295,15 +298,27 @@
             return;
           }
 
-          const legacyTeacherIds = [...new Set([session.uid, session.teacherDocId, session.email].filter(Boolean))];
-          const aulaSnapshots = await Promise.all([
-            getDocs(query(collection(db, 'Aulas'), where('profesorDocId', '==', session.teacherDocId))),
-            ...legacyTeacherIds.map((teacherId) =>
-              getDocs(query(collection(db, 'Aulas'), where('profesorUid', '==', teacherId)))
-            )
-          ]);
+          const teacherIds = [...new Set([session.uid, session.teacherDocId, session.email].filter(Boolean))];
+          const aulaQueries = [
+            ['profesorDocId', session.teacherDocId],
+            ['profesorEmail', session.email],
+            ['profesor.email', session.email],
+            ...teacherIds.map((teacherId) => ['profesorUid', teacherId])
+          ];
+          const queryResults = await Promise.all(aulaQueries.map(async ([field, value]) => {
+            try {
+              return await getDocs(query(collection(db, 'Aulas'), where(field, '==', value)));
+            } catch (error) {
+              console.error(`No se pudieron buscar aulas por ${field}:`, error);
+              return null;
+            }
+          }));
+          const successfulQueries = queryResults.filter(Boolean);
+          if (!successfulQueries.length) {
+            throw new Error('No se pudo consultar ninguna de las formas de asignación de aulas.');
+          }
           const aulasById = new Map();
-          aulaSnapshots.forEach((snapshot) => {
+          successfulQueries.forEach((snapshot) => {
             snapshot.docs.forEach((document) => {
               aulasById.set(document.id, { id: document.id, ...document.data() });
             });
@@ -316,7 +331,7 @@
           if (typeof lucide !== 'undefined') lucide.createIcons();
         } catch (error) {
           console.error('No se pudieron cargar las aulas del profesor:', error);
-          status.textContent = 'No se pudieron cargar tus aulas. Revisa la conexión y los permisos de Firestore.';
+          status.textContent = 'No se pudieron consultar tus aulas. Revisa los permisos de lectura de la colección Aulas en Firestore.';
           renderClasses([]);
         }
       })();

@@ -603,6 +603,7 @@
                   const update = {
                     profesorDocId: '',
                     profesorUid: '',
+                    profesorEmail: '',
                     profesor: { nombre: 'Sin asignar', email: '' },
                     actualizadoEn: serverTimestamp()
                   };
@@ -682,6 +683,7 @@
           });
           const assignedTeacher = teachers.find(({ id: teacherId, data: teacherData }) =>
             teacherId === data.profesorDocId
+            || teacherData.email === data.profesorEmail
             || (data.profesorUid && [teacherData.authUid, teacherId, teacherData.email].includes(data.profesorUid))
           );
           editTeacherSelect.value = assignedTeacher?.id || '';
@@ -723,6 +725,7 @@
                 curso: courseInput.value.trim(),
                 profesorDocId: selectedTeacher.id,
                 profesorUid: selectedTeacher.data.authUid || selectedTeacher.id,
+                profesorEmail: selectedTeacher.data.email || '',
                 profesor: {
                   nombre: displayStudentName(selectedTeacher.data),
                   email: selectedTeacher.data.email || ''
@@ -738,6 +741,7 @@
                   curso: courseInput.value.trim(),
                   profesorDocId: selectedTeacher.id,
                   profesorUid: selectedTeacher.data.authUid || selectedTeacher.id,
+                  profesorEmail: selectedTeacher.data.email || '',
                   profesor: {
                     nombre: displayStudentName(selectedTeacher.data),
                     email: selectedTeacher.data.email || ''
@@ -847,6 +851,7 @@
           curso: classroomForm.elements.curso.value.trim(),
           profesorDocId: teacher.id,
           profesorUid: teacher.data.authUid || teacher.id,
+          profesorEmail: teacher.data.email || '',
           profesor: {
             nombre: displayStudentName(teacher.data),
             email: teacher.data.email || ''
