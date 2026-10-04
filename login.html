@@ -193,7 +193,6 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { 
       getFirestore, 
       collection, 
@@ -214,7 +213,6 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
     const db = getFirestore(app);
 
     const loginForm = document.getElementById('loginForm');
@@ -289,37 +287,23 @@
     }
 
     async function autenticarProfesor(email, password) {
-      let credential;
-      try {
-        credential = await signInWithEmailAndPassword(auth, email, password);
-      } catch (error) {
-        if (['auth/invalid-credential', 'auth/user-not-found', 'auth/wrong-password', 'auth/invalid-email'].includes(error.code)) {
-          return null;
-        }
-        throw error;
-      }
+      const teacherQuery = query(
+        collection(db, 'Profesores'),
+        where('email', '==', email),
+        where('password', '==', password),
+        limit(1)
+      );
+      const teacherSnapshot = await getDocs(teacherQuery);
+      if (teacherSnapshot.empty) return null;
 
-      try {
-        const teacherQuery = query(
-          collection(db, 'Profesores'),
-          where('authUid', '==', credential.user.uid),
-          limit(1)
-        );
-        const teacherSnapshot = await getDocs(teacherQuery);
-        if (teacherSnapshot.empty) {
-          await signOut(auth);
-          return null;
-        }
-
-        return {
-          uid: credential.user.uid,
-          email: credential.user.email,
-          nombre: teacherSnapshot.docs[0].data().nombre || 'Profesor'
-        };
-      } catch (error) {
-        await signOut(auth);
-        throw error;
-      }
+      const teacherDoc = teacherSnapshot.docs[0];
+      const teacherData = teacherDoc.data();
+      return {
+        uid: teacherData.authUid || teacherDoc.id,
+        teacherDocId: teacherDoc.id,
+        email: teacherData.email,
+        nombre: teacherData.nombre || 'Profesor'
+      };
     }
 
     loginForm.addEventListener('submit', async (e) => {

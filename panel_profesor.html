@@ -72,8 +72,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, collection, query, where, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -91,14 +90,13 @@
     const status = document.getElementById('status');
     const classList = document.getElementById('classList');
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
     const db = getFirestore(app);
     let idleTimer;
 
     function endSession() {
       localStorage.removeItem(sessionKey);
       localStorage.removeItem(activityKey);
-      signOut(auth).finally(() => window.location.replace('login.html'));
+      window.location.replace('login.html');
     }
 
     function recordActivity() {
@@ -161,24 +159,18 @@
     document.getElementById('teacherName').textContent = session?.nombre || 'Profesor';
     document.getElementById('teacherEmail').textContent = session?.email || '';
 
-    if (!session?.uid || !session?.email || !Number.isFinite(Number(localStorage.getItem(activityKey)))) {
+    if (!session?.uid || !session?.teacherDocId || !session?.email || !Number.isFinite(Number(localStorage.getItem(activityKey)))) {
       endSession();
     } else {
-      onAuthStateChanged(auth, async (user) => {
-        if (!user || user.uid !== session.uid || user.email !== session.email) {
-          endSession();
-          return;
-        }
-
+      (async () => {
         try {
-          const teacherQuery = query(collection(db, 'Profesores'), where('authUid', '==', user.uid), limit(1));
-          const teacherSnapshot = await getDocs(teacherQuery);
-          if (teacherSnapshot.empty) {
+          const teacherSnapshot = await getDoc(doc(db, 'Profesores', session.teacherDocId));
+          if (!teacherSnapshot.exists() || teacherSnapshot.data().email !== session.email) {
             endSession();
             return;
           }
 
-          const aulaQuery = query(collection(db, 'Aulas'), where('profesorUid', '==', user.uid));
+          const aulaQuery = query(collection(db, 'Aulas'), where('profesorUid', '==', session.uid));
           const aulaSnapshot = await getDocs(aulaQuery);
           const aulas = aulaSnapshot.docs.map((document) => ({ id: document.id, ...document.data() }));
           status.textContent = `${aulas.length} aulas asignadas`;
@@ -189,7 +181,7 @@
           status.textContent = 'No se pudieron cargar tus aulas. Revisa la conexión y los permisos de Firestore.';
           renderClasses([]);
         }
-      });
+      })();
     }
 
     window.addEventListener('storage', (event) => {

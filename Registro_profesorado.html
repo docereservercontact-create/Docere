@@ -324,6 +324,7 @@
         createdUser = credential.user;
         await addDoc(collection(db, 'Profesores'), {
           ...teacherData,
+          password,
           experiencia: Number(teacherData.experiencia),
           disponibilidad: availability,
           authUid: createdUser.uid,
