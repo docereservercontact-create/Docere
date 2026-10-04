@@ -191,7 +191,7 @@
     function renderClasses(records) {
       classList.replaceChildren();
       if (!records.length) {
-        addText(classList, 'div', 'empty', 'Todavía no tienes aulas asignadas.');
+        addText(classList, 'div', 'empty', 'Todavía no tienes aulas asignadas. Pide al administrador que revise el profesor seleccionado en el aula.');
         return;
       }
 
@@ -295,10 +295,13 @@
             return;
           }
 
-          const aulaQuery = query(collection(db, 'Aulas'), where('profesorUid', '==', session.uid));
+          const teacherIds = [...new Set([session.uid, session.teacherDocId, session.email].filter(Boolean))];
+          const aulaQuery = query(collection(db, 'Aulas'), where('profesorUid', 'in', teacherIds));
           const aulaSnapshot = await getDocs(aulaQuery);
           const aulas = aulaSnapshot.docs.map((document) => ({ id: document.id, ...document.data() }));
-          status.textContent = `${aulas.length} aulas asignadas`;
+          status.textContent = aulas.length
+            ? `${aulas.length} aulas asignadas`
+            : 'No se encontraron aulas para este profesor. Verifica la asignación desde el panel administrativo.';
           renderClasses(aulas);
           if (typeof lucide !== 'undefined') lucide.createIcons();
         } catch (error) {
