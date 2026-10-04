@@ -73,9 +73,12 @@
     .announcement-submit:disabled { opacity: .6; cursor: wait; }
     .announcement-list { display: grid; gap: 10px; }
     .announcement-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
+    .announcement-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
     .announcement-card h3 { margin: 0 0 4px; font-size: 16px; }
     .announcement-meta { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
     .announcement-body { overflow-wrap: anywhere; line-height: 1.55; }
+    .announcement-edit { flex: 0 0 auto; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--blue); font-size: 12px; font-weight: 650; cursor: pointer; }
+    .announcement-edit:hover { background: #edf3fb; }
     .announcement-body > :first-child { margin-top: 0; }
     .announcement-body > :last-child { margin-bottom: 0; }
     .attendance-summary { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -151,7 +154,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDoc, query, where, getDocs, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, query, where, getDocs, setDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -292,6 +295,15 @@
       const announcementList = document.createElement('div');
       announcementList.className = 'announcement-list';
       announcements.append(form, announcementList);
+      let editingAnnouncementId = null;
+
+      function resetAnnouncementEditor() {
+        editingAnnouncementId = null;
+        titleInput.value = '';
+        editor.replaceChildren();
+        publishButton.textContent = 'Publicar anuncio';
+        editorStatus.textContent = '';
+      }
 
       async function loadAnnouncements() {
         announcementList.replaceChildren();
@@ -307,7 +319,24 @@
           records.forEach((record) => {
             const card = document.createElement('article');
             card.className = 'announcement-card';
-            addText(card, 'h3', '', record.titulo || 'Anuncio');
+            const cardHeader = document.createElement('div');
+            cardHeader.className = 'announcement-card-header';
+            addText(cardHeader, 'h3', '', record.titulo || 'Anuncio');
+            const editButton = document.createElement('button');
+            editButton.className = 'announcement-edit';
+            editButton.type = 'button';
+            editButton.textContent = 'Editar';
+            editButton.addEventListener('click', () => {
+              editingAnnouncementId = record.id;
+              titleInput.value = record.titulo || '';
+              editor.innerHTML = sanitizeRichHtml(record.contenido || '');
+              publishButton.textContent = 'Guardar cambios';
+              editorStatus.textContent = 'Editando anuncio. Guarda los cambios para actualizarlo.';
+              titleInput.focus();
+              form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+            cardHeader.append(editButton);
+            card.append(cardHeader);
             addText(card, 'p', 'announcement-meta', `${record.autor || session.nombre} · ${formatAnnouncementDate(record.creadoEn)}`);
             const body = document.createElement('div');
             body.className = 'announcement-body';
@@ -329,22 +358,32 @@
           return;
         }
         publishButton.disabled = true;
-        editorStatus.textContent = 'Publicando anuncio...';
+        const announcementId = editingAnnouncementId;
+        editorStatus.textContent = announcementId ? 'Guardando cambios...' : 'Publicando anuncio...';
         try {
-          await setDoc(doc(collection(db, 'Aulas', aula.id, 'anuncios')), {
+          const announcementData = {
             titulo: titleInput.value.trim(),
             contenido,
             autor: session.nombre || 'Profesor',
             profesorDocId: session.teacherDocId,
-            creadoEn: serverTimestamp()
-          });
-          titleInput.value = '';
-          editor.replaceChildren();
-          editorStatus.textContent = 'Anuncio publicado para los alumnos de esta aula.';
+            actualizadoEn: serverTimestamp()
+          };
+          if (announcementId) {
+            await updateDoc(doc(db, 'Aulas', aula.id, 'anuncios', announcementId), announcementData);
+            resetAnnouncementEditor();
+            editorStatus.textContent = 'Anuncio actualizado correctamente.';
+          } else {
+            await setDoc(doc(collection(db, 'Aulas', aula.id, 'anuncios')), {
+              ...announcementData,
+              creadoEn: serverTimestamp()
+            });
+            resetAnnouncementEditor();
+            editorStatus.textContent = 'Anuncio publicado para los alumnos de esta aula.';
+          }
           await loadAnnouncements();
         } catch (error) {
-          console.error(`No se pudo publicar un anuncio en el aula ${aula.id}:`, error);
-          editorStatus.textContent = 'No se pudo publicar el anuncio. Revisa los permisos de Firestore.';
+          console.error(`No se pudo guardar el anuncio en el aula ${aula.id}:`, error);
+          editorStatus.textContent = 'No se pudo guardar el anuncio. Revisa los permisos de Firestore.';
         } finally {
           publishButton.disabled = false;
         }
