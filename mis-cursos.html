@@ -248,6 +248,48 @@
       border-radius: 9999px;
     }
 
+    .attendance-analysis-button {
+      margin-top: 18px;
+    }
+
+    .attendance-analysis {
+      margin-top: 24px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg-card);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .attendance-analysis[hidden] { display: none; }
+    .attendance-analysis h2 { margin-bottom: 8px; font-size: 1.25rem; }
+    .attendance-analysis-status { margin-bottom: 16px; color: var(--text-secondary); font-size: 14px; }
+    .attendance-class-list { display: grid; gap: 16px; }
+    .attendance-class-card { padding: 18px; border: 1px solid var(--border); border-radius: 9px; }
+    .attendance-class-card h3 { margin-bottom: 4px; font-size: 17px; }
+    .attendance-class-course { margin-bottom: 14px; color: var(--text-secondary); font-size: 13px; }
+    .attendance-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+    .attendance-metric { padding: 12px; border-radius: 7px; background: var(--bg-primary); }
+    .attendance-metric strong { display: block; font-size: 20px; }
+    .attendance-metric span { color: var(--text-secondary); font-size: 12px; }
+    .attendance-chart { display: grid; gap: 9px; margin: 16px 0; }
+    .attendance-chart-row { display: grid; grid-template-columns: 88px minmax(80px, 1fr) 48px; align-items: center; gap: 10px; font-size: 12px; }
+    .attendance-chart-label { color: var(--text-secondary); }
+    .attendance-chart-track { height: 12px; overflow: hidden; border-radius: 10px; background: #e2e8f0; }
+    .attendance-chart-fill { height: 100%; border-radius: inherit; }
+    .attendance-chart-value { text-align: right; font-weight: 700; }
+    .attendance-chart-fill.attendance-present { background: #16a34a; }
+    .attendance-chart-fill.attendance-absent { background: #dc2626; }
+    .attendance-chart-fill.attendance-late { background: #d97706; }
+    .attendance-table-wrap { overflow-x: auto; margin-top: 14px; border: 1px solid var(--border); border-radius: 7px; }
+    .attendance-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .attendance-table th, .attendance-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+    .attendance-table th { background: #f1f5f9; font-weight: 700; }
+    .attendance-table tr:last-child td { border-bottom: 0; }
+    .attendance-state-present { color: #15803d; font-weight: 650; }
+    .attendance-state-absent { color: #b91c1c; font-weight: 650; }
+    .attendance-state-late { color: #a16207; font-weight: 650; }
+
     /* --- GRID DE MATERIAS --- */
     .subjects-grid {
       display: grid;
@@ -339,6 +381,8 @@
       .nav-actions .btn { padding: 9px 10px; }
       .nav-actions .btn span { display: none; }
       .user-profile { padding: 4px; }
+      .attendance-analysis { padding: 16px; }
+      .attendance-metrics { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -432,6 +476,15 @@
           <div class="progress-bar-fill" id="progressBarFill" style="width: 0%"></div>
         </div>
       </div>
+      <button class="btn btn-primary attendance-analysis-button" id="showAttendanceAnalysis" type="button" aria-expanded="false" aria-controls="attendanceAnalysis">
+        <i data-lucide="chart-no-axes-column-increasing"></i>
+        <span>Ver análisis de asistencias</span>
+      </button>
+    </section>
+    <section class="attendance-analysis" id="attendanceAnalysis" aria-labelledby="attendanceAnalysisTitle" hidden>
+      <h2 id="attendanceAnalysisTitle">Análisis de mis asistencias</h2>
+      <p class="attendance-analysis-status" id="attendanceAnalysisStatus" role="status">Selecciona para cargar tu historial de asistencia.</p>
+      <div class="attendance-class-list" id="attendanceClassList"></div>
     </section>
 
   </main>
@@ -506,6 +559,194 @@
       document.getElementById('progressText').textContent = `${porcentaje}%`;
       document.getElementById('progressBarFill').style.width = `${porcentaje}%`;
     }
+
+    const attendanceAnalysis = document.getElementById('attendanceAnalysis');
+    const attendanceAnalysisStatus = document.getElementById('attendanceAnalysisStatus');
+    const attendanceClassList = document.getElementById('attendanceClassList');
+    const attendanceAnalysisButton = document.getElementById('showAttendanceAnalysis');
+    let attendanceAnalysisLoaded = false;
+    let attendanceAnalysisLoading = false;
+
+    function addAttendanceText(parent, tagName, className, text) {
+      const element = document.createElement(tagName);
+      element.className = className;
+      element.textContent = text;
+      parent.append(element);
+      return element;
+    }
+
+    function studentMatchesClassroom(classroom, student) {
+      return Array.isArray(classroom.alumnos) && classroom.alumnos.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && assignedStudent.email === student.email)
+      );
+    }
+
+    function getAttendanceState(record) {
+      if (['asistencia', 'falta', 'retardo'].includes(record.estado)) return record.estado;
+      return record.presente === true ? 'asistencia' : 'falta';
+    }
+
+    function formatAttendanceDate(date) {
+      const parsed = new Date(`${date}T12:00:00`);
+      return Number.isNaN(parsed.getTime())
+        ? date
+        : new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }).format(parsed);
+    }
+
+    function renderAttendanceClass(classroom, records, error = null) {
+      const card = document.createElement('article');
+      card.className = 'attendance-class-card';
+      addAttendanceText(card, 'h3', '', classroom.nombre || 'Aula');
+      addAttendanceText(card, 'p', 'attendance-class-course', classroom.curso || 'Curso sin especificar');
+      if (error) {
+        addAttendanceText(card, 'p', 'attendance-analysis-status', 'No se pudo consultar la asistencia de esta aula. Revisa los permisos de Firestore.');
+        attendanceClassList.append(card);
+        return;
+      }
+
+      const totals = { asistencia: 0, falta: 0, retardo: 0 };
+      records.forEach(({ estado }) => { totals[estado] += 1; });
+      const recordedCount = records.length;
+      const percentage = (count) => recordedCount ? Math.round((count / recordedCount) * 100) : 0;
+      const metrics = document.createElement('div');
+      metrics.className = 'attendance-metrics';
+      [
+        ['Asistencia', totals.asistencia, 'attendance-state-present'],
+        ['Faltas', totals.falta, 'attendance-state-absent'],
+        ['Retardos', totals.retardo, 'attendance-state-late']
+      ].forEach(([label, count, className]) => {
+        const metric = document.createElement('div');
+        metric.className = 'attendance-metric';
+        addAttendanceText(metric, 'strong', className, `${percentage(count)}%`);
+        addAttendanceText(metric, 'span', '', `${label} · ${count} de ${recordedCount} clases`);
+        metrics.append(metric);
+      });
+      card.append(metrics);
+
+      const chart = document.createElement('div');
+      chart.className = 'attendance-chart';
+      chart.setAttribute('role', 'img');
+      chart.setAttribute('aria-label', `Porcentajes de asistencia de ${classroom.nombre || 'aula'}`);
+      [
+        ['Asistencia', totals.asistencia, 'attendance-present'],
+        ['Falta', totals.falta, 'attendance-absent'],
+        ['Retardo', totals.retardo, 'attendance-late']
+      ].forEach(([label, count, className]) => {
+        const row = document.createElement('div');
+        row.className = 'attendance-chart-row';
+        addAttendanceText(row, 'span', 'attendance-chart-label', label);
+        const track = document.createElement('div');
+        track.className = 'attendance-chart-track';
+        const fill = document.createElement('div');
+        fill.className = `attendance-chart-fill ${className}`;
+        fill.style.width = `${percentage(count)}%`;
+        track.append(fill);
+        row.append(track);
+        addAttendanceText(row, 'span', 'attendance-chart-value', `${percentage(count)}%`);
+        chart.append(row);
+      });
+      card.append(chart);
+
+      if (!records.length) {
+        addAttendanceText(card, 'p', 'attendance-analysis-status', 'Todavía no hay asistencias registradas para esta aula.');
+      } else {
+        const tableWrap = document.createElement('div');
+        tableWrap.className = 'attendance-table-wrap';
+        const table = document.createElement('table');
+        table.className = 'attendance-table';
+        const head = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        ['Fecha', 'Estado'].forEach((label) => addAttendanceText(headerRow, 'th', '', label));
+        head.append(headerRow);
+        const body = document.createElement('tbody');
+        records.forEach(({ fecha, estado }) => {
+          const row = document.createElement('tr');
+          addAttendanceText(row, 'td', '', formatAttendanceDate(fecha));
+          const stateClass = estado === 'asistencia'
+            ? 'attendance-state-present'
+            : estado === 'falta'
+              ? 'attendance-state-absent'
+              : 'attendance-state-late';
+          const stateLabel = estado === 'asistencia' ? 'Asistencia' : estado === 'falta' ? 'Falta' : 'Retardo';
+          addAttendanceText(row, 'td', stateClass, stateLabel);
+          body.append(row);
+        });
+        table.append(head, body);
+        tableWrap.append(table);
+        card.append(tableWrap);
+      }
+      attendanceClassList.append(card);
+    }
+
+    async function loadAttendanceAnalysis() {
+      if (attendanceAnalysisLoaded || attendanceAnalysisLoading) return;
+      if (!session?.id || !session?.coleccion) {
+        attendanceAnalysisStatus.textContent = 'No se pudo identificar tu inscripción. Cierra sesión y vuelve a ingresar.';
+        return;
+      }
+
+      attendanceAnalysisLoading = true;
+      attendanceAnalysisButton.disabled = true;
+      attendanceAnalysisStatus.textContent = 'Buscando tus aulas y asistencias...';
+      attendanceClassList.replaceChildren();
+      try {
+        const classroomSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => studentMatchesClassroom(classroom, session));
+
+        if (!classrooms.length) {
+          attendanceAnalysisStatus.textContent = 'No hay aulas asignadas a tu inscripción activa. Cuando el administrador te agregue a un grupo, podrás consultar aquí tus asistencias.';
+          attendanceAnalysisLoaded = true;
+          return;
+        }
+
+        const classResults = await Promise.all(classrooms.map(async (classroom) => {
+          try {
+            const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'asistencias'));
+            const records = snapshot.docs
+              .map((attendanceDoc) => {
+                const data = attendanceDoc.data();
+                const studentRecord = (Array.isArray(data.alumnos) ? data.alumnos : []).find((item) =>
+                  (item.id === session.id && item.coleccion === session.coleccion)
+                  || (session.email && item.email === session.email)
+                );
+                return studentRecord
+                  ? { fecha: data.fecha || attendanceDoc.id, estado: getAttendanceState(studentRecord) }
+                  : null;
+              })
+              .filter(Boolean)
+              .sort((left, right) => right.fecha.localeCompare(left.fecha));
+            return { classroom, records };
+          } catch (error) {
+            console.error(`No se pudo cargar la asistencia del aula ${classroom.id}:`, error);
+            return { classroom, records: [], error };
+          }
+        }));
+
+        const failedCount = classResults.filter((result) => result.error).length;
+        const totalRecords = classResults.reduce((total, result) => total + result.records.length, 0);
+        classResults.forEach(({ classroom, records, error }) => renderAttendanceClass(classroom, records, error));
+        attendanceAnalysisStatus.textContent = failedCount
+          ? `Se encontraron ${classrooms.length} aula(s). No se pudo leer la asistencia de ${failedCount}; revisa los permisos de Firestore.`
+          : `Análisis de ${classrooms.length} aula(s) · ${totalRecords} registro(s) de asistencia.`;
+        attendanceAnalysisLoaded = true;
+      } catch (error) {
+        console.error('No se pudo cargar el análisis de asistencias:', error);
+        attendanceAnalysisStatus.textContent = 'No se pudo consultar el análisis. Revisa la conexión y los permisos de lectura de Aulas y asistencias en Firestore.';
+      } finally {
+        attendanceAnalysisLoading = false;
+        attendanceAnalysisButton.disabled = false;
+      }
+    }
+
+    attendanceAnalysisButton.addEventListener('click', async () => {
+      const isOpening = attendanceAnalysis.hidden;
+      attendanceAnalysis.hidden = !isOpening;
+      attendanceAnalysisButton.setAttribute('aria-expanded', String(isOpening));
+      if (isOpening) await loadAttendanceAnalysis();
+    });
 
     onAuthStateChanged(auth, async (user) => {
       const sessionRaw = localStorage.getItem('studentSession');
