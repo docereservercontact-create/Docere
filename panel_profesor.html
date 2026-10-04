@@ -95,10 +95,18 @@
     .attendance-history th:first-child { position: sticky; left: 0; z-index: 1; }
     .attendance-history td:first-child { position: sticky; left: 0; background: #fff; font-weight: 650; }
     .attendance-history tr:last-child td { border-bottom: 0; }
-    .attendance-date-header { display: grid; justify-items: start; gap: 6px; }
-    .attendance-delete-date { min-height: 28px; padding: 3px 7px; border: 1px solid #f3b4b0; border-radius: 5px; background: #fff; color: var(--red); font-size: 11px; font-weight: 650; cursor: pointer; }
-    .attendance-delete-date:hover { background: #fff1f0; }
+    .attendance-date-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 5px; }
+    .attendance-delete-date { display: grid; place-items: center; flex: 0 0 20px; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: #fee4e2; color: var(--red); font-size: 16px; font-weight: 750; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .15s ease; }
+    .attendance-history th:hover .attendance-delete-date, .attendance-delete-date:focus-visible { opacity: 1; }
+    @media (hover: none) { .attendance-delete-date { opacity: 1; } }
     .attendance-delete-date:disabled { opacity: .6; cursor: wait; }
+    .attendance-history td { position: relative; }
+    .attendance-cell-trigger { width: 100%; min-width: 62px; min-height: 28px; padding: 3px 5px; border: 0; border-radius: 4px; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+    .attendance-cell-trigger:hover, .attendance-cell-trigger:focus-visible { outline: 2px solid #a9c4ff; outline-offset: -2px; background: #f8fafc; }
+    .attendance-cell-menu { position: absolute; z-index: 3; top: calc(100% - 2px); left: 4px; min-width: 125px; padding: 5px; border: 1px solid var(--line); border-radius: 6px; background: #fff; box-shadow: 0 5px 16px rgba(15, 23, 42, .16); }
+    .attendance-cell-menu[hidden] { display: none; }
+    .attendance-cell-menu select { width: 100%; min-height: 34px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink); font: inherit; }
+    .attendance-cell-menu select:disabled { opacity: .65; }
     .attendance-history .state-attended { color: var(--green); font-weight: 650; }
     .attendance-history .state-absent { color: var(--red); font-weight: 650; }
     .attendance-history .state-late { color: #a15c00; font-weight: 650; }
@@ -433,6 +441,13 @@
       attendanceStatusText.setAttribute('role', 'status');
       attendance.append(controls, attendanceSummary, roster, attendanceStatusText, historyContainer);
       let savedSessions = [];
+      let openAttendanceMenu = null;
+
+      function closeAttendanceMenu() {
+        if (!openAttendanceMenu) return;
+        openAttendanceMenu.hidden = true;
+        openAttendanceMenu = null;
+      }
 
       function renderHistory() {
         attendanceSummary.replaceChildren();
@@ -478,8 +493,9 @@
           const dateHeader = document.createElement('div');
           dateHeader.className = 'attendance-date-header';
           addText(dateHeader, 'span', '', formatAttendanceDate(record.fecha));
-          const deleteButton = addText(dateHeader, 'button', 'attendance-delete-date', 'Eliminar día');
+          const deleteButton = addText(dateHeader, 'button', 'attendance-delete-date', '×');
           deleteButton.type = 'button';
+          deleteButton.title = 'Eliminar pase de asistencia';
           deleteButton.setAttribute('aria-label', `Eliminar asistencia del ${formatAttendanceDate(record.fecha)}`);
           deleteButton.addEventListener('click', async () => {
             const formattedDate = formatAttendanceDate(record.fecha);
@@ -518,10 +534,70 @@
               totals[state] += 1;
               recordedSessions += 1;
               cell.className = `state-${state === 'asistencia' ? 'attended' : state === 'falta' ? 'absent' : 'late'}`;
-              cell.textContent = state === 'asistencia' ? 'Asistencia' : state === 'falta' ? 'Falta' : 'Retardo';
-            } else {
-              cell.textContent = '—';
             }
+            const cellTrigger = addText(cell, 'button', 'attendance-cell-trigger', attendanceRecord
+              ? attendanceStatus(attendanceRecord) === 'asistencia'
+                ? 'Asistencia'
+                : attendanceStatus(attendanceRecord) === 'falta' ? 'Falta' : 'Retardo'
+              : '—');
+            cellTrigger.type = 'button';
+            cellTrigger.setAttribute('aria-label', `${student.nombre || 'Alumno'}, ${record.fecha}: ${cellTrigger.textContent}. Clic para cambiar`);
+            const menu = document.createElement('div');
+            menu.className = 'attendance-cell-menu';
+            menu.hidden = true;
+            const stateSelect = document.createElement('select');
+            stateSelect.setAttribute('aria-label', `Cambiar asistencia de ${student.nombre || 'alumno'} para ${formatAttendanceDate(record.fecha)}`);
+            [
+              ['asistencia', 'Asistencia'],
+              ['retardo', 'Retardo'],
+              ['falta', 'Falta']
+            ].forEach(([value, label]) => stateSelect.add(new Option(label, value)));
+            if (attendanceRecord) stateSelect.value = attendanceStatus(attendanceRecord);
+            stateSelect.addEventListener('change', async () => {
+              const previousState = attendanceRecord ? attendanceStatus(attendanceRecord) : null;
+              const newState = stateSelect.value;
+              stateSelect.disabled = true;
+              attendanceStatusText.textContent = `Actualizando asistencia de ${student.nombre || 'alumno'}...`;
+              try {
+                const updatedStudents = [...record.alumnos];
+                const recordIndex = updatedStudents.findIndex((item) => `${item.coleccion}/${item.id}` === studentKey);
+                const studentRecord = {
+                  ...(recordIndex >= 0 ? updatedStudents[recordIndex] : student),
+                  id: student.id,
+                  coleccion: student.coleccion,
+                  nombre: student.nombre || 'Alumno',
+                  email: student.email || '',
+                  estado: newState,
+                  presente: newState !== 'falta'
+                };
+                if (recordIndex >= 0) updatedStudents[recordIndex] = studentRecord;
+                else updatedStudents.push(studentRecord);
+                await updateDoc(doc(db, 'Aulas', aula.id, 'asistencias', record.id), {
+                  alumnos: updatedStudents,
+                  actualizadoEn: serverTimestamp()
+                });
+                record.alumnos = updatedStudents;
+                const rosterSelect = Array.from(roster.querySelectorAll('select[data-student-key]'))
+                  .find((select) => select.dataset.studentKey === studentKey);
+                if (rosterSelect && dateInput.value === record.fecha) rosterSelect.value = newState;
+                closeAttendanceMenu();
+                renderHistory();
+                attendanceStatusText.textContent = `Asistencia de ${student.nombre || 'alumno'} para ${formatAttendanceDate(record.fecha)} actualizada.`;
+              } catch (error) {
+                console.error(`No se pudo actualizar la asistencia del aula ${aula.id}, fecha ${record.fecha}, alumno ${studentKey}:`, error);
+                attendanceStatusText.textContent = 'No se pudo actualizar la asistencia. Revisa los permisos de escritura de Firestore.';
+                stateSelect.value = previousState || 'falta';
+                stateSelect.disabled = false;
+              }
+            });
+            menu.append(stateSelect);
+            cellTrigger.addEventListener('click', () => {
+              if (openAttendanceMenu && openAttendanceMenu !== menu) closeAttendanceMenu();
+              menu.hidden = !menu.hidden;
+              openAttendanceMenu = menu.hidden ? null : menu;
+              if (!menu.hidden) stateSelect.focus();
+            });
+            cell.append(menu);
             row.append(cell);
           });
           const percent = (value) => recordedSessions ? `${Math.round((value / recordedSessions) * 100)}%` : '—';
