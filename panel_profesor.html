@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Aulas y alumnos asignados al profesor.">
+  <title>Panel del profesor | Docére</title>
+  <script src="student-session.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --page: #f4f7fb;
+      --surface: #fff;
+      --ink: #142033;
+      --muted: #64748b;
+      --line: #dce4ee;
+      --blue: #155eef;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--page); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px max(20px, calc((100vw - 1160px) / 2)); background: var(--surface); border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 750; }
+    .brand-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 7px; background: #eaf1ff; color: var(--blue); }
+    .identity { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 14px; }
+    .logout { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 11px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); cursor: pointer; }
+    main { width: min(1160px, calc(100% - 40px)); margin: 30px auto; }
+    .heading { margin-bottom: 22px; }
+    h1 { margin: 0 0 5px; font-size: 26px; }
+    .heading p { margin: 0; color: var(--muted); }
+    .status { min-height: 24px; margin-bottom: 12px; color: var(--muted); font-size: 14px; }
+    .class-list { display: grid; gap: 14px; }
+    .classroom { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+    .classroom-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px 18px; border-bottom: 1px solid var(--line); }
+    .classroom-header h2 { margin: 0 0 4px; font-size: 18px; }
+    .classroom-header p { margin: 0; color: var(--muted); font-size: 14px; }
+    .student-count { padding: 5px 9px; border-radius: 20px; background: #edf2f8; color: var(--muted); font-size: 12px; font-weight: 650; white-space: nowrap; }
+    .students { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 14px 18px 18px; }
+    .student { min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 6px; }
+    .student-name { display: block; margin-bottom: 3px; font-weight: 650; overflow-wrap: anywhere; }
+    .student-email { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+    .empty { padding: 32px 18px; border: 1px dashed var(--line); border-radius: 8px; background: rgba(255,255,255,.6); color: var(--muted); text-align: center; }
+    @media (max-width: 620px) {
+      .topbar { padding: 11px 14px; }
+      .teacher-email { display: none; }
+      main { width: calc(100% - 28px); margin: 22px auto; }
+      h1 { font-size: 23px; }
+      .students { grid-template-columns: 1fr; padding: 12px; }
+      .classroom-header { padding: 14px 12px; }
+      .logout { padding: 0 9px; }
+      .logout span { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-icon"><i data-lucide="graduation-cap"></i></span><span>Portal Docére</span></div>
+    <div class="identity">
+      <span id="teacherName">Profesor</span>
+      <span class="teacher-email" id="teacherEmail"></span>
+      <button class="logout" id="logoutButton" type="button"><i data-lucide="log-out"></i><span>Cerrar sesión</span></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="heading">
+      <h1>Mis aulas</h1>
+      <p>Consulta los grupos y alumnos que te asignó la administración.</p>
+    </section>
+    <p class="status" id="status" role="status">Verificando acceso...</p>
+    <section class="class-list" id="classList" aria-label="Aulas asignadas"></section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, query, where, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
+      authDomain: "docere-931ec.firebaseapp.com",
+      projectId: "docere-931ec",
+      storageBucket: "docere-931ec.firebasestorage.app",
+      messagingSenderId: "1005663843239",
+      appId: "1:1005663843239:web:d8f6c7524a5d10bf797c82",
+      measurementId: "G-B6TDT4VE7S"
+    };
+
+    const sessionKey = 'teacherSession';
+    const activityKey = 'teacherSessionLastActivity';
+    const session = JSON.parse(localStorage.getItem(sessionKey) || 'null');
+    const status = document.getElementById('status');
+    const classList = document.getElementById('classList');
+    const app = initializeApp(firebaseConfig, 'teacherPanel');
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    let idleTimer;
+
+    function endSession() {
+      localStorage.removeItem(sessionKey);
+      localStorage.removeItem(activityKey);
+      signOut(auth).finally(() => window.location.replace('login.html'));
+    }
+
+    function recordActivity() {
+      const lastActivity = Number(localStorage.getItem(activityKey));
+      if (!Number.isFinite(lastActivity) || Date.now() - lastActivity >= 60 * 60 * 1000) {
+        endSession();
+        return;
+      }
+      localStorage.setItem(activityKey, String(Date.now()));
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(endSession, 60 * 60 * 1000);
+    }
+
+    ['click', 'keydown', 'pointerdown', 'touchstart'].forEach((eventName) => {
+      document.addEventListener(eventName, recordActivity, { passive: true });
+    });
+    document.getElementById('logoutButton').addEventListener('click', endSession);
+
+    function addText(parent, tagName, className, text) {
+      const element = document.createElement(tagName);
+      element.className = className;
+      element.textContent = text;
+      parent.append(element);
+      return element;
+    }
+
+    function renderClasses(records) {
+      classList.replaceChildren();
+      if (!records.length) {
+        addText(classList, 'div', 'empty', 'Todavía no tienes aulas asignadas.');
+        return;
+      }
+
+      records.forEach((record) => {
+        const classroom = document.createElement('article');
+        classroom.className = 'classroom';
+        const header = document.createElement('header');
+        header.className = 'classroom-header';
+        const heading = document.createElement('div');
+        addText(heading, 'h2', '', record.nombre || 'Aula');
+        addText(heading, 'p', '', record.curso || 'Curso sin especificar');
+        addText(header, 'span', 'student-count', `${record.alumnos?.length || 0} alumnos`);
+        header.prepend(heading);
+        classroom.append(header);
+
+        const students = document.createElement('div');
+        students.className = 'students';
+        (record.alumnos || []).forEach((student) => {
+          const studentCard = document.createElement('div');
+          studentCard.className = 'student';
+          addText(studentCard, 'span', 'student-name', student.nombre || 'Alumno');
+          addText(studentCard, 'span', 'student-email', student.email || 'Correo no disponible');
+          students.append(studentCard);
+        });
+        classroom.append(students);
+        classList.append(classroom);
+      });
+    }
+
+    document.getElementById('teacherName').textContent = session?.nombre || 'Profesor';
+    document.getElementById('teacherEmail').textContent = session?.email || '';
+
+    if (!session?.uid || !session?.email || !Number.isFinite(Number(localStorage.getItem(activityKey)))) {
+      endSession();
+    } else {
+      onAuthStateChanged(auth, async (user) => {
+        if (!user || user.uid !== session.uid || user.email !== session.email) {
+          endSession();
+          return;
+        }
+
+        try {
+          const teacherQuery = query(collection(db, 'Profesores'), where('authUid', '==', user.uid), limit(1));
+          const teacherSnapshot = await getDocs(teacherQuery);
+          if (teacherSnapshot.empty) {
+            endSession();
+            return;
+          }
+
+          const aulaQuery = query(collection(db, 'Aulas'), where('profesorUid', '==', user.uid));
+          const aulaSnapshot = await getDocs(aulaQuery);
+          const aulas = aulaSnapshot.docs.map((document) => ({ id: document.id, ...document.data() }));
+          status.textContent = `${aulas.length} aulas asignadas`;
+          renderClasses(aulas);
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        } catch (error) {
+          console.error('No se pudieron cargar las aulas del profesor:', error);
+          status.textContent = 'No se pudieron cargar tus aulas. Revisa la conexión y los permisos de Firestore.';
+          renderClasses([]);
+        }
+      });
+    }
+
+    window.addEventListener('storage', (event) => {
+      if (event.key === sessionKey && !event.newValue) endSession();
+    });
+    idleTimer = setTimeout(endSession, Math.max(0, 60 * 60 * 1000 - (Date.now() - Number(localStorage.getItem(activityKey)))));
+  </script>
+</body>
+</html>
