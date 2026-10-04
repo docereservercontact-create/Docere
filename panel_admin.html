@@ -152,8 +152,13 @@
     .roster-editor { display: grid; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
     .roster-editor h3 { margin: 0; font-size: 15px; }
     .roster-editor .student-picker { max-height: 300px; }
-    .roster-editor button { justify-self: start; min-height: 40px; padding: 0 14px; border: 0; border-radius: 5px; background: var(--blue); color: #fff; font-weight: 650; cursor: pointer; }
-    .roster-editor button:disabled { opacity: 0.6; cursor: wait; }
+    .roster-editor label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 650; }
+    .roster-editor input,
+    .roster-editor select { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
+    .roster-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .roster-actions button { min-height: 40px; padding: 0 14px; border: 0; border-radius: 5px; background: var(--blue); color: #fff; font-weight: 650; cursor: pointer; }
+    .roster-actions .delete-classroom { background: var(--red); }
+    .roster-actions button:disabled { opacity: 0.6; cursor: wait; }
     .roster-message { min-height: 18px; margin: 0; color: var(--muted); font-size: 13px; }
     .classroom-form button {
       display: inline-flex;
@@ -313,7 +318,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -558,45 +563,133 @@
         grid.append(idItem);
         detailContainer.append(grid);
         if (activeCollection === 'Aulas') {
-          const rosterForm = document.createElement('form');
-          rosterForm.className = 'roster-editor';
-          const rosterHeading = document.createElement('h3');
-          rosterHeading.textContent = 'Alumnos del grupo';
+          const editForm = document.createElement('form');
+          editForm.className = 'roster-editor';
+          const editHeading = document.createElement('h3');
+          editHeading.textContent = 'Administrar aula';
+          const nameLabel = document.createElement('label');
+          nameLabel.textContent = 'Nombre del aula';
+          const nameInput = document.createElement('input');
+          nameInput.name = 'nombre';
+          nameInput.required = true;
+          nameInput.maxLength = 100;
+          nameInput.value = data.nombre || '';
+          nameLabel.append(nameInput);
+          const courseLabel = document.createElement('label');
+          courseLabel.textContent = 'Curso';
+          const courseInput = document.createElement('input');
+          courseInput.name = 'curso';
+          courseInput.required = true;
+          courseInput.maxLength = 120;
+          courseInput.value = data.curso || '';
+          courseLabel.append(courseInput);
+          const teacherLabel = document.createElement('label');
+          teacherLabel.textContent = 'Profesor asignado';
+          const editTeacherSelect = document.createElement('select');
+          editTeacherSelect.required = true;
+          editTeacherSelect.add(new Option('Selecciona un profesor', ''));
+          const teachers = cache.get('Profesores') || [];
+          teachers.forEach(({ id: teacherId, data: teacherData }) => {
+            const teacherUid = teacherData.authUid || teacherId;
+            const label = `${displayStudentName(teacherData)}${teacherData.email ? ` · ${teacherData.email}` : ''}`;
+            editTeacherSelect.add(new Option(label, teacherUid));
+          });
+          editTeacherSelect.value = data.profesorUid || '';
+          teacherLabel.append(editTeacherSelect);
           const rosterHint = document.createElement('p');
           rosterHint.className = 'roster-message';
           rosterHint.textContent = 'Marca los alumnos que deben pertenecer a esta aula. Desmarca los que quieras quitar.';
           const studentPicker = createStudentPicker(getAssignableStudents(), Array.isArray(data.alumnos) ? data.alumnos : []);
-          const saveRosterButton = document.createElement('button');
-          saveRosterButton.type = 'submit';
-          saveRosterButton.textContent = 'Guardar alumnos';
-          const rosterMessage = document.createElement('p');
-          rosterMessage.className = 'roster-message';
-          rosterMessage.setAttribute('role', 'status');
-          rosterForm.append(rosterHeading, rosterHint, studentPicker, saveRosterButton, rosterMessage);
-          rosterForm.addEventListener('submit', async (event) => {
+          const actions = document.createElement('div');
+          actions.className = 'roster-actions';
+          const saveButton = document.createElement('button');
+          saveButton.type = 'submit';
+          saveButton.textContent = 'Guardar cambios';
+          const deleteButton = document.createElement('button');
+          deleteButton.type = 'button';
+          deleteButton.className = 'delete-classroom';
+          deleteButton.textContent = 'Eliminar aula';
+          actions.append(saveButton, deleteButton);
+          const editMessage = document.createElement('p');
+          editMessage.className = 'roster-message';
+          editMessage.setAttribute('role', 'status');
+          editForm.append(editHeading, nameLabel, courseLabel, teacherLabel, rosterHint, studentPicker, actions, editMessage);
+          editForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            saveRosterButton.disabled = true;
-            saveRosterButton.textContent = 'Guardando...';
-            rosterMessage.textContent = '';
+            const selectedTeacher = teachers.find(({ id: teacherId, data: teacherData }) => (teacherData.authUid || teacherId) === editTeacherSelect.value);
+            if (!selectedTeacher) {
+              editMessage.textContent = 'Selecciona un profesor registrado.';
+              return;
+            }
+            saveButton.disabled = true;
+            deleteButton.disabled = true;
+            saveButton.textContent = 'Guardando...';
+            editMessage.textContent = '';
             try {
               const alumnos = getSelectedStudents(studentPicker, getAssignableStudents());
               await updateDoc(doc(db, 'Aulas', id), {
                 alumnos,
+                nombre: nameInput.value.trim(),
+                curso: courseInput.value.trim(),
+                profesorUid: selectedTeacher.data.authUid || selectedTeacher.id,
+                profesor: {
+                  nombre: displayStudentName(selectedTeacher.data),
+                  email: selectedTeacher.data.email || ''
+                },
                 actualizadoEn: serverTimestamp()
               });
               const aulaIndex = (cache.get('Aulas') || []).findIndex((aula) => aula.id === id);
-              if (aulaIndex !== -1) cache.get('Aulas')[aulaIndex].data.alumnos = alumnos;
-              statusLine.textContent = `Asignación actualizada: ${alumnos.length} alumno(s) en el grupo.`;
+              if (aulaIndex !== -1) {
+                cache.get('Aulas')[aulaIndex].data = {
+                  ...cache.get('Aulas')[aulaIndex].data,
+                  alumnos,
+                  nombre: nameInput.value.trim(),
+                  curso: courseInput.value.trim(),
+                  profesorUid: selectedTeacher.data.authUid || selectedTeacher.id,
+                  profesor: {
+                    nombre: displayStudentName(selectedTeacher.data),
+                    email: selectedTeacher.data.email || ''
+                  }
+                };
+              }
+              statusLine.textContent = 'Aula y asignaciones actualizadas.';
               renderRecords();
             } catch (error) {
-              console.error(`No se pudieron actualizar los alumnos del aula ${id}:`, error);
-              rosterMessage.textContent = 'No se pudieron guardar los cambios. Revisa permisos y conexión de Firestore.';
+              console.error(`No se pudo actualizar el aula ${id}:`, error);
+              editMessage.textContent = 'No se pudieron guardar los cambios. Revisa permisos y conexión de Firestore.';
             } finally {
-              saveRosterButton.disabled = false;
-              saveRosterButton.textContent = 'Guardar alumnos';
+              saveButton.disabled = false;
+              deleteButton.disabled = false;
+              saveButton.textContent = 'Guardar cambios';
             }
           });
-          detailContainer.append(rosterForm);
+          deleteButton.addEventListener('click', async () => {
+            const classroomName = data.nombre || 'esta aula';
+            if (!window.confirm(`¿Eliminar "${classroomName}" y todas sus listas de asistencia? Esta acción no se puede deshacer.`)) return;
+
+            saveButton.disabled = true;
+            deleteButton.disabled = true;
+            deleteButton.textContent = 'Eliminando...';
+            editMessage.textContent = '';
+            try {
+              const attendanceSnapshot = await getDocs(collection(db, 'Aulas', id, 'asistencias'));
+              for (const attendanceDoc of attendanceSnapshot.docs) {
+                await deleteDoc(attendanceDoc.ref);
+              }
+              await deleteDoc(doc(db, 'Aulas', id));
+              cache.set('Aulas', (cache.get('Aulas') || []).filter((aula) => aula.id !== id));
+              document.getElementById('countAulas').textContent = String(cache.get('Aulas').length);
+              statusLine.textContent = 'Aula eliminada junto con sus listas de asistencia.';
+              renderRecords();
+            } catch (error) {
+              console.error(`No se pudo eliminar el aula ${id} y sus asistencias:`, error);
+              editMessage.textContent = 'No se pudo completar la eliminación. Revisa permisos y conexión de Firestore.';
+              saveButton.disabled = false;
+              deleteButton.disabled = false;
+              deleteButton.textContent = 'Eliminar aula';
+            }
+          });
+          detailContainer.append(editForm);
         }
         details.append(summary, detailContainer);
         recordsList.append(details);
