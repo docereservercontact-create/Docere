@@ -83,13 +83,15 @@
     .announcement-body > :last-child { margin-bottom: 0; }
     .attendance-summary { display: flex; flex-wrap: wrap; gap: 8px; }
     .attendance-stat { padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: 12px; }
-    .attendance-roster { display: grid; gap: 8px; }
+    .attendance { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+    .attendance > * { min-width: 0; }
+    .attendance-roster { display: grid; gap: 8px; width: 100%; min-width: 0; }
     .attendance-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 210px); align-items: center; gap: 12px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 6px; }
     .attendance-row-name { font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
     .attendance-row-email { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; font-weight: 400; }
     .attendance-row select { min-height: 36px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
-    .attendance-history-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 7px; }
-    .attendance-history { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+    .attendance-history-wrap { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; border: 1px solid var(--line); border-radius: 7px; }
+    .attendance-history { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
     .attendance-history th, .attendance-history td { padding: 9px 11px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); text-align: left; }
     .attendance-history th { position: sticky; top: 0; background: #f1f5f9; font-weight: 700; }
     .attendance-history th:first-child { position: sticky; left: 0; z-index: 1; }
