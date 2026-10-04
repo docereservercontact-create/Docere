@@ -60,6 +60,40 @@
     .class-tab[aria-selected="true"] { border-bottom-color: var(--blue); color: var(--ink); }
     .tab-content { min-height: 330px; padding: 18px; }
     .tab-content[hidden] { display: none; }
+    .announcements { display: grid; gap: 14px; }
+    .announcement-form { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
+    .announcement-form input { min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; font: inherit; }
+    .editor-toolbar { display: flex; flex-wrap: wrap; gap: 5px; }
+    .editor-toolbar button { min-width: 36px; min-height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); cursor: pointer; }
+    .editor-toolbar button:hover { background: #edf3fb; }
+    .announcement-editor { min-height: 140px; padding: 11px; border: 1px solid var(--line); border-radius: 5px; background: #fff; line-height: 1.5; }
+    .announcement-editor:focus { outline: 2px solid #a9c4ff; border-color: var(--blue); }
+    .announcement-submit { justify-self: start; min-height: 38px; padding: 0 14px; border: 0; border-radius: 5px; background: var(--blue); color: #fff; font-weight: 650; cursor: pointer; }
+    .announcement-submit:disabled { opacity: .6; cursor: wait; }
+    .announcement-list { display: grid; gap: 10px; }
+    .announcement-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
+    .announcement-card h3 { margin: 0 0 4px; font-size: 16px; }
+    .announcement-meta { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+    .announcement-body { overflow-wrap: anywhere; line-height: 1.55; }
+    .announcement-body > :first-child { margin-top: 0; }
+    .announcement-body > :last-child { margin-bottom: 0; }
+    .attendance-summary { display: flex; flex-wrap: wrap; gap: 8px; }
+    .attendance-stat { padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: 12px; }
+    .attendance-roster { display: grid; gap: 8px; }
+    .attendance-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 210px); align-items: center; gap: 12px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 6px; }
+    .attendance-row-name { font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+    .attendance-row-email { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; font-weight: 400; }
+    .attendance-row select { min-height: 36px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
+    .attendance-history-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 7px; }
+    .attendance-history { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+    .attendance-history th, .attendance-history td { padding: 9px 11px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); text-align: left; }
+    .attendance-history th { position: sticky; top: 0; background: #f1f5f9; font-weight: 700; }
+    .attendance-history th:first-child { position: sticky; left: 0; z-index: 1; }
+    .attendance-history td:first-child { position: sticky; left: 0; background: #fff; font-weight: 650; }
+    .attendance-history tr:last-child td { border-bottom: 0; }
+    .attendance-history .state-attended { color: var(--green); font-weight: 650; }
+    .attendance-history .state-absent { color: var(--red); font-weight: 650; }
+    .attendance-history .state-late { color: #a15c00; font-weight: 650; }
     .tab-placeholder { padding: 26px 18px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); text-align: center; }
     .students { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 8px; padding: 0; }
     .student { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; }
@@ -87,6 +121,7 @@
       .classroom-header { min-height: 150px; padding: 18px; }
       .tab-content { padding: 14px; }
       .students { grid-template-columns: 1fr; }
+      .attendance-row { grid-template-columns: 1fr; gap: 7px; }
       .logout { padding: 0 9px; }
       .logout span { display: none; }
     }
