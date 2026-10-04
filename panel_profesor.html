@@ -68,6 +68,7 @@
     .editor-toolbar button:hover { background: #edf3fb; }
     .announcement-editor { min-height: 140px; padding: 11px; border: 1px solid var(--line); border-radius: 5px; background: #fff; line-height: 1.5; }
     .announcement-editor:focus { outline: 2px solid #a9c4ff; border-color: var(--blue); }
+    .announcement-editor:empty::before { color: #94a3b8; content: attr(data-placeholder); pointer-events: none; }
     .announcement-submit { justify-self: start; min-height: 38px; padding: 0 14px; border: 0; border-radius: 5px; background: var(--blue); color: #fff; font-weight: 650; cursor: pointer; }
     .announcement-submit:disabled { opacity: .6; cursor: wait; }
     .announcement-list { display: grid; gap: 10px; }
@@ -397,12 +398,16 @@
           addText(attendanceSummary, 'span', 'attendance-stat', 'Los porcentajes aparecerán después de guardar asistencias.');
         } else {
           const totals = { asistencia: 0, falta: 0, retardo: 0 };
+          const assignedStudents = new Set(aula.alumnos.map((student) => `${student.coleccion}/${student.id}`));
           let totalMarks = 0;
-          savedSessions.forEach((record) => record.alumnos.forEach((student) => {
-            const state = attendanceStatus(student);
-            totals[state] += 1;
-            totalMarks += 1;
-          }));
+          savedSessions.forEach((record) => {
+            record.alumnos.forEach((student) => {
+              if (!assignedStudents.has(`${student.coleccion}/${student.id}`)) return;
+              const state = attendanceStatus(student);
+              totals[state] += 1;
+              totalMarks += 1;
+            });
+          });
           const percent = (value) => totalMarks ? Math.round((value / totalMarks) * 100) : 0;
           [
             ['Asistencia', totals.asistencia],
