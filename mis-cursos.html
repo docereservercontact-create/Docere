@@ -247,6 +247,7 @@
       background-color: var(--accent);
       border-radius: 9999px;
     }
+    .progress-details { margin: 7px 0 0; color: var(--text-secondary); font-size: 12px; }
 
     .attendance-analysis-button {
       margin-top: 18px;
@@ -470,11 +471,12 @@
       <div class="progress-section">
         <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600;">
           <span>Avance General del Programa</span>
-          <span id="progressText">0%</span>
+          <span id="progressText">—</span>
         </div>
         <div class="progress-bar-bg">
           <div class="progress-bar-fill" id="progressBarFill" style="width: 0%"></div>
         </div>
+        <p class="progress-details" id="progressDetails" role="status">Calculando avance por horas de asistencia...</p>
       </div>
       <button class="btn btn-primary attendance-analysis-button" id="showAttendanceAnalysis" type="button" aria-expanded="false" aria-controls="attendanceAnalysis">
         <i data-lucide="chart-no-axes-column-increasing"></i>
@@ -492,7 +494,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, collection, query, where, limit, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, collection, query, where, limit, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -553,11 +555,88 @@
       document.getElementById('registeredModality').textContent = `Modalidad: ${modalidad}`;
     }
 
-    function actualizarAvance(avance) {
-      const valor = Number(avance);
+    function actualizarAvance(avance, detalle = '') {
+      const valor = avance === null || avance === undefined ? NaN : Number(avance);
       const porcentaje = Number.isFinite(valor) ? Math.min(100, Math.max(0, valor)) : 0;
-      document.getElementById('progressText').textContent = `${porcentaje}%`;
+      document.getElementById('progressText').textContent = Number.isFinite(valor) ? `${porcentaje}%` : '—';
       document.getElementById('progressBarFill').style.width = `${porcentaje}%`;
+      document.getElementById('progressDetails').textContent = detalle;
+    }
+
+    function getClassDurationHours(classroom) {
+      const schedule = classroom.horario || {};
+      const storedDuration = Number(schedule.horasPorClase);
+      if (Number.isFinite(storedDuration) && storedDuration > 0) return storedDuration;
+      if (!schedule.horaInicio || !schedule.horaFin) return null;
+      const [startHour, startMinute] = schedule.horaInicio.split(':').map(Number);
+      const [endHour, endMinute] = schedule.horaFin.split(':').map(Number);
+      const duration = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute)) / 60;
+      return Number.isFinite(duration) && duration > 0 ? duration : null;
+    }
+
+    async function calculateAndSaveProgress(student, target) {
+      try {
+        const classroomSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => studentMatchesClassroom(classroom, student));
+
+        if (!classrooms.length) {
+          await updateDoc(doc(db, target.collection, target.id), {
+            avance: 0,
+            avanceHorasAsistidas: 0,
+            avanceHorasTotales: 0,
+            avanceActualizadoEn: serverTimestamp()
+          });
+          actualizarAvance(0, 'Aún no tienes aulas asignadas.');
+          return;
+        }
+
+        const classroomsWithHours = classrooms.map((classroom) => ({
+          classroom,
+          classDuration: getClassDurationHours(classroom),
+          courseHours: Number(classroom.horasCursoTotal)
+        }));
+        const unconfigured = classroomsWithHours.find(({ classDuration, courseHours }) =>
+          !Number.isFinite(classDuration) || classDuration <= 0 || !Number.isFinite(courseHours) || courseHours <= 0
+        );
+        if (unconfigured) {
+          actualizarAvance(null, 'El administrador debe completar el horario y las horas totales de tu aula para calcular el avance.');
+          return;
+        }
+
+        const results = await Promise.all(classroomsWithHours.map(async ({ classroom, classDuration, courseHours }) => {
+          const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'asistencias'));
+          let attendedHours = 0;
+          snapshot.docs.forEach((attendanceDoc) => {
+            const attendance = attendanceDoc.data();
+            const records = Array.isArray(attendance.alumnos) ? attendance.alumnos : [];
+            const studentRecord = records.find((record) =>
+              (record.id === student.id && record.coleccion === student.coleccion)
+              || (student.email && record.email === student.email)
+            );
+            if (!studentRecord) return;
+            const state = getAttendanceState(studentRecord);
+            if (state === 'asistencia' || state === 'retardo') attendedHours += classDuration;
+          });
+          return { attendedHours, courseHours };
+        }));
+
+        const attendedHours = results.reduce((total, result) => total + result.attendedHours, 0);
+        const courseHours = results.reduce((total, result) => total + result.courseHours, 0);
+        const progress = Math.min(100, Math.round((attendedHours / courseHours) * 100));
+        const roundHours = (hours) => Math.round(hours * 100) / 100;
+        await updateDoc(doc(db, target.collection, target.id), {
+          avance: progress,
+          avanceHorasAsistidas: roundHours(attendedHours),
+          avanceHorasTotales: roundHours(courseHours),
+          avanceActualizadoEn: serverTimestamp()
+        });
+        actualizarAvance(progress, `${roundHours(attendedHours)} de ${roundHours(courseHours)} horas del curso completadas. Asistencias y retardos cuentan como horas cursadas.`);
+      } catch (error) {
+        console.error('No se pudo calcular o guardar el avance del curso:', error);
+        actualizarAvance(null, 'No se pudo calcular o guardar el avance. Revisa la conexión y los permisos de Firestore.');
+      }
     }
 
     const attendanceAnalysis = document.getElementById('attendanceAnalysis');
@@ -764,65 +843,90 @@
       }
 
       const applicantEmail = user?.email || studentSession.email;
-      let applicantFound = false;
+      let progressTarget = null;
       try {
-        const applicantQuery = query(
-          collection(db, 'aspirantes_admision'),
-          where('email', '==', applicantEmail),
-          limit(1)
-        );
-        const applicantRecords = await getDocs(applicantQuery);
-        if (applicantRecords.empty) {
-          actualizarAvance(0);
-        } else {
-          const applicantRecord = applicantRecords.docs[0];
-          const applicantData = applicantRecord.data();
-          applicantFound = true;
-          const defaultFields = {};
-          if (!Object.prototype.hasOwnProperty.call(applicantData, 'avance')) defaultFields.avance = 0;
-          if (!applicantData.turno) defaultFields.turno = applicantData.datosAcademicos?.turno || 'No asignado';
-          if (!applicantData.modalidad) defaultFields.modalidad = applicantData.datosAcademicos?.modalidad || 'En Línea';
+        if (applicantEmail) {
+          const applicantQuery = query(
+            collection(db, 'aspirantes_admision'),
+            where('email', '==', applicantEmail),
+            limit(1)
+          );
+          const applicantRecords = await getDocs(applicantQuery);
+          if (!applicantRecords.empty) {
+            const applicantRecord = applicantRecords.docs[0];
+            const applicantData = applicantRecord.data();
+            progressTarget = { collection: 'aspirantes_admision', id: applicantRecord.id };
+            const defaultFields = {};
+            if (!applicantData.turno) defaultFields.turno = applicantData.datosAcademicos?.turno || 'No asignado';
+            if (!applicantData.modalidad) defaultFields.modalidad = applicantData.datosAcademicos?.modalidad || 'En Línea';
 
-          if (Object.keys(defaultFields).length) {
-            try {
-              await updateDoc(doc(db, 'aspirantes_admision', applicantRecord.id), defaultFields);
-              Object.assign(applicantData, defaultFields);
-            } catch (error) {
-              console.error('No se pudieron completar los datos del aspirante:', error);
+            if (Object.keys(defaultFields).length) {
+              try {
+                await updateDoc(doc(db, 'aspirantes_admision', applicantRecord.id), defaultFields);
+                Object.assign(applicantData, defaultFields);
+              } catch (error) {
+                console.error('No se pudieron completar los datos del aspirante:', error);
+              }
             }
+            actualizarInterfaz({ ...applicantData, ...defaultFields }, applicantRecord.id);
           }
-          actualizarAvance(applicantData.avance);
-          actualizarInterfaz({ ...applicantData, ...defaultFields }, applicantRecord.id);
         }
       } catch (error) {
-        actualizarAvance(0);
         console.error('No se pudo verificar el registro del aspirante:', error);
       }
 
-      if (!applicantFound && user) {
-        const userSnap = await getDoc(doc(db, "users", user.uid));
-        if (userSnap.exists()) {
-          actualizarInterfaz(userSnap.data(), user.uid);
-        } else {
-          await cargarDeAspirantes(user.email || studentSession.email);
+      if (!progressTarget && user) {
+        try {
+          const userSnap = await getDoc(doc(db, 'users', user.uid));
+          if (userSnap.exists()) {
+            actualizarInterfaz(userSnap.data(), user.uid);
+            progressTarget = { collection: 'users', id: user.uid };
+          }
+        } catch (error) {
+          console.error('No se pudo consultar el perfil del usuario:', error);
         }
-      } else if (!applicantFound) {
-        await cargarDeAspirantes(studentSession.email);
+      }
+
+      if (!progressTarget) {
+        try {
+          progressTarget = await cargarDeAspirantes(applicantEmail);
+        } catch (error) {
+          console.error('No se pudo buscar la inscripción del alumno:', error);
+        }
+      }
+
+      if (!progressTarget && studentSession.coleccion && studentSession.id) {
+        try {
+          const sessionRecord = await getDoc(doc(db, studentSession.coleccion, studentSession.id));
+          if (sessionRecord.exists()) {
+            actualizarInterfaz(sessionRecord.data(), studentSession.id);
+            progressTarget = { collection: studentSession.coleccion, id: studentSession.id };
+          }
+        } catch (error) {
+          console.error('No se pudo consultar el registro vinculado a la sesión:', error);
+        }
+      }
+
+      if (progressTarget) {
+        await calculateAndSaveProgress(studentSession, progressTarget);
+      } else {
+        actualizarAvance(null, 'No se encontró tu inscripción para registrar el avance.');
       }
       if (typeof lucide !== 'undefined') lucide.createIcons();
     });
 
     async function cargarDeAspirantes(email) {
-      if (!email) return;
-      for (const collectionName of ["aspirantes_admision", "Cursos"]) {
-        const q = query(collection(db, collectionName), where("email", "==", email), limit(1));
+      if (!email) return null;
+      for (const collectionName of ['aspirantes_admision', 'Cursos']) {
+        const q = query(collection(db, collectionName), where('email', '==', email), limit(1));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
           const snap = querySnapshot.docs[0];
           actualizarInterfaz(snap.data(), snap.id);
-          return;
+          return { collection: collectionName, id: snap.id };
         }
       }
+      return null;
     }
   </script>
 </body>

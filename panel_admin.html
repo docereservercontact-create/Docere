@@ -145,6 +145,13 @@
     }
     .classroom-form select[multiple] { min-height: 150px; }
     .classroom-form .full { grid-column: 1 / -1; }
+    .class-schedule-fields { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .schedule-days { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 5px; }
+    .schedule-days legend { padding: 0 5px; color: var(--muted); font-size: 13px; font-weight: 650; }
+    .schedule-days label { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 13px; font-weight: 500; }
+    .schedule-days input { width: 16px; min-height: 16px; margin: 0; }
+    .class-schedule-fields > label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 650; }
+    .class-schedule-fields input { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
     .student-picker { display: grid; gap: 6px; max-height: 240px; overflow-y: auto; padding: 8px; border: 1px solid var(--line); border-radius: 5px; background: #fff; }
     .student-option { display: flex !important; grid-template-columns: auto 1fr; align-items: center; gap: 8px !important; padding: 7px; border-radius: 4px; color: var(--ink) !important; font-weight: 500 !important; cursor: pointer; }
     .student-option:hover { background: #f4f7fb; }
@@ -252,6 +259,7 @@
       .search-wrap { width: 100%; margin-bottom: 10px; }
       .details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .classroom-form { grid-template-columns: 1fr; padding: 14px; }
+      .class-schedule-fields { grid-template-columns: 1fr; }
       .classroom-form .full { grid-column: auto; }
     }
 
@@ -309,6 +317,21 @@
         <label>Nombre del aula *<input name="nombre" required maxlength="100" placeholder="Ej. Grupo UNAM matutino"></label>
         <label>Curso *<input name="curso" required maxlength="120" placeholder="Ej. Ingreso UNAM"></label>
         <label>Profesor asignado *<select name="profesorUid" id="teacherSelect" required><option value="">Selecciona un profesor</option></select></label>
+        <div class="class-schedule-fields" id="classScheduleFields">
+          <fieldset class="schedule-days">
+            <legend>Días de clase *</legend>
+            <label><input type="checkbox" name="diasClase" value="lunes"> Lunes</label>
+            <label><input type="checkbox" name="diasClase" value="martes"> Martes</label>
+            <label><input type="checkbox" name="diasClase" value="miercoles"> Miércoles</label>
+            <label><input type="checkbox" name="diasClase" value="jueves"> Jueves</label>
+            <label><input type="checkbox" name="diasClase" value="viernes"> Viernes</label>
+            <label><input type="checkbox" name="diasClase" value="sabado"> Sábado</label>
+            <label><input type="checkbox" name="diasClase" value="domingo"> Domingo</label>
+          </fieldset>
+          <label>Hora de inicio *<input name="horaInicio" type="time" required></label>
+          <label>Hora de fin *<input name="horaFin" type="time" required></label>
+          <label>Horas totales del curso *<input name="horasCursoTotal" type="number" min="0.25" step="0.25" required placeholder="Ej. 120"></label>
+        </div>
         <label class="full">Alumnos asignados *<div id="studentSelect"></div></label>
         <p class="classroom-form-message">Marca únicamente los alumnos que quieres agregar al grupo. Puedes cambiar la selección cuando quieras.</p>
         <p class="classroom-form-message" id="classroomFormMessage" role="status"></p>
@@ -433,6 +456,92 @@
       return [data.asp_nombre || data.nombre, data.asp_apellido1, data.asp_apellido2]
         .filter(Boolean)
         .join(' ') || data.email || 'Alumno sin nombre';
+    }
+
+    const classDays = [
+      ['lunes', 'Lunes'],
+      ['martes', 'Martes'],
+      ['miercoles', 'Miércoles'],
+      ['jueves', 'Jueves'],
+      ['viernes', 'Viernes'],
+      ['sabado', 'Sábado'],
+      ['domingo', 'Domingo']
+    ];
+
+    function createScheduleFields(schedule = {}, totalHours = '') {
+      const fields = document.createElement('div');
+      fields.className = 'class-schedule-fields';
+      const days = document.createElement('fieldset');
+      days.className = 'schedule-days';
+      const legend = document.createElement('legend');
+      legend.textContent = 'Días de clase *';
+      days.append(legend);
+      classDays.forEach(([value, label]) => {
+        const dayLabel = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'diasClase';
+        checkbox.value = value;
+        checkbox.checked = Array.isArray(schedule.dias) && schedule.dias.includes(value);
+        dayLabel.append(checkbox, document.createTextNode(` ${label}`));
+        days.append(dayLabel);
+      });
+      fields.append(days);
+
+      [
+        ['horaInicio', 'Hora de inicio *', schedule.horaInicio || ''],
+        ['horaFin', 'Hora de fin *', schedule.horaFin || '']
+      ].forEach(([name, text, value]) => {
+        const label = document.createElement('label');
+        label.append(document.createTextNode(text));
+        const input = document.createElement('input');
+        input.name = name;
+        input.type = 'time';
+        input.required = true;
+        input.value = value;
+        label.append(input);
+        fields.append(label);
+      });
+
+      const totalHoursLabel = document.createElement('label');
+      totalHoursLabel.append(document.createTextNode('Horas totales del curso *'));
+      const totalHoursInput = document.createElement('input');
+      totalHoursInput.name = 'horasCursoTotal';
+      totalHoursInput.type = 'number';
+      totalHoursInput.min = '0.25';
+      totalHoursInput.step = '0.25';
+      totalHoursInput.required = true;
+      totalHoursInput.placeholder = 'Ej. 120';
+      totalHoursInput.value = totalHours || '';
+      totalHoursLabel.append(totalHoursInput);
+      fields.append(totalHoursLabel);
+      return fields;
+    }
+
+    function readClassSchedule(form) {
+      const dias = Array.from(form.querySelectorAll('input[name="diasClase"]:checked'), (input) => input.value);
+      const horaInicio = form.elements.horaInicio.value;
+      const horaFin = form.elements.horaFin.value;
+      const horasCursoTotal = Number(form.elements.horasCursoTotal.value);
+      if (!dias.length) return { error: 'Selecciona al menos un día de clase.' };
+      const [startHour, startMinute] = horaInicio.split(':').map(Number);
+      const [endHour, endMinute] = horaFin.split(':').map(Number);
+      const minutosPorClase = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+      if (!Number.isFinite(minutosPorClase) || minutosPorClase <= 0) {
+        return { error: 'La hora de fin debe ser posterior a la hora de inicio.' };
+      }
+      if (!Number.isFinite(horasCursoTotal) || horasCursoTotal <= 0) {
+        return { error: 'Ingresa un total de horas válido para el curso.' };
+      }
+      return {
+        horario: {
+          dias,
+          horaInicio,
+          horaFin,
+          horasPorClase: minutosPorClase / 60
+        },
+        horasCursoTotal
+      };
     }
 
     function getAssignableStudents() {
@@ -671,6 +780,7 @@
           courseInput.maxLength = 120;
           courseInput.value = data.curso || '';
           courseLabel.append(courseInput);
+          const scheduleFields = createScheduleFields(data.horario || {}, data.horasCursoTotal);
           const teacherLabel = document.createElement('label');
           teacherLabel.textContent = 'Profesor asignado';
           const editTeacherSelect = document.createElement('select');
@@ -705,9 +815,14 @@
           const editMessage = document.createElement('p');
           editMessage.className = 'roster-message';
           editMessage.setAttribute('role', 'status');
-          editForm.append(editHeading, nameLabel, courseLabel, teacherLabel, rosterHint, studentPicker, actions, editMessage);
+          editForm.append(editHeading, nameLabel, courseLabel, scheduleFields, teacherLabel, rosterHint, studentPicker, actions, editMessage);
           editForm.addEventListener('submit', async (event) => {
             event.preventDefault();
+            const schedule = readClassSchedule(editForm);
+            if (schedule.error) {
+              editMessage.textContent = schedule.error;
+              return;
+            }
             const selectedTeacher = teachers.find(({ id: teacherId }) => teacherId === editTeacherSelect.value);
             if (!selectedTeacher) {
               editMessage.textContent = 'Selecciona un profesor registrado.';
@@ -723,6 +838,7 @@
                 alumnos,
                 nombre: nameInput.value.trim(),
                 curso: courseInput.value.trim(),
+                ...schedule,
                 profesorDocId: selectedTeacher.id,
                 profesorUid: selectedTeacher.data.authUid || selectedTeacher.id,
                 profesorEmail: selectedTeacher.data.email || '',
@@ -739,6 +855,7 @@
                   alumnos,
                   nombre: nameInput.value.trim(),
                   curso: courseInput.value.trim(),
+                  ...schedule,
                   profesorDocId: selectedTeacher.id,
                   profesorUid: selectedTeacher.data.authUid || selectedTeacher.id,
                   profesorEmail: selectedTeacher.data.email || '',
@@ -834,6 +951,11 @@
       event.preventDefault();
       if (!classroomForm.reportValidity()) return;
 
+      const schedule = readClassSchedule(classroomForm);
+      if (schedule.error) {
+        classroomFormMessage.textContent = schedule.error;
+        return;
+      }
       const selectedTeacher = teacherSelect.selectedOptions[0];
       const teacher = (cache.get('Profesores') || []).find(({ id }) => id === selectedTeacher.value);
       const students = getSelectedStudents(studentSelect, getAssignableStudents());
@@ -849,6 +971,7 @@
         const aulaData = {
           nombre: classroomForm.elements.nombre.value.trim(),
           curso: classroomForm.elements.curso.value.trim(),
+          ...schedule,
           profesorDocId: teacher.id,
           profesorUid: teacher.data.authUid || teacher.id,
           profesorEmail: teacher.data.email || '',
