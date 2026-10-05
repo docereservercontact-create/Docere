@@ -270,6 +270,13 @@
       font-size: 12px;
     }
 
+    .pizarra-link {
+      display: inline-block;
+      color: var(--accent);
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
     .announcement-content {
       overflow-wrap: anywhere;
       line-height: 1.6;
@@ -452,7 +459,7 @@
       <ul class="nav-links" id="navLinks">
         <li><a href="panel_estudiante.html" class="current" aria-current="page">Mi panel</a></li>
         <li><a href="mis-cursos.html">Mis Cursos</a></li>
-        <li><a href="Material_de_estudio.html">Apuntes</a></li>
+        <li><a href="Apuntes_admision.html">Apuntes</a></li>
         <li><a href="Material_de_estudio.html" target="_blank">Material de Estudio</a></li>
         <li><a href="https://www.bidi.unam.mx/" target="_blank">Libreria</a></li>      
       </ul>
@@ -760,37 +767,56 @@
           return;
         }
 
-        const announcementResults = await Promise.all(classrooms.map(async (classroom) => {
-          try {
-            const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'anuncios'));
-            return snapshot.docs.map((announcementDoc) => ({
-              id: announcementDoc.id,
-              aulaId: classroom.id,
-              aulaNombre: classroom.nombre || 'Aula',
-              ...announcementDoc.data()
-            }));
-          } catch (error) {
-            console.error(`No se pudieron cargar los anuncios del aula ${classroom.id}:`, error);
-            return null;
-          }
+        const classroomResults = await Promise.all(classrooms.map(async (classroom) => {
+          const [announcementsResult, pizarrasResult] = await Promise.all([
+            getDocs(collection(db, 'Aulas', classroom.id, 'anuncios'))
+              .then((snapshot) => snapshot.docs.map((announcementDoc) => ({
+                id: announcementDoc.id,
+                aulaId: classroom.id,
+                aulaNombre: classroom.nombre || 'Aula',
+                ...announcementDoc.data()
+              })))
+              .catch((error) => {
+                console.error(`No se pudieron cargar los anuncios del aula ${classroom.id}:`, error);
+                return null;
+              }),
+            getDocs(collection(db, 'Aulas', classroom.id, 'pizarras'))
+              .then((snapshot) => snapshot.docs
+                .map((pizarraDoc) => ({
+                  id: pizarraDoc.id,
+                  aulaId: classroom.id,
+                  aulaNombre: classroom.nombre || 'Aula',
+                  ...pizarraDoc.data()
+                }))
+                .filter((pizarra) => pizarra.publicado === true))
+              .catch((error) => {
+                console.error(`No se pudieron cargar las pizarras del aula ${classroom.id}:`, error);
+                return null;
+              })
+          ]);
+          return { announcements: announcementsResult, pizarras: pizarrasResult };
         }));
-        const failedClassrooms = announcementResults.filter((result) => result === null).length;
-        const announcements = announcementResults
-          .filter(Boolean)
-          .flat()
+        const failedClassrooms = classroomResults.filter((result) =>
+          result.announcements === null || result.pizarras === null
+        ).length;
+        const announcements = classroomResults
+          .flatMap((result) => result.announcements || [])
+          .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+        const pizarras = classroomResults
+          .flatMap((result) => result.pizarras || [])
           .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
 
         announcementWall.replaceChildren();
-        if (!announcements.length) {
+        if (!announcements.length && !pizarras.length) {
           announcementWallStatus.textContent = failedClassrooms
-            ? 'No se pudieron consultar los anuncios. Revisa los permisos de lectura de Firestore.'
-            : 'Todavía no hay anuncios en tus aulas.';
+            ? 'No se pudieron consultar todos los anuncios o pizarras. Revisa los permisos de lectura de Firestore.'
+            : 'Todavía no hay anuncios ni pizarras publicadas en tus aulas.';
           return;
         }
 
         announcementWallStatus.textContent = failedClassrooms
-          ? `Mostrando anuncios. No se pudieron cargar los de ${failedClassrooms} aula(s); revisa los permisos de Firestore.`
-          : `${announcements.length} anuncio(s) de ${classrooms.length} aula(s).`;
+          ? `Mostrando contenido disponible. No se pudieron consultar anuncios o pizarras de ${failedClassrooms} aula(s); revisa los permisos de Firestore.`
+          : `${announcements.length} anuncio(s) y ${pizarras.length} pizarra(s) publicada(s) de ${classrooms.length} aula(s).`;
         announcements.forEach((announcement) => {
           const card = document.createElement('article');
           card.className = 'class-announcement';
@@ -801,6 +827,24 @@
           content.className = 'announcement-content';
           content.innerHTML = sanitizeAnnouncement(announcement.contenido || '');
           card.append(content);
+          announcementWall.append(card);
+        });
+        pizarras.forEach((pizarra) => {
+          const card = document.createElement('article');
+          card.className = 'class-announcement';
+          addWallText(card, 'p', 'announcement-class', `${pizarra.aulaNombre} · Pizarra`);
+          addWallText(card, 'h3', '', pizarra.nombre || 'Pizarra');
+          try {
+            const linkUrl = new URL(pizarra.enlace);
+            if (['http:', 'https:'].includes(linkUrl.protocol)) {
+              const link = addWallText(card, 'a', 'pizarra-link', 'Abrir pizarra');
+              link.href = linkUrl.href;
+              link.target = '_blank';
+              link.rel = 'noopener noreferrer';
+            }
+          } catch (error) {
+            console.error(`El enlace de la pizarra ${pizarra.id} no es válido.`);
+          }
           announcementWall.append(card);
         });
       } catch (error) {

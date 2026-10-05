@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Apuntes de admisión</title>
+  <title>Pizarras de mis aulas</title>
   <script src="student-session.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -153,8 +153,14 @@
       color: var(--muted);
     }
 
+    .pizarras-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+      gap: 16px;
+    }
+
     .subject-card {
-      max-width: 520px;
+      min-width: 0;
       padding: 24px;
       background: var(--surface);
       border: 1px solid var(--border);
@@ -274,40 +280,15 @@
   </nav>
 
   <main>
-    <h1>Pizarrón Digital</h1>
-    <p class="intro">Apuntes y materiales de tu curso de admisión.</p>
-    <p id="accessMessage" role="status">Verificando tu acceso...</p>
-
-    <section class="subject-card" id="admissionMaterials" hidden>
-      <h2>Español</h2>
-      <p>Unidad 1: Lenguaje y Comunicación</p>
-      <a class="btn" href="https://globalsite.my.canva.site/unidad-1-lengua-y-comunicaci-n" target="_blank" rel="noopener noreferrer">
-        <i data-lucide="external-link" aria-hidden="true"></i>
-        <span>Consultar apunte</span>
-      </a>
-    </section>
-        <section class="subject-card" id="admissionMaterials" hidden>
-      <h2>Historia</h2>
-      <p>Unidad 1: Lenguaje y Comunicación</p>
-      <a class="btn" href="https://globalsite.my.canva.site/unidad-1-lengua-y-comunicaci-n" target="_blank" rel="noopener noreferrer">
-        <i data-lucide="external-link" aria-hidden="true"></i>
-        <span>Consultar apunte</span>
-      </a>
-    </section>
-        </section>
-        <section class="subject-card" id="admissionMaterials" hidden>
-      <h2>Matemáticas</h2>
-      <p>Unidad 1: Conceptos básicos</p>
-      <a class="btn" href="https://globalsite.my.canva.site/matematicas-" target="_blank" rel="noopener noreferrer">
-        <i data-lucide="external-link" aria-hidden="true"></i>
-        <span>Consultar apunte</span>
-      </a>
-    </section>
+    <h1>Pizarras de mis aulas</h1>
+    <p class="intro">Consulta las pizarras que tus profesores han publicado.</p>
+    <p id="accessMessage" role="status" aria-live="polite">Cargando pizarras...</p>
+    <section class="pizarras-list" id="pizarrasList" aria-label="Pizarras publicadas"></section>
   </main>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, query, where, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -320,31 +301,89 @@
     };
 
     const message = document.getElementById('accessMessage');
-    const materials = document.getElementById('admissionMaterials');
+    const pizarrasList = document.getElementById('pizarrasList');
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function addText(parent, tagName, className, text) {
+      const element = document.createElement(tagName);
+      element.className = className;
+      element.textContent = text;
+      parent.append(element);
+      return element;
+    }
+
+    function isStudentInClassroom(classroom, student) {
+      return Array.isArray(classroom.alumnos) && classroom.alumnos.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && assignedStudent.email === student.email)
+      );
+    }
 
     try {
       const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
-      if (!session?.email) throw new Error('No hay una sesión válida.');
+      if (!session?.id || !session?.coleccion) throw new Error('No hay una sesión válida.');
 
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-      const applicantQuery = query(
-        collection(db, 'aspirantes_admision'),
-        where('email', '==', session.email),
-        limit(1)
-      );
-      const applicants = await getDocs(applicantQuery);
-
-      if (applicants.empty) {
-        message.textContent = 'Este material está disponible únicamente para aspirantes registrados.';
+      const classroomsSnapshot = await getDocs(collection(db, 'Aulas'));
+      const classrooms = classroomsSnapshot.docs
+        .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+        .filter((classroom) => isStudentInClassroom(classroom, session));
+      if (!classrooms.length) {
+        message.textContent = 'Todavía no estás asignado a un aula.';
       } else {
-        materials.hidden = false;
-        message.hidden = true;
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        const classroomResults = await Promise.all(classrooms.map(async (classroom) => {
+          try {
+            const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'pizarras'));
+            return snapshot.docs
+              .map((pizarraDoc) => ({ id: pizarraDoc.id, ...pizarraDoc.data() }))
+              .filter((pizarra) => pizarra.publicado === true)
+              .map((pizarra) => ({ ...pizarra, aulaNombre: classroom.nombre || 'Aula' }));
+          } catch (error) {
+            console.error(`No se pudieron cargar las pizarras del aula ${classroom.id}:`, error);
+            return null;
+          }
+        }));
+        const failedCount = classroomResults.filter((result) => result === null).length;
+        const pizarras = classroomResults
+          .filter(Boolean)
+          .flat()
+          .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+
+        pizarras.forEach((pizarra) => {
+          const card = document.createElement('article');
+          card.className = 'subject-card';
+          addText(card, 'h2', '', pizarra.nombre || 'Pizarra');
+          addText(card, 'p', '', pizarra.aulaNombre);
+          try {
+            const linkUrl = new URL(pizarra.enlace);
+            if (!['http:', 'https:'].includes(linkUrl.protocol)) throw new Error('Protocolo no permitido.');
+            const link = document.createElement('a');
+            link.className = 'btn';
+            link.href = linkUrl.href;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.append(document.createElement('i'));
+            link.firstElementChild.setAttribute('data-lucide', 'external-link');
+            link.append(document.createTextNode('Abrir pizarra'));
+            card.append(link);
+          } catch {
+            addText(card, 'p', '', 'El enlace de esta pizarra no está disponible.');
+          }
+          pizarrasList.append(card);
+        });
+
+        message.textContent = pizarras.length
+          ? failedCount
+            ? `Se muestran ${pizarras.length} pizarra(s). No se pudieron consultar ${failedCount} aula(s).`
+            : `${pizarras.length} pizarra(s) publicada(s).`
+          : failedCount
+            ? 'No se pudieron consultar las pizarras. Revisa los permisos de Firestore.'
+            : 'Todavía no hay pizarras publicadas en tus aulas.';
       }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     } catch (error) {
-      console.error('No se pudo verificar el acceso a los apuntes:', error);
-      message.textContent = 'No se pudo verificar tu acceso. Regresa a Mis Cursos e inténtalo de nuevo.';
+      console.error('No se pudieron cargar las pizarras del alumno:', error);
+      message.textContent = 'No se pudieron cargar tus pizarras. Regresa al panel e inténtalo de nuevo.';
     }
   </script>
   <script>
