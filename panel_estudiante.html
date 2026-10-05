@@ -473,10 +473,10 @@
         </a>
 
         <!-- Botón Entrar a Clase --> 
-        <a href="https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1" target="_blank" class="btn btn-primary" id="btnIngresarClase">
+        <button type="button" class="btn btn-primary" id="btnIngresarClase">
           <i data-lucide="video"></i>
           <span>Entrar a clase</span>
-        </a>
+        </button>
 
         <!-- Botón Cerrar Sesión -->
         <button class="btn btn-outline" id="btnCerrarSesion">
@@ -591,6 +591,8 @@
 
     const announcementWall = document.getElementById('announcementWall');
     const announcementWallStatus = document.getElementById('announcementWallStatus');
+    const classEntryButton = document.getElementById('btnIngresarClase');
+    const classMeetingUrl = 'https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1';
     const app = initializeApp(firebaseConfig, 'studentAnnouncementWall');
     const db = getFirestore(app);
 
@@ -631,11 +633,94 @@
     function isStudentInClassroom(classroom, student) {
       if (!Array.isArray(classroom.alumnos)) return false;
       return classroom.alumnos.some((assignedStudent) =>
-        assignedStudent.id === student.id
-        && assignedStudent.coleccion === student.coleccion
+        (assignedStudent.id === student.id
+        && assignedStudent.coleccion === student.coleccion)
         || student.email && assignedStudent.email === student.email
       );
     }
+
+    function getClassDurationHours(classroom) {
+      const schedule = classroom.horario || {};
+      const storedDuration = Number(schedule.horasPorClase);
+      if (Number.isFinite(storedDuration) && storedDuration > 0) return storedDuration;
+      if (!schedule.horaInicio || !schedule.horaFin) return null;
+      const [startHour, startMinute] = schedule.horaInicio.split(':').map(Number);
+      const [endHour, endMinute] = schedule.horaFin.split(':').map(Number);
+      const duration = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute)) / 60;
+      return Number.isFinite(duration) && duration > 0 ? duration : null;
+    }
+
+    function getAttendanceState(record) {
+      if (['asistencia', 'falta', 'retardo'].includes(record.estado)) return record.estado;
+      return record.presente === true ? 'asistencia' : 'falta';
+    }
+
+    async function getStudentProgress(session) {
+      if (!session?.id || !session?.coleccion) throw new Error('Sesión de alumno no válida.');
+
+      const classroomSnapshot = await getDocs(collection(db, 'Aulas'));
+      const classrooms = classroomSnapshot.docs
+        .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+        .filter((classroom) => isStudentInClassroom(classroom, session));
+
+      if (!classrooms.length) throw new Error('No hay aulas asignadas para verificar el avance.');
+
+      const classProgress = await Promise.all(classrooms.map(async (classroom) => {
+        const classDuration = getClassDurationHours(classroom);
+        const courseHours = Number(classroom.horasCursoTotal);
+        if (!Number.isFinite(classDuration) || classDuration <= 0 || !Number.isFinite(courseHours) || courseHours <= 0) {
+          throw new Error('El horario o las horas del aula no están configurados.');
+        }
+
+        const attendanceSnapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'asistencias'));
+        let attendedHours = 0;
+        attendanceSnapshot.docs.forEach((attendanceDoc) => {
+          const attendance = attendanceDoc.data();
+          const studentRecord = (Array.isArray(attendance.alumnos) ? attendance.alumnos : []).find((record) =>
+            (record.id === session.id && record.coleccion === session.coleccion)
+            || (session.email && record.email === session.email)
+          );
+          if (studentRecord && ['asistencia', 'retardo'].includes(getAttendanceState(studentRecord))) {
+            attendedHours += classDuration;
+          }
+        });
+        return { attendedHours, courseHours };
+      }));
+
+      const attendedHours = classProgress.reduce((total, progress) => total + progress.attendedHours, 0);
+      const courseHours = classProgress.reduce((total, progress) => total + progress.courseHours, 0);
+      return Math.min(100, Math.round((attendedHours / courseHours) * 100));
+    }
+
+    classEntryButton.addEventListener('click', async () => {
+      classEntryButton.disabled = true;
+      classEntryButton.setAttribute('aria-busy', 'true');
+      const classWindow = window.open('about:blank', '_blank');
+
+      try {
+        const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+        const progress = await getStudentProgress(session);
+        if (progress >= 100) {
+          classWindow?.close();
+          alert('Ya no tienes horas disponibles. Comunícate con un asesor de ventas o con tu profesor asignado.');
+          return;
+        }
+
+        if (classWindow) {
+          classWindow.opener = null;
+          classWindow.location.href = classMeetingUrl;
+        } else {
+          window.location.assign(classMeetingUrl);
+        }
+      } catch (error) {
+        console.error('No se pudo verificar el avance antes de entrar a clase:', error);
+        classWindow?.close();
+        alert('No se pudo verificar tu avance. Inténtalo de nuevo o comunícate con un asesor de ventas o con tu profesor asignado.');
+      } finally {
+        classEntryButton.disabled = false;
+        classEntryButton.removeAttribute('aria-busy');
+      }
+    });
 
     async function loadStudentAnnouncements() {
       const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
