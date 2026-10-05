@@ -1,0 +1,1243 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Aulas y alumnos asignados al profesor.">
+  <title>Panel del profesor | Docére</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --page: #f4f7fb;
+      --surface: #fff;
+      --ink: #142033;
+      --muted: #64748b;
+      --line: #dce4ee;
+      --blue: #155eef;
+      --green: #087f5b;
+      --red: #b42318;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--page); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input { font: inherit; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px max(20px, calc((100vw - 1160px) / 2)); background: var(--surface); border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 750; }
+    .brand-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 7px; background: #eaf1ff; color: var(--blue); }
+    .identity { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 14px; }
+    .logout { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 11px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); cursor: pointer; }
+    .panel-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: calc(100vh - 63px); }
+    .class-sidebar { padding: 20px 10px; background: #f7f9fc; border-right: 1px solid var(--line); }
+    .sidebar-heading { display: flex; align-items: center; gap: 9px; padding: 0 10px 14px; color: #334155; font-size: 14px; font-weight: 750; }
+    .class-list { display: grid; gap: 4px; }
+    .class-nav-button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+    .class-nav-button:hover { background: #edf3fb; }
+    .class-nav-button[aria-current="true"] { background: #d9efff; color: #075985; }
+    .class-initial { flex: 0 0 28px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: #e7edf5; color: #475569; font-size: 12px; font-weight: 750; }
+    .class-nav-button[aria-current="true"] .class-initial { background: #fff; color: #075985; }
+    .class-nav-text { min-width: 0; }
+    .class-nav-name, .class-nav-course { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .class-nav-name { font-size: 13px; font-weight: 650; }
+    .class-nav-course { margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .class-workspace { min-width: 0; padding: 22px clamp(16px, 3vw, 42px) 40px; }
+    .class-workspace[hidden] { display: none; }
+    .class-heading { margin-bottom: 18px; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .class-heading p { margin: 0; color: var(--muted); font-size: 13px; }
+    .status { min-height: 20px; margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+    .classroom { overflow: hidden; border: 1px solid #d6dce3; border-radius: 10px; background: var(--surface); box-shadow: 0 2px 6px rgba(20, 32, 51, .05); }
+    .classroom-header { position: relative; display: flex; min-height: 205px; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 24px; color: #fff; background: linear-gradient(125deg, #34464e, #526873); }
+    .classroom-header::after { position: absolute; right: -24px; bottom: -46px; width: 148px; height: 110px; border: 18px solid rgba(255,255,255,.09); border-radius: 50%; content: ""; transform: rotate(-25deg); }
+    .classroom-banner-1 { background: linear-gradient(125deg, #155e75, #1592a8); }
+    .classroom-banner-2 { background: linear-gradient(125deg, #3f4f72, #667ca5); }
+    .classroom-banner-3 { background: linear-gradient(125deg, #6a4a37, #a16d4c); }
+    .classroom-header h2 { position: relative; z-index: 1; margin: 0 0 5px; font-size: clamp(22px, 3vw, 30px); line-height: 1.25; overflow-wrap: anywhere; }
+    .classroom-header p { position: relative; z-index: 1; margin: 0; color: rgba(255,255,255,.88); font-size: 13px; font-weight: 600; }
+    .student-count { position: relative; z-index: 1; flex: 0 0 auto; padding: 5px 8px; border-radius: 20px; background: rgba(255,255,255,.18); color: #fff; font-size: 11px; font-weight: 650; white-space: nowrap; }
+    .class-tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--line); }
+    .class-tab { flex: 0 0 auto; min-height: 48px; padding: 0 12px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #475569; font-size: 12px; font-weight: 650; cursor: pointer; }
+    .class-tab:hover { background: #f8fafc; }
+    .class-tab[aria-selected="true"] { border-bottom-color: var(--blue); color: var(--ink); }
+    .tab-content { min-height: 330px; padding: 18px; }
+    .tab-content[hidden] { display: none; }
+    .announcements { display: grid; gap: 14px; }
+    .announcement-form { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
+    .announcement-form input { min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; font: inherit; }
+    .editor-toolbar { display: flex; flex-wrap: wrap; gap: 5px; }
+    .editor-toolbar button { min-width: 36px; min-height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); cursor: pointer; }
+    .editor-toolbar button:hover { background: #edf3fb; }
+    .announcement-editor { min-height: 140px; padding: 11px; border: 1px solid var(--line); border-radius: 5px; background: #fff; line-height: 1.5; }
+    .announcement-editor:focus { outline: 2px solid #a9c4ff; border-color: var(--blue); }
+    .announcement-editor:empty::before { color: #94a3b8; content: attr(data-placeholder); pointer-events: none; }
+    .announcement-submit { justify-self: start; min-height: 38px; padding: 0 14px; border: 0; border-radius: 5px; background: var(--blue); color: #fff; font-weight: 650; cursor: pointer; }
+    .announcement-submit:disabled { opacity: .6; cursor: wait; }
+    .announcement-list { display: grid; gap: 10px; }
+    .announcement-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
+    .announcement-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .announcement-card h3 { margin: 0 0 4px; font-size: 16px; }
+    .announcement-meta { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+    .announcement-body { overflow-wrap: anywhere; line-height: 1.55; }
+    .announcement-edit { flex: 0 0 auto; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--blue); font-size: 12px; font-weight: 650; cursor: pointer; }
+    .announcement-edit:hover { background: #edf3fb; }
+    .announcement-body > :first-child { margin-top: 0; }
+    .announcement-body > :last-child { margin-bottom: 0; }
+    .attendance-summary { display: flex; flex-wrap: wrap; gap: 8px; }
+    .attendance-stat { padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: 12px; }
+    .attendance { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+    .attendance > * { min-width: 0; }
+    .attendance-roster { display: grid; gap: 8px; width: 100%; min-width: 0; }
+    .attendance-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 210px); align-items: center; gap: 12px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 6px; }
+    .attendance-row-name { font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+    .attendance-row-email { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; font-weight: 400; }
+    .attendance-row select { min-height: 36px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
+    .attendance-history-wrap { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; border: 1px solid var(--line); border-radius: 7px; }
+    .attendance-history { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+    .attendance-history th, .attendance-history td { padding: 9px 11px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); text-align: left; }
+    .attendance-history th { position: sticky; top: 0; background: #f1f5f9; font-weight: 700; }
+    .attendance-history th:first-child { position: sticky; left: 0; z-index: 1; }
+    .attendance-history td:first-child { position: sticky; left: 0; background: #fff; font-weight: 650; }
+    .attendance-history tr:last-child td { border-bottom: 0; }
+    .attendance-date-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 5px; }
+    .attendance-delete-date { display: grid; place-items: center; flex: 0 0 20px; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: #fee4e2; color: var(--red); font-size: 16px; font-weight: 750; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .15s ease; }
+    .attendance-history th:hover .attendance-delete-date, .attendance-delete-date:focus-visible { opacity: 1; }
+    @media (hover: none) { .attendance-delete-date { opacity: 1; } }
+    .attendance-delete-date:disabled { opacity: .6; cursor: wait; }
+    .attendance-history td { position: relative; }
+    .attendance-cell-trigger { width: 100%; min-width: 62px; min-height: 28px; padding: 3px 5px; border: 0; border-radius: 4px; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+    .attendance-cell-trigger:hover, .attendance-cell-trigger:focus-visible { outline: 2px solid #a9c4ff; outline-offset: -2px; background: #f8fafc; }
+    .attendance-cell-menu { position: absolute; z-index: 3; top: calc(100% - 2px); left: 4px; min-width: 125px; padding: 5px; border: 1px solid var(--line); border-radius: 6px; background: #fff; box-shadow: 0 5px 16px rgba(15, 23, 42, .16); }
+    .attendance-cell-menu[hidden] { display: none; }
+    .attendance-cell-menu select { width: 100%; min-height: 34px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink); font: inherit; }
+    .attendance-cell-menu select:disabled { opacity: .65; }
+    .attendance-history .state-attended { color: var(--green); font-weight: 650; }
+    .attendance-history .state-absent { color: var(--red); font-weight: 650; }
+    .attendance-history .state-late { color: #a15c00; font-weight: 650; }
+    .tab-placeholder { padding: 26px 18px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); text-align: center; }
+    .students { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 8px; padding: 0; }
+    .student { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; }
+    .student-name { display: block; margin-bottom: 3px; font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+    .student-email { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    .empty { grid-column: 1 / -1; padding: 32px 18px; border: 1px dashed var(--line); border-radius: 8px; background: rgba(255,255,255,.6); color: var(--muted); text-align: center; }
+    .attendance { display: grid; gap: 12px; }
+    .attendance-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; }
+    .attendance-controls label { display: grid; gap: 5px; color: var(--muted); font-size: 13px; font-weight: 650; }
+    .attendance-controls input { min-height: 38px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); }
+    .attendance-list { display: grid; gap: 7px; }
+    .attendance-student { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+    .attendance-student input { width: 17px; height: 17px; margin: 0; accent-color: var(--blue); }
+    .attendance-save { min-height: 38px; padding: 0 13px; border: 0; border-radius: 5px; background: var(--blue); color: white; font-weight: 650; cursor: pointer; }
+    .attendance-save:disabled { opacity: .6; cursor: wait; }
+    .attendance-status { min-height: 18px; margin: 0; color: var(--muted); font-size: 13px; }
+    .tasks-page { display: grid; gap: 14px; }
+    .tasks-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .tasks-toolbar h3 { margin: 0; font-size: 17px; }
+    .task-primary-button, .task-secondary-button { min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); font-weight: 650; cursor: pointer; }
+    .task-primary-button { border-color: var(--blue); background: var(--blue); color: #fff; }
+    .task-primary-button:disabled { opacity: .6; cursor: wait; }
+    .task-list { display: grid; gap: 10px; }
+    .task-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .task-card h4 { margin: 0 0 6px; font-size: 16px; }
+    .task-card p { margin: 5px 0; color: var(--muted); font-size: 13px; }
+    .task-composer { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+    .task-composer-main, .task-composer-sidebar { display: grid; gap: 14px; }
+    .task-composer-card { min-width: 0; padding: 18px; border: 1px solid #d6dce3; border-radius: 8px; background: #fff; }
+    .task-title-input, .task-field input, .task-field select { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
+    .task-title-input { font-size: 16px; }
+    .task-field { display: grid; gap: 6px; color: #475569; font-size: 13px; font-weight: 600; }
+    .task-instructions { min-height: 180px; padding: 12px; border: 1px solid var(--line); border-radius: 5px; background: #f8fafc; line-height: 1.5; }
+    .task-instructions:focus { outline: 2px solid #a9c4ff; }
+    .task-instructions:empty::before { color: #94a3b8; content: attr(data-placeholder); pointer-events: none; }
+    .task-attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .task-attachment-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 16px; color: var(--blue); font-size: 12px; overflow-wrap: anywhere; }
+    .task-add-link { margin-top: 12px; padding: 0; border: 0; background: transparent; color: var(--blue); font-weight: 650; cursor: pointer; }
+    .task-assignees { display: grid; gap: 7px; max-height: 220px; overflow-y: auto; margin-top: 10px; }
+    .task-assignees label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 450; }
+    .task-assignees input { width: 16px; min-height: 16px; }
+    .task-assignee-picker { padding: 11px; border: 1px solid var(--line); border-radius: 20px; background: #fff; color: var(--blue); text-align: center; cursor: pointer; }
+    .task-assignee-picker summary { list-style: none; }
+    .task-assignee-picker summary::-webkit-details-marker { display: none; }
+    .task-assignee-picker[open] { border-radius: 10px; text-align: left; }
+    .task-check-field { display: flex; align-items: flex-start; gap: 9px; color: #475569; font-size: 13px; }
+    .task-check-field input { width: 17px; height: 17px; margin: 1px 0 0; }
+    .task-form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .task-form-status { min-height: 18px; margin: 0; color: var(--muted); font-size: 13px; }
+    @media (max-width: 620px) {
+      .topbar { padding: 11px 14px; }
+      .teacher-email { display: none; }
+      .panel-layout { grid-template-columns: 1fr; }
+      .class-sidebar { padding: 12px; border-right: 0; border-bottom: 1px solid var(--line); }
+      .class-list { display: flex; overflow-x: auto; }
+      .class-nav-button { flex: 0 0 210px; }
+      .class-workspace { padding: 18px 14px 28px; }
+      .classroom-header { min-height: 150px; padding: 18px; }
+      .tab-content { padding: 14px; }
+      .students { grid-template-columns: 1fr; }
+      .attendance-row { grid-template-columns: 1fr; gap: 7px; }
+      .task-composer { grid-template-columns: 1fr; }
+      .task-composer-sidebar { grid-row: 1; }
+      .task-composer-card { padding: 14px; }
+      .logout { padding: 0 9px; }
+      .logout span { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-icon"><i data-lucide="graduation-cap"></i></span><span>Portal Docére</span></div>
+    <div class="identity">
+      <span id="teacherName">Profesor</span>
+      <span class="teacher-email" id="teacherEmail"></span>
+      <button class="logout" id="logoutButton" type="button"><i data-lucide="log-out"></i><span>Cerrar sesión</span></button>
+    </div>
+  </header>
+
+  <main>
+    <div class="panel-layout">
+      <aside class="class-sidebar" aria-label="Navegación de clases">
+        <div class="sidebar-heading"><i data-lucide="users"></i><span>Clases impartidas</span></div>
+        <p class="status" id="status" role="status">Cargando tus aulas...</p>
+        <nav class="class-list" id="classList" aria-label="Aulas asignadas"></nav>
+      </aside>
+      <section class="class-workspace" id="classWorkspace" aria-label="Contenido del aula" hidden></section>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, doc, getDoc, query, where, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
+      authDomain: "docere-931ec.firebaseapp.com",
+      projectId: "docere-931ec",
+      storageBucket: "docere-931ec.firebasestorage.app",
+      messagingSenderId: "1005663843239",
+      appId: "1:1005663843239:web:d8f6c7524a5d10bf797c82",
+      measurementId: "G-B6TDT4VE7S"
+    };
+
+    const sessionKey = 'teacherSession';
+    const activityKey = 'teacherSessionLastActivity';
+    const session = JSON.parse(localStorage.getItem(sessionKey) || 'null');
+    const status = document.getElementById('status');
+    const classList = document.getElementById('classList');
+    const classWorkspace = document.getElementById('classWorkspace');
+    const db = getFirestore(initializeApp(firebaseConfig));
+    let idleTimer;
+
+    function endSession() {
+      localStorage.removeItem(sessionKey);
+      localStorage.removeItem(activityKey);
+      window.location.replace('login.html');
+    }
+
+    function recordActivity() {
+      const lastActivity = Number(localStorage.getItem(activityKey));
+      if (!Number.isFinite(lastActivity) || Date.now() - lastActivity >= 60 * 60 * 1000) {
+        endSession();
+        return;
+      }
+      localStorage.setItem(activityKey, String(Date.now()));
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(endSession, 60 * 60 * 1000);
+    }
+
+    ['click', 'keydown', 'pointerdown', 'touchstart'].forEach((eventName) => {
+      document.addEventListener(eventName, recordActivity, { passive: true });
+    });
+    document.getElementById('logoutButton').addEventListener('click', endSession);
+
+    function addText(parent, tagName, className, text) {
+      const element = document.createElement(tagName);
+      element.className = className;
+      element.textContent = text;
+      parent.append(element);
+      return element;
+    }
+
+    function getLocalDateString() {
+      const now = new Date();
+      return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    }
+
+    function sanitizeRichHtml(html) {
+      const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'H2', 'H3', 'UL', 'OL', 'LI', 'BLOCKQUOTE']);
+      const blockedTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'SVG', 'MATH']);
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+
+      function copySafeNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || '');
+        if (node.nodeType !== Node.ELEMENT_NODE || blockedTags.has(node.tagName)) return document.createDocumentFragment();
+
+        const fragment = document.createDocumentFragment();
+        const target = allowedTags.has(node.tagName) ? document.createElement(node.tagName.toLowerCase()) : fragment;
+        Array.from(node.childNodes).forEach((child) => target.append(copySafeNode(child)));
+        return target;
+      }
+
+      const safeContent = document.createElement('div');
+      Array.from(parsed.body.childNodes).forEach((node) => safeContent.append(copySafeNode(node)));
+      return safeContent.innerHTML;
+    }
+
+    function formatAnnouncementDate(timestamp) {
+      const date = timestamp?.toDate?.();
+      return date
+        ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+        : 'Publicado recientemente';
+    }
+
+    async function renderAnnouncements(aula) {
+      const announcements = document.createElement('section');
+      announcements.className = 'announcements';
+      const form = document.createElement('form');
+      form.className = 'announcement-form';
+      const titleInput = document.createElement('input');
+      titleInput.type = 'text';
+      titleInput.maxLength = 120;
+      titleInput.required = true;
+      titleInput.placeholder = 'Título del anuncio';
+      titleInput.setAttribute('aria-label', 'Título del anuncio');
+
+      const toolbar = document.createElement('div');
+      toolbar.className = 'editor-toolbar';
+      toolbar.setAttribute('aria-label', 'Formato del anuncio');
+      const commands = [
+        { command: 'bold', label: 'B', title: 'Negrita', style: 'font-weight:700' },
+        { command: 'italic', label: 'I', title: 'Cursiva', style: 'font-style:italic' },
+        { command: 'underline', label: 'U', title: 'Subrayado', style: 'text-decoration:underline' },
+        { command: 'formatBlock', value: 'H2', label: 'Título', title: 'Título' },
+        { command: 'formatBlock', value: 'H3', label: 'Subtítulo', title: 'Subtítulo' },
+        { command: 'insertUnorderedList', label: '• Lista', title: 'Lista con viñetas' },
+        { command: 'insertOrderedList', label: '1. Lista', title: 'Lista numerada' }
+      ];
+      const editor = document.createElement('div');
+      editor.className = 'announcement-editor';
+      editor.contentEditable = 'true';
+      editor.setAttribute('role', 'textbox');
+      editor.setAttribute('aria-label', 'Contenido del anuncio');
+      editor.setAttribute('aria-multiline', 'true');
+      editor.dataset.placeholder = 'Escribe un anuncio para tus alumnos...';
+      const editorStatus = document.createElement('p');
+      editorStatus.className = 'attendance-status';
+      editorStatus.setAttribute('role', 'status');
+      const publishButton = document.createElement('button');
+      publishButton.className = 'announcement-submit';
+      publishButton.type = 'submit';
+      publishButton.textContent = 'Publicar anuncio';
+
+      commands.forEach(({ command, value, label, title, style }) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        button.title = title;
+        button.setAttribute('aria-label', title);
+        if (style) button.style.cssText = style;
+        button.addEventListener('mousedown', (event) => event.preventDefault());
+        button.addEventListener('click', () => {
+          editor.focus();
+          document.execCommand(command, false, value || null);
+        });
+        toolbar.append(button);
+      });
+
+      form.append(titleInput, toolbar, editor, publishButton, editorStatus);
+      const announcementList = document.createElement('div');
+      announcementList.className = 'announcement-list';
+      announcements.append(form, announcementList);
+      let editingAnnouncementId = null;
+
+      function resetAnnouncementEditor() {
+        editingAnnouncementId = null;
+        titleInput.value = '';
+        editor.replaceChildren();
+        publishButton.textContent = 'Publicar anuncio';
+        editorStatus.textContent = '';
+      }
+
+      async function loadAnnouncements() {
+        announcementList.replaceChildren();
+        try {
+          const snapshot = await getDocs(collection(db, 'Aulas', aula.id, 'anuncios'));
+          const records = snapshot.docs.map((announcementDoc) => ({ id: announcementDoc.id, ...announcementDoc.data() }));
+          records.sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+          if (!records.length) {
+            addText(announcementList, 'p', 'tab-placeholder', 'Todavía no hay anuncios en esta aula.');
+            return;
+          }
+
+          records.forEach((record) => {
+            const card = document.createElement('article');
+            card.className = 'announcement-card';
+            const cardHeader = document.createElement('div');
+            cardHeader.className = 'announcement-card-header';
+            addText(cardHeader, 'h3', '', record.titulo || 'Anuncio');
+            const editButton = document.createElement('button');
+            editButton.className = 'announcement-edit';
+            editButton.type = 'button';
+            editButton.textContent = 'Editar';
+            editButton.addEventListener('click', () => {
+              editingAnnouncementId = record.id;
+              titleInput.value = record.titulo || '';
+              editor.innerHTML = sanitizeRichHtml(record.contenido || '');
+              publishButton.textContent = 'Guardar cambios';
+              editorStatus.textContent = 'Editando anuncio. Guarda los cambios para actualizarlo.';
+              titleInput.focus();
+              form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+            cardHeader.append(editButton);
+            card.append(cardHeader);
+            addText(card, 'p', 'announcement-meta', `${record.autor || session.nombre} · ${formatAnnouncementDate(record.creadoEn)}`);
+            const body = document.createElement('div');
+            body.className = 'announcement-body';
+            body.innerHTML = sanitizeRichHtml(record.contenido || '');
+            card.append(body);
+            announcementList.append(card);
+          });
+        } catch (error) {
+          console.error(`No se pudieron cargar los anuncios del aula ${aula.id}:`, error);
+          addText(announcementList, 'p', 'attendance-status', 'No se pudieron cargar los anuncios. Revisa los permisos de Firestore.');
+        }
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const contenido = sanitizeRichHtml(editor.innerHTML);
+        if (!titleInput.value.trim() || !editor.textContent.trim()) {
+          editorStatus.textContent = 'Escribe un título y el contenido del anuncio.';
+          return;
+        }
+        publishButton.disabled = true;
+        const announcementId = editingAnnouncementId;
+        editorStatus.textContent = announcementId ? 'Guardando cambios...' : 'Publicando anuncio...';
+        try {
+          const announcementData = {
+            titulo: titleInput.value.trim(),
+            contenido,
+            autor: session.nombre || 'Profesor',
+            profesorDocId: session.teacherDocId,
+            actualizadoEn: serverTimestamp()
+          };
+          if (announcementId) {
+            await updateDoc(doc(db, 'Aulas', aula.id, 'anuncios', announcementId), announcementData);
+            resetAnnouncementEditor();
+            editorStatus.textContent = 'Anuncio actualizado correctamente.';
+          } else {
+            await setDoc(doc(collection(db, 'Aulas', aula.id, 'anuncios')), {
+              ...announcementData,
+              creadoEn: serverTimestamp()
+            });
+            resetAnnouncementEditor();
+            editorStatus.textContent = 'Anuncio publicado para los alumnos de esta aula.';
+          }
+          await loadAnnouncements();
+        } catch (error) {
+          console.error(`No se pudo guardar el anuncio en el aula ${aula.id}:`, error);
+          editorStatus.textContent = 'No se pudo guardar el anuncio. Revisa los permisos de Firestore.';
+        } finally {
+          publishButton.disabled = false;
+        }
+      });
+
+      await loadAnnouncements();
+      return announcements;
+    }
+
+    function attendanceStatus(studentRecord) {
+      if (['asistencia', 'falta', 'retardo'].includes(studentRecord.estado)) return studentRecord.estado;
+      return studentRecord.presente === true ? 'asistencia' : 'falta';
+    }
+
+    function formatAttendanceDate(date) {
+      return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        .format(new Date(`${date}T12:00:00`));
+    }
+
+    async function renderAttendance(aula) {
+      const attendance = document.createElement('section');
+      attendance.className = 'attendance';
+      const controls = document.createElement('div');
+      controls.className = 'attendance-controls';
+      const dateLabel = document.createElement('label');
+      dateLabel.textContent = 'Fecha de clase';
+      const dateInput = document.createElement('input');
+      dateInput.type = 'date';
+      dateInput.value = getLocalDateString();
+      dateLabel.append(dateInput);
+      const saveButton = document.createElement('button');
+      saveButton.className = 'attendance-save';
+      saveButton.type = 'button';
+      saveButton.textContent = 'Guardar asistencia';
+      controls.append(dateLabel, saveButton);
+      const attendanceSummary = document.createElement('div');
+      attendanceSummary.className = 'attendance-summary';
+      const roster = document.createElement('div');
+      roster.className = 'attendance-roster';
+      const historyContainer = document.createElement('div');
+      const attendanceStatusText = document.createElement('p');
+      attendanceStatusText.className = 'attendance-status';
+      attendanceStatusText.setAttribute('role', 'status');
+      attendance.append(controls, attendanceSummary, roster, attendanceStatusText, historyContainer);
+      let savedSessions = [];
+      let openAttendanceMenu = null;
+
+      function closeAttendanceMenu() {
+        if (!openAttendanceMenu) return;
+        openAttendanceMenu.hidden = true;
+        openAttendanceMenu = null;
+      }
+
+      function renderHistory() {
+        attendanceSummary.replaceChildren();
+        historyContainer.replaceChildren();
+        if (!savedSessions.length || !aula.alumnos.length) {
+          addText(attendanceSummary, 'span', 'attendance-stat', 'Los porcentajes aparecerán después de guardar asistencias.');
+        } else {
+          const totals = { asistencia: 0, falta: 0, retardo: 0 };
+          const assignedStudents = new Set(aula.alumnos.map((student) => `${student.coleccion}/${student.id}`));
+          let totalMarks = 0;
+          savedSessions.forEach((record) => {
+            record.alumnos.forEach((student) => {
+              if (!assignedStudents.has(`${student.coleccion}/${student.id}`)) return;
+              const state = attendanceStatus(student);
+              totals[state] += 1;
+              totalMarks += 1;
+            });
+          });
+          const percent = (value) => totalMarks ? Math.round((value / totalMarks) * 100) : 0;
+          [
+            ['Asistencia', totals.asistencia],
+            ['Faltas', totals.falta],
+            ['Retardos', totals.retardo]
+          ].forEach(([label, count]) => {
+            addText(attendanceSummary, 'span', 'attendance-stat', `${label}: ${percent(count)}%`);
+          });
+        }
+
+        if (!savedSessions.length) {
+          addText(historyContainer, 'p', 'tab-placeholder', 'Aún no hay fechas de asistencia guardadas.');
+          return;
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'attendance-history-wrap';
+        const table = document.createElement('table');
+        table.className = 'attendance-history';
+        const head = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        addText(headerRow, 'th', '', 'Alumno');
+        savedSessions.forEach((record) => {
+          const header = addText(headerRow, 'th', '', '');
+          const dateHeader = document.createElement('div');
+          dateHeader.className = 'attendance-date-header';
+          addText(dateHeader, 'span', '', formatAttendanceDate(record.fecha));
+          const deleteButton = addText(dateHeader, 'button', 'attendance-delete-date', '×');
+          deleteButton.type = 'button';
+          deleteButton.title = 'Eliminar pase de asistencia';
+          deleteButton.setAttribute('aria-label', `Eliminar asistencia del ${formatAttendanceDate(record.fecha)}`);
+          deleteButton.addEventListener('click', async () => {
+            const formattedDate = formatAttendanceDate(record.fecha);
+            if (!confirm(`¿Eliminar el pase de asistencia del ${formattedDate}? Se borrarán todos los registros de ese día y no se puede deshacer.`)) return;
+
+            deleteButton.disabled = true;
+            attendanceStatusText.textContent = `Eliminando el pase del ${formattedDate}...`;
+            try {
+              await deleteDoc(doc(db, 'Aulas', aula.id, 'asistencias', record.id));
+              savedSessions = savedSessions.filter((session) => session.id !== record.id);
+              renderHistory();
+              attendanceStatusText.textContent = `Se eliminó el pase de asistencia del ${formattedDate}.`;
+              if (dateInput.value === record.fecha) await loadSelectedDate();
+            } catch (error) {
+              console.error(`No se pudo eliminar la asistencia del aula ${aula.id} para ${record.fecha}:`, error);
+              attendanceStatusText.textContent = 'No se pudo eliminar el pase. Revisa los permisos de eliminación de Firestore.';
+              deleteButton.disabled = false;
+            }
+          });
+          header.append(dateHeader);
+        });
+        ['% Asistencia', '% Falta', '% Retardo'].forEach((label) => addText(headerRow, 'th', '', label));
+        head.append(headerRow);
+        const body = document.createElement('tbody');
+        aula.alumnos.forEach((student) => {
+          const studentKey = `${student.coleccion}/${student.id}`;
+          const row = document.createElement('tr');
+          addText(row, 'td', '', student.nombre || 'Alumno');
+          const totals = { asistencia: 0, falta: 0, retardo: 0 };
+          let recordedSessions = 0;
+          savedSessions.forEach((record) => {
+            const attendanceRecord = record.alumnos.find((item) => `${item.coleccion}/${item.id}` === studentKey);
+            const cell = document.createElement('td');
+            if (attendanceRecord) {
+              const state = attendanceStatus(attendanceRecord);
+              totals[state] += 1;
+              recordedSessions += 1;
+              cell.className = `state-${state === 'asistencia' ? 'attended' : state === 'falta' ? 'absent' : 'late'}`;
+            }
+            const cellTrigger = addText(cell, 'button', 'attendance-cell-trigger', attendanceRecord
+              ? attendanceStatus(attendanceRecord) === 'asistencia'
+                ? 'Asistencia'
+                : attendanceStatus(attendanceRecord) === 'falta' ? 'Falta' : 'Retardo'
+              : '—');
+            cellTrigger.type = 'button';
+            cellTrigger.setAttribute('aria-label', `${student.nombre || 'Alumno'}, ${record.fecha}: ${cellTrigger.textContent}. Clic para cambiar`);
+            const menu = document.createElement('div');
+            menu.className = 'attendance-cell-menu';
+            menu.hidden = true;
+            const stateSelect = document.createElement('select');
+            stateSelect.setAttribute('aria-label', `Cambiar asistencia de ${student.nombre || 'alumno'} para ${formatAttendanceDate(record.fecha)}`);
+            [
+              ['asistencia', 'Asistencia'],
+              ['retardo', 'Retardo'],
+              ['falta', 'Falta']
+            ].forEach(([value, label]) => stateSelect.add(new Option(label, value)));
+            if (attendanceRecord) stateSelect.value = attendanceStatus(attendanceRecord);
+            stateSelect.addEventListener('change', async () => {
+              const previousState = attendanceRecord ? attendanceStatus(attendanceRecord) : null;
+              const newState = stateSelect.value;
+              stateSelect.disabled = true;
+              attendanceStatusText.textContent = `Actualizando asistencia de ${student.nombre || 'alumno'}...`;
+              try {
+                const updatedStudents = [...record.alumnos];
+                const recordIndex = updatedStudents.findIndex((item) => `${item.coleccion}/${item.id}` === studentKey);
+                const studentRecord = {
+                  ...(recordIndex >= 0 ? updatedStudents[recordIndex] : student),
+                  id: student.id,
+                  coleccion: student.coleccion,
+                  nombre: student.nombre || 'Alumno',
+                  email: student.email || '',
+                  estado: newState,
+                  presente: newState !== 'falta'
+                };
+                if (recordIndex >= 0) updatedStudents[recordIndex] = studentRecord;
+                else updatedStudents.push(studentRecord);
+                await updateDoc(doc(db, 'Aulas', aula.id, 'asistencias', record.id), {
+                  alumnos: updatedStudents,
+                  actualizadoEn: serverTimestamp()
+                });
+                record.alumnos = updatedStudents;
+                const rosterSelect = Array.from(roster.querySelectorAll('select[data-student-key]'))
+                  .find((select) => select.dataset.studentKey === studentKey);
+                if (rosterSelect && dateInput.value === record.fecha) rosterSelect.value = newState;
+                closeAttendanceMenu();
+                renderHistory();
+                attendanceStatusText.textContent = `Asistencia de ${student.nombre || 'alumno'} para ${formatAttendanceDate(record.fecha)} actualizada.`;
+              } catch (error) {
+                console.error(`No se pudo actualizar la asistencia del aula ${aula.id}, fecha ${record.fecha}, alumno ${studentKey}:`, error);
+                attendanceStatusText.textContent = 'No se pudo actualizar la asistencia. Revisa los permisos de escritura de Firestore.';
+                stateSelect.value = previousState || 'falta';
+                stateSelect.disabled = false;
+              }
+            });
+            menu.append(stateSelect);
+            cellTrigger.addEventListener('click', () => {
+              if (openAttendanceMenu && openAttendanceMenu !== menu) closeAttendanceMenu();
+              menu.hidden = !menu.hidden;
+              openAttendanceMenu = menu.hidden ? null : menu;
+              if (!menu.hidden) stateSelect.focus();
+            });
+            cell.append(menu);
+            row.append(cell);
+          });
+          const percent = (value) => recordedSessions ? `${Math.round((value / recordedSessions) * 100)}%` : '—';
+          addText(row, 'td', 'state-attended', percent(totals.asistencia));
+          addText(row, 'td', 'state-absent', percent(totals.falta));
+          addText(row, 'td', 'state-late', percent(totals.retardo));
+          body.append(row);
+        });
+        table.append(head, body);
+        wrapper.append(table);
+        historyContainer.append(wrapper);
+      }
+
+      function renderRoster(statusByStudent = new Map()) {
+        roster.replaceChildren();
+        if (!aula.alumnos.length) {
+          addText(roster, 'p', 'tab-placeholder', 'El administrador todavía no asigna alumnos a esta aula.');
+          return;
+        }
+        aula.alumnos.forEach((student) => {
+          const row = document.createElement('label');
+          row.className = 'attendance-row';
+          const identity = document.createElement('span');
+          identity.className = 'attendance-row-name';
+          identity.append(document.createTextNode(student.nombre || 'Alumno'));
+          if (student.email) addText(identity, 'span', 'attendance-row-email', student.email);
+          const select = document.createElement('select');
+          select.setAttribute('aria-label', `Estado de ${student.nombre || 'alumno'}`);
+          [
+            ['asistencia', 'Asistencia'],
+            ['falta', 'Falta'],
+            ['retardo', 'Retardo']
+          ].forEach(([value, label]) => select.add(new Option(label, value)));
+          select.value = statusByStudent.get(`${student.coleccion}/${student.id}`) || 'falta';
+          select.dataset.studentKey = `${student.coleccion}/${student.id}`;
+          row.append(identity, select);
+          roster.append(row);
+        });
+      }
+
+      async function loadSavedSessions() {
+        attendanceStatusText.textContent = 'Cargando historial...';
+        try {
+          const snapshot = await getDocs(collection(db, 'Aulas', aula.id, 'asistencias'));
+          savedSessions = snapshot.docs.map((sessionDoc) => {
+            const data = sessionDoc.data();
+            return {
+              id: sessionDoc.id,
+              fecha: data.fecha || sessionDoc.id,
+              alumnos: Array.isArray(data.alumnos) ? data.alumnos : []
+            };
+          }).sort((left, right) => right.fecha.localeCompare(left.fecha));
+          renderHistory();
+          attendanceStatusText.textContent = savedSessions.length
+            ? `${savedSessions.length} fecha(s) de clase guardada(s).`
+            : 'Selecciona una fecha, marca el estado de cada alumno y guarda la asistencia.';
+        } catch (error) {
+          console.error(`No se pudo cargar el historial del aula ${aula.id}:`, error);
+          attendanceStatusText.textContent = 'No se pudo cargar el historial. Revisa los permisos de lectura de Firestore.';
+        }
+      }
+
+      async function loadSelectedDate() {
+        const date = dateInput.value;
+        if (!date) return;
+        saveButton.disabled = true;
+        dateInput.disabled = true;
+        attendanceStatusText.textContent = 'Cargando asistencia de la fecha...';
+        try {
+          const snapshot = await getDoc(doc(db, 'Aulas', aula.id, 'asistencias', date));
+          const records = snapshot.exists() && Array.isArray(snapshot.data().alumnos) ? snapshot.data().alumnos : [];
+          const statusByStudent = new Map(records.map((student) => [
+            `${student.coleccion}/${student.id}`,
+            attendanceStatus(student)
+          ]));
+          renderRoster(statusByStudent);
+          attendanceStatusText.textContent = snapshot.exists()
+            ? `Asistencia del ${formatAttendanceDate(date)} cargada.`
+            : `No hay asistencia para ${formatAttendanceDate(date)}. Selecciona el estado de cada alumno.`;
+        } catch (error) {
+          console.error(`No se pudo cargar la asistencia del aula ${aula.id} para ${date}:`, error);
+          attendanceStatusText.textContent = 'No se pudo cargar esta fecha. Revisa los permisos de Firestore.';
+        } finally {
+          dateInput.disabled = false;
+          saveButton.disabled = false;
+        }
+      }
+
+      dateInput.addEventListener('change', loadSelectedDate);
+      saveButton.addEventListener('click', async () => {
+        if (!dateInput.value) {
+          attendanceStatusText.textContent = 'Selecciona una fecha para guardar la asistencia.';
+          return;
+        }
+        saveButton.disabled = true;
+        attendanceStatusText.textContent = 'Guardando asistencia...';
+        try {
+          const alumnos = Array.from(roster.querySelectorAll('select[data-student-key]'), (select) => {
+            const [coleccion, id] = select.dataset.studentKey.split('/');
+            const student = aula.alumnos.find((item) => item.id === id && item.coleccion === coleccion);
+            return {
+              id,
+              coleccion,
+              nombre: student?.nombre || 'Alumno',
+              email: student?.email || '',
+              estado: select.value,
+              presente: select.value !== 'falta'
+            };
+          });
+          await setDoc(doc(db, 'Aulas', aula.id, 'asistencias', dateInput.value), {
+            fecha: dateInput.value,
+            profesorDocId: session.teacherDocId,
+            alumnos,
+            actualizadoEn: serverTimestamp()
+          });
+          attendanceStatusText.textContent = `Asistencia del ${formatAttendanceDate(dateInput.value)} guardada.`;
+          await loadSavedSessions();
+        } catch (error) {
+          console.error(`No se pudo guardar la asistencia del aula ${aula.id}:`, error);
+          attendanceStatusText.textContent = 'No se pudo guardar la asistencia. Revisa los permisos de escritura de Firestore.';
+        } finally {
+          saveButton.disabled = false;
+        }
+      });
+
+      renderRoster();
+      renderHistory();
+      await Promise.all([loadSelectedDate(), loadSavedSessions()]);
+      return attendance;
+    }
+
+    function formatTaskDeadline(value) {
+      if (!value) return 'Sin fecha de entrega';
+      const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+      return Number.isNaN(date.getTime())
+        ? 'Fecha de entrega no válida'
+        : new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    }
+
+    async function renderTasks(aula) {
+      const tasksPage = document.createElement('section');
+      tasksPage.className = 'tasks-page';
+      const toolbar = document.createElement('div');
+      toolbar.className = 'tasks-toolbar';
+      addText(toolbar, 'h3', '', 'Tareas del aula');
+      const createButton = addText(toolbar, 'button', 'task-primary-button', 'Crear tarea');
+      createButton.type = 'button';
+      const taskList = document.createElement('div');
+      taskList.className = 'task-list';
+      const listStatus = addText(tasksPage, 'p', 'task-form-status', 'Cargando tareas...');
+      tasksPage.prepend(toolbar, listStatus);
+      tasksPage.append(taskList);
+
+      let assignedTasks = [];
+      try {
+        const snapshot = await getDocs(collection(db, 'Aulas', aula.id, 'tareas'));
+        assignedTasks = snapshot.docs
+          .map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }))
+          .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+        listStatus.textContent = assignedTasks.length
+          ? `${assignedTasks.length} tarea(s) asignada(s).`
+          : 'Aún no hay tareas para esta aula.';
+        assignedTasks.forEach((task) => {
+          const card = document.createElement('article');
+          card.className = 'task-card';
+          addText(card, 'h4', '', task.titulo || 'Tarea sin título');
+          addText(card, 'p', '', `${task.puntos ?? 100} puntos · ${formatTaskDeadline(task.fechaEntrega)}`);
+          if (task.tema) addText(card, 'p', '', `Tema: ${task.tema}`);
+          if (Array.isArray(task.alumnosAsignados)) {
+            addText(card, 'p', '', `Asignada a ${task.alumnosAsignados.length} alumno(s).`);
+          }
+          taskList.append(card);
+        });
+      } catch (error) {
+        console.error(`No se pudieron cargar las tareas del aula ${aula.id}:`, error);
+        listStatus.textContent = 'No se pudieron cargar las tareas. Revisa los permisos de lectura de Firestore.';
+      }
+
+      createButton.addEventListener('click', () => {
+        const composer = document.createElement('form');
+        composer.className = 'task-composer';
+        const main = document.createElement('div');
+        main.className = 'task-composer-main';
+        const contentCard = document.createElement('section');
+        contentCard.className = 'task-composer-card';
+        const titleInput = document.createElement('input');
+        titleInput.className = 'task-title-input';
+        titleInput.type = 'text';
+        titleInput.maxLength = 160;
+        titleInput.required = true;
+        titleInput.placeholder = 'Título*';
+        titleInput.setAttribute('aria-label', 'Título de la tarea');
+
+        const editorToolbar = document.createElement('div');
+        editorToolbar.className = 'editor-toolbar';
+        editorToolbar.setAttribute('aria-label', 'Formato de instrucciones');
+        const instructions = document.createElement('div');
+        instructions.className = 'task-instructions';
+        instructions.contentEditable = 'true';
+        instructions.setAttribute('role', 'textbox');
+        instructions.setAttribute('aria-label', 'Instrucciones de la tarea');
+        instructions.setAttribute('aria-multiline', 'true');
+        instructions.dataset.placeholder = 'Instrucciones (opcional)';
+        [
+          ['bold', 'B', 'Negrita', 'font-weight:700'],
+          ['italic', 'I', 'Cursiva', 'font-style:italic'],
+          ['underline', 'U', 'Subrayado', 'text-decoration:underline'],
+          ['insertUnorderedList', '• Lista', 'Lista con viñetas', ''],
+          ['removeFormat', 'Tx', 'Quitar formato', '']
+        ].forEach(([command, label, title, style]) => {
+          const button = addText(editorToolbar, 'button', '', label);
+          button.type = 'button';
+          button.title = title;
+          button.setAttribute('aria-label', title);
+          if (style) button.style.cssText = style;
+          button.addEventListener('mousedown', (event) => event.preventDefault());
+          button.addEventListener('click', () => {
+            instructions.focus();
+            document.execCommand(command);
+          });
+        });
+        contentCard.append(titleInput, editorToolbar, instructions);
+
+        const attachmentsLabel = addText(contentCard, 'h4', '', 'Adjuntar');
+        attachmentsLabel.style.margin = '16px 0 0';
+        const attachments = document.createElement('div');
+        attachments.className = 'task-attachments';
+        const addAttachmentButton = addText(contentCard, 'button', 'task-add-link', '＋ Agregar enlace');
+        addAttachmentButton.type = 'button';
+        const attachmentItems = [];
+        addAttachmentButton.addEventListener('click', () => {
+          const address = window.prompt('Pega un enlace web (Drive, YouTube u otro recurso):');
+          if (!address) return;
+          let url;
+          try {
+            url = new URL(address.trim());
+          } catch {
+            listStatus.textContent = 'El enlace no es válido. Incluye https:// al inicio.';
+            return;
+          }
+          if (!['https:', 'http:'].includes(url.protocol)) {
+            listStatus.textContent = 'Solo se permiten enlaces web http o https.';
+            return;
+          }
+          attachmentItems.push({ url: url.href, nombre: url.hostname });
+          const link = document.createElement('a');
+          link.className = 'task-attachment-link';
+          link.href = url.href;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = url.hostname;
+          attachments.append(link);
+        });
+        contentCard.append(attachments);
+        main.append(contentCard);
+
+        const sidebar = document.createElement('aside');
+        sidebar.className = 'task-composer-sidebar';
+        const settingsCard = document.createElement('section');
+        settingsCard.className = 'task-composer-card';
+        const courseField = document.createElement('label');
+        courseField.className = 'task-field';
+        courseField.append(document.createTextNode('Para'));
+        const courseInput = document.createElement('input');
+        courseInput.value = `${aula.curso || 'Curso'} · ${aula.nombre || 'Aula'}`;
+        courseInput.readOnly = true;
+        courseField.append(courseInput);
+
+        const assignField = document.createElement('div');
+        assignField.className = 'task-field';
+        addText(assignField, 'span', '', 'Asignar a');
+        const assigneePicker = document.createElement('details');
+        assigneePicker.className = 'task-assignee-picker';
+        const assigneeSummary = addText(assigneePicker, 'summary', '', `Todos los alumnos (${aula.alumnos.length})`);
+        const assigneeList = document.createElement('div');
+        assigneeList.className = 'task-assignees';
+        aula.alumnos.forEach((student) => {
+          const label = document.createElement('label');
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = true;
+          checkbox.dataset.studentKey = `${student.coleccion}/${student.id}`;
+          const name = document.createElement('span');
+          name.textContent = student.nombre || student.email || 'Alumno';
+          label.append(checkbox, name);
+          assigneeList.append(label);
+        });
+        assigneeList.addEventListener('change', () => {
+          const checkedCount = assigneeList.querySelectorAll('input:checked').length;
+          assigneeSummary.textContent = checkedCount === aula.alumnos.length
+            ? `Todos los alumnos (${checkedCount})`
+            : `${checkedCount} alumno(s) seleccionado(s)`;
+        });
+        assigneePicker.append(assigneeList);
+        assignField.append(assigneePicker);
+
+        const pointsField = document.createElement('label');
+        pointsField.className = 'task-field';
+        pointsField.append(document.createTextNode('Puntos'));
+        const pointsInput = document.createElement('input');
+        pointsInput.type = 'number';
+        pointsInput.min = '0';
+        pointsInput.max = '10000';
+        pointsInput.step = '1';
+        pointsInput.value = '100';
+        pointsInput.required = true;
+        pointsField.append(pointsInput);
+
+        const dueDateField = document.createElement('label');
+        dueDateField.className = 'task-field';
+        dueDateField.append(document.createTextNode('Fecha de entrega'));
+        const dueDateInput = document.createElement('input');
+        dueDateInput.type = 'datetime-local';
+        dueDateField.append(dueDateInput);
+
+        const closeField = document.createElement('label');
+        closeField.className = 'task-check-field';
+        const closeInput = document.createElement('input');
+        closeInput.type = 'checkbox';
+        const closeText = document.createElement('span');
+        closeText.textContent = 'Cerrar entregas después de la fecha límite';
+        closeField.append(closeInput, closeText);
+
+        const topicField = document.createElement('label');
+        topicField.className = 'task-field';
+        topicField.append(document.createTextNode('Tema'));
+        const topicInput = document.createElement('input');
+        topicInput.type = 'text';
+        topicInput.maxLength = 80;
+        topicInput.placeholder = 'Ej. Álgebra';
+        topicField.append(topicInput);
+        settingsCard.append(courseField, assignField, pointsField, dueDateField, closeField, topicField);
+
+        const actionsCard = document.createElement('section');
+        actionsCard.className = 'task-composer-card';
+        const actions = document.createElement('div');
+        actions.className = 'task-form-actions';
+        const cancelButton = addText(actions, 'button', 'task-secondary-button', 'Cancelar');
+        cancelButton.type = 'button';
+        const saveButton = addText(actions, 'button', 'task-primary-button', 'Asignar tarea');
+        saveButton.type = 'submit';
+        const formStatus = addText(actionsCard, 'p', 'task-form-status', '');
+        formStatus.setAttribute('role', 'status');
+        actionsCard.append(actions, formStatus);
+        sidebar.append(settingsCard, actionsCard);
+        composer.append(main, sidebar);
+        tasksPage.replaceChildren(composer);
+
+        cancelButton.addEventListener('click', async () => {
+          tasksPage.replaceWith(await renderTasks(aula));
+        });
+        composer.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const safeInstructions = sanitizeRichHtml(instructions.innerHTML);
+          if (!titleInput.value.trim()) {
+            formStatus.textContent = 'Escribe el título de la tarea.';
+            titleInput.focus();
+            return;
+          }
+          if (!aula.alumnos.length) {
+            formStatus.textContent = 'No hay alumnos asignados a esta aula.';
+            return;
+          }
+          const selectedKeys = new Set(Array.from(
+            assigneeList.querySelectorAll('input:checked'),
+            (checkbox) => checkbox.dataset.studentKey
+          ));
+          if (!selectedKeys.size) {
+            formStatus.textContent = 'Selecciona al menos un alumno para asignar la tarea.';
+            return;
+          }
+          const points = Number(pointsInput.value);
+          if (!Number.isInteger(points) || points < 0 || points > 10000) {
+            formStatus.textContent = 'Ingresa un puntaje entero entre 0 y 10000.';
+            return;
+          }
+          let dueDate = null;
+          if (dueDateInput.value) {
+            dueDate = new Date(dueDateInput.value);
+            if (Number.isNaN(dueDate.getTime())) {
+              formStatus.textContent = 'La fecha de entrega no es válida.';
+              return;
+            }
+          }
+
+          saveButton.disabled = true;
+          cancelButton.disabled = true;
+          formStatus.textContent = 'Guardando y asignando tarea...';
+          try {
+            const alumnosAsignados = aula.alumnos
+              .filter((student) => selectedKeys.has(`${student.coleccion}/${student.id}`))
+              .map((student) => ({
+                id: student.id,
+                coleccion: student.coleccion,
+                nombre: student.nombre || '',
+                email: student.email || ''
+              }));
+            await setDoc(doc(collection(db, 'Aulas', aula.id, 'tareas')), {
+              titulo: titleInput.value.trim(),
+              instrucciones: safeInstructions,
+              puntos: points,
+              fechaEntrega: dueDate,
+              cerrarEntregas: closeInput.checked,
+              tema: topicInput.value.trim(),
+              adjuntos: attachmentItems,
+              alumnosAsignados,
+              aulaId: aula.id,
+              aulaNombre: aula.nombre || '',
+              curso: aula.curso || '',
+              profesorDocId: session.teacherDocId,
+              profesorNombre: session.nombre || 'Profesor',
+              creadoEn: serverTimestamp()
+            });
+            listStatus.textContent = 'Tarea asignada correctamente.';
+            tasksPage.replaceWith(await renderTasks(aula));
+          } catch (error) {
+            console.error(`No se pudo asignar la tarea en el aula ${aula.id}:`, error);
+            formStatus.textContent = 'No se pudo guardar la tarea. Revisa los permisos de escritura de Firestore.';
+            saveButton.disabled = false;
+            cancelButton.disabled = false;
+          }
+        });
+      });
+      return tasksPage;
+    }
+
+    function showClassroom(aula, index) {
+      classWorkspace.replaceChildren();
+      classWorkspace.hidden = false;
+
+      const heading = document.createElement('header');
+      heading.className = 'class-heading';
+      addText(heading, 'h1', '', aula.nombre || 'Aula sin nombre');
+      addText(heading, 'p', '', aula.curso || 'Curso sin especificar');
+      classWorkspace.append(heading);
+
+      const classroom = document.createElement('article');
+      classroom.className = 'classroom';
+      const banner = document.createElement('header');
+      banner.className = `classroom-header classroom-banner-${index % 4}`;
+      const bannerTitle = document.createElement('div');
+      addText(bannerTitle, 'h2', '', aula.nombre || 'Aula sin nombre');
+      addText(bannerTitle, 'p', '', aula.curso || 'Curso sin especificar');
+      addText(banner, 'span', 'student-count', `${aula.alumnos.length} alumno${aula.alumnos.length === 1 ? '' : 's'}`);
+      banner.prepend(bannerTitle);
+      classroom.append(banner);
+
+      const tabs = document.createElement('div');
+      tabs.className = 'class-tabs';
+      tabs.setAttribute('role', 'tablist');
+      tabs.setAttribute('aria-label', 'Secciones del aula');
+      const content = document.createElement('section');
+      content.className = 'tab-content';
+      content.setAttribute('role', 'tabpanel');
+      const tabOptions = [
+        { id: 'padlet', label: 'Padlet' },
+        { id: 'attendance', label: 'Lista de asistencias' },
+        { id: 'grades', label: 'Lista de calificaciones' },
+        { id: 'tasks', label: 'Tareas' },
+        { id: 'calendar', label: 'Calendario de actividades' }
+      ];
+
+      async function selectTab(selectedId) {
+        tabs.querySelectorAll('.class-tab').forEach((button) => {
+          const selected = button.dataset.tab === selectedId;
+          button.setAttribute('aria-selected', String(selected));
+          button.tabIndex = selected ? 0 : -1;
+        });
+        content.replaceChildren();
+        if (selectedId === 'padlet') {
+          content.append(await renderAnnouncements(aula));
+        } else if (selectedId === 'attendance') {
+          content.append(await renderAttendance(aula));
+        } else if (selectedId === 'tasks') {
+          content.append(await renderTasks(aula));
+        } else {
+          const message = document.createElement('p');
+          message.className = 'tab-placeholder';
+          message.textContent = selectedId === 'padlet'
+            ? 'El espacio del aula está listo. Aquí se mostrará el contenido cuando definamos qué debe incluir.'
+            : 'Esta sección estará disponible cuando definamos su funcionamiento.';
+          content.append(message);
+        }
+      }
+
+      tabOptions.forEach(({ id, label }) => {
+        const button = document.createElement('button');
+        button.className = 'class-tab';
+        button.type = 'button';
+        button.dataset.tab = id;
+        button.setAttribute('role', 'tab');
+        button.textContent = label;
+        button.addEventListener('click', () => {
+          selectTab(id).catch((error) => {
+            console.error(`No se pudo abrir la sección ${id} del aula ${aula.id}:`, error);
+            content.replaceChildren();
+            addText(content, 'p', 'tab-placeholder', 'No se pudo cargar esta sección. Inténtalo de nuevo.');
+          });
+        });
+        tabs.append(button);
+      });
+      classroom.append(tabs, content);
+      classWorkspace.append(classroom);
+      selectTab('padlet').catch((error) => {
+        console.error(`No se pudo abrir el Padlet del aula ${aula.id}:`, error);
+        addText(content, 'p', 'tab-placeholder', 'No se pudieron cargar los anuncios. Inténtalo de nuevo.');
+      });
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function renderClasses(aulas) {
+      classList.replaceChildren();
+      classWorkspace.replaceChildren();
+      classWorkspace.hidden = true;
+      if (!aulas.length) {
+        addText(classList, 'div', 'empty', 'No hay aulas asignadas a tu cuenta. Pide al administrador que revise la asignación.');
+        return;
+      }
+
+      aulas.forEach((aula, index) => {
+        const button = document.createElement('button');
+        button.className = 'class-nav-button';
+        button.type = 'button';
+        button.setAttribute('aria-current', 'false');
+        const initial = addText(button, 'span', 'class-initial', (aula.nombre || 'A').trim().charAt(0).toLocaleUpperCase('es'));
+        const text = document.createElement('span');
+        text.className = 'class-nav-text';
+        addText(text, 'span', 'class-nav-name', aula.nombre || 'Aula sin nombre');
+        addText(text, 'span', 'class-nav-course', aula.curso || 'Curso sin especificar');
+        button.append(initial, text);
+        button.addEventListener('click', () => {
+          classList.querySelectorAll('.class-nav-button').forEach((classButton) => classButton.setAttribute('aria-current', 'false'));
+          button.setAttribute('aria-current', 'true');
+          showClassroom(aula, index);
+        });
+        classList.append(button);
+      });
+      classList.querySelector('.class-nav-button')?.click();
+    }
+
+    document.getElementById('teacherName').textContent = session?.nombre || 'Profesor';
+    document.getElementById('teacherEmail').textContent = session?.email || '';
+
+    if (!session?.uid || !session?.teacherDocId || !session?.email || !Number.isFinite(Number(localStorage.getItem(activityKey)))) {
+      endSession();
+    } else {
+      (async () => {
+        try {
+          const teacherSnapshot = await getDoc(doc(db, 'Profesores', session.teacherDocId));
+          if (!teacherSnapshot.exists() || teacherSnapshot.data().email !== session.email) {
+            endSession();
+            return;
+          }
+
+          const ids = [...new Set([session.uid, session.teacherDocId, session.email])];
+          const aulaQueries = [
+            ['profesorDocId', session.teacherDocId],
+            ['profesorEmail', session.email],
+            ['profesor.email', session.email],
+            ...ids.map((teacherId) => ['profesorUid', teacherId])
+          ];
+          const results = await Promise.all(aulaQueries.map(async ([field, value]) => {
+            try {
+              return await getDocs(query(collection(db, 'Aulas'), where(field, '==', value)));
+            } catch (error) {
+              console.error(`No se pudieron buscar aulas por ${field}:`, error);
+              return null;
+            }
+          }));
+          const snapshots = results.filter(Boolean);
+          if (!snapshots.length) throw new Error('No se pudo consultar la colección Aulas.');
+
+          const aulasById = new Map();
+          snapshots.forEach((snapshot) => {
+            snapshot.docs.forEach((aulaDoc) => {
+              const data = aulaDoc.data();
+              aulasById.set(aulaDoc.id, {
+                id: aulaDoc.id,
+                ...data,
+                alumnos: Array.isArray(data.alumnos) ? data.alumnos : []
+              });
+            });
+          });
+
+          const aulas = Array.from(aulasById.values());
+          status.textContent = aulas.length
+            ? `${aulas.length} aula${aulas.length === 1 ? '' : 's'} asignada${aulas.length === 1 ? '' : 's'}`
+            : 'No se encontraron aulas asignadas. Verifica la asignación desde el panel administrativo.';
+          renderClasses(aulas);
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        } catch (error) {
+          console.error('No se pudieron cargar las aulas del profesor:', error);
+          status.textContent = 'No se pudieron consultar tus aulas. Revisa los permisos de lectura de Firestore.';
+          classList.replaceChildren();
+        }
+      })();
+    }
+
+    window.addEventListener('storage', (event) => {
+      if (event.key === sessionKey && !event.newValue) endSession();
+    });
+    idleTimer = setTimeout(endSession, Math.max(0, 60 * 60 * 1000 - (Date.now() - Number(localStorage.getItem(activityKey)))));
+  </script>
+</body>
+</html>

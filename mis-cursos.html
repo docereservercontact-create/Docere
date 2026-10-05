@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mis Cursos - Portal Académico</title>
+  <script src="student-session.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --bg-primary: #f8fafc;
+      --bg-card: #ffffff;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* --- NAVBAR --- */
+    .navbar {
+      background-color: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .nav-links a.active {
+      color: var(--accent);
+    }
+
+    .nav-links a.current {
+      color: var(--accent);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 8px;
+      border-left: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .user-profile:hover {
+      background-color: rgba(37, 99, 235, 0.08);
+    }
+
+    .avatar-wrapper {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #e0e7ff;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 2px solid var(--accent);
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .user-role {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background-color: #f1f5f9;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      transition: background-color 0.2s;
+    }
+
+    .user-pill:hover {
+      background-color: #e2e8f0;
+    }
+
+    /* --- CONTENEDOR PRINCIPAL --- */
+    .courses-container {
+      max-width: 1100px;
+      margin: 30px auto;
+      padding: 0 20px;
+      flex: 1;
+      width: 100%;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+    }
+
+    /* --- TARJETA PRINCIPAL DEL CURSO --- */
+    .course-hero-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .course-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .course-title {
+      font-size: 1.4rem;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .badge-status {
+      padding: 4px 12px;
+      background-color: #dcfce7;
+      color: #166534;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 9999px;
+      white-space: nowrap;
+    }
+
+    .course-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Barra de Progreso */
+    .progress-section {
+      margin-top: 16px;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 10px;
+      background-color: #e2e8f0;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 45%;
+      background-color: var(--accent);
+      border-radius: 9999px;
+    }
+    .progress-details { margin: 7px 0 0; color: var(--text-secondary); font-size: 12px; }
+
+    .attendance-analysis-button {
+      margin-top: 18px;
+    }
+
+    .attendance-analysis {
+      margin-top: 24px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg-card);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .attendance-analysis[hidden] { display: none; }
+    .attendance-analysis h2 { margin-bottom: 8px; font-size: 1.25rem; }
+    .attendance-analysis-status { margin-bottom: 16px; color: var(--text-secondary); font-size: 14px; }
+    .attendance-class-list { display: grid; gap: 16px; }
+    .attendance-class-card { padding: 18px; border: 1px solid var(--border); border-radius: 9px; }
+    .attendance-class-card h3 { margin-bottom: 4px; font-size: 17px; }
+    .attendance-class-course { margin-bottom: 14px; color: var(--text-secondary); font-size: 13px; }
+    .attendance-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+    .attendance-metric { padding: 12px; border-radius: 7px; background: var(--bg-primary); }
+    .attendance-metric strong { display: block; font-size: 20px; }
+    .attendance-metric span { color: var(--text-secondary); font-size: 12px; }
+    .attendance-chart { display: grid; gap: 9px; margin: 16px 0; }
+    .attendance-chart-row { display: grid; grid-template-columns: 88px minmax(80px, 1fr) 48px; align-items: center; gap: 10px; font-size: 12px; }
+    .attendance-chart-label { color: var(--text-secondary); }
+    .attendance-chart-track { height: 12px; overflow: hidden; border-radius: 10px; background: #e2e8f0; }
+    .attendance-chart-fill { height: 100%; border-radius: inherit; }
+    .attendance-chart-value { text-align: right; font-weight: 700; }
+    .attendance-chart-fill.attendance-present { background: #16a34a; }
+    .attendance-chart-fill.attendance-absent { background: #dc2626; }
+    .attendance-chart-fill.attendance-late { background: #d97706; }
+    .attendance-table-wrap { overflow-x: auto; margin-top: 14px; border: 1px solid var(--border); border-radius: 7px; }
+    .attendance-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .attendance-table th, .attendance-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+    .attendance-table th { background: #f1f5f9; font-weight: 700; }
+    .attendance-table tr:last-child td { border-bottom: 0; }
+    .attendance-state-present { color: #15803d; font-weight: 650; }
+    .attendance-state-absent { color: #b91c1c; font-weight: 650; }
+    .attendance-state-late { color: #a16207; font-weight: 650; }
+
+    /* --- GRID DE MATERIAS --- */
+    .subjects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .subject-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .subject-card[hidden] {
+      display: none;
+    }
+
+    .subject-info h3 {
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+    }
+
+    .subject-info p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    @media (max-width: 640px) {
+      .course-header {
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .menu-toggle { display: block; }
+      .nav-container { position: relative; }
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: var(--bg-card);
+        flex-direction: column;
+        padding: 20px;
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      }
+      .nav-links.active { display: flex; }
+      .user-info { display: none; }
+    }
+
+    @media (max-width: 480px) {
+      .nav-container { gap: 8px; padding: 10px 12px; }
+      .brand { font-size: 1rem; gap: 6px; }
+      .brand svg { width: 20px; }
+      .nav-actions { gap: 6px; }
+      .nav-actions .btn { padding: 9px 10px; }
+      .nav-actions .btn span { display: none; }
+      .user-profile { padding: 4px; }
+      .attendance-analysis { padding: 16px; }
+      .attendance-metrics { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="brand">
+        <i data-lucide="graduation-cap"></i>
+        <span>Portal <br>Académico</span>
+      </a>
+
+      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú" aria-expanded="false">
+        <i data-lucide="menu"></i>
+      </button>
+
+      <ul class="nav-links" id="navLinks">
+        <li><a href="panel_estudiante.html">Mi panel</a></li>
+        <li><a href="mis-cursos.html" class="current" aria-current="page">Mis Cursos</a></li>
+        <li><a href="Apuntes_admision.html">Apuntes</a></li>
+        <li><a href="Material_de_estudio.html" target="_blank">Material de Estudio</a></li>
+        <li><a href="https://www.bidi.unam.mx/" target="_blank">Libreria</a></li>      
+      </ul>
+
+      <div class="nav-actions">
+        <!-- Foto / Perfil Alumno (Enlace a perfil.html) -->
+        <a href="perfil.html" class="user-profile" title="Ir a mi perfil">
+          <div class="avatar-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="user-info">
+            <span class="user-name" id="userNameLabel">Alumno</span>
+            <span class="user-role">Estudiante</span>
+          </div>
+        </a>
+
+        <!-- Botón Entrar a Clase --> 
+        <a href="https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1" target="_blank" class="btn btn-primary" id="btnIngresarClase">
+          <i data-lucide="video"></i>
+          <span>Entrar a clase</span>
+        </a>
+
+        <!-- Botón Cerrar Sesión -->
+        <button class="btn btn-outline" id="btnCerrarSesion">
+          <i data-lucide="log-out"></i>
+          <span>Cerrar sesión</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+  
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="courses-container">
+
+    <h1 class="page-title">Mi Inscripción Activa</h1>
+
+    <!-- Tarjeta Principal del Curso Inscrito -->
+    <section class="course-hero-card">
+      <div class="course-header">
+        <div>
+          <h2 class="course-title" id="registeredCourseTitle">Cargando curso...</h2>
+          <p style="color: var(--text-secondary); font-size: 14px;" id="registeredFolio">Folio: --</p>
+        </div>
+        <span class="badge-status" id="registeredStatus">Inscrito / Activo</span>
+      </div>
+
+      <div class="course-meta">
+        <div class="meta-item">
+          <i data-lucide="clock" style="width: 16px;"></i>
+          <span id="registeredTurno">Turno: --</span>
+        </div>
+        <div class="meta-item">
+          <i data-lucide="calendar" style="width: 16px;"></i>
+          <span id="registeredStartDate">Inicio: --</span>
+        </div>
+        <div class="meta-item">
+          <i data-lucide="monitor" style="width: 16px;"></i>
+          <span id="registeredModality">Modalidad: --</span>
+        </div>
+      </div>
+
+      <div class="progress-section">
+        <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600;">
+          <span>Avance General del Programa</span>
+          <span id="progressText">—</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressBarFill" style="width: 0%"></div>
+        </div>
+        <p class="progress-details" id="progressDetails" role="status">Calculando avance por horas de asistencia...</p>
+      </div>
+      <button class="btn btn-primary attendance-analysis-button" id="showAttendanceAnalysis" type="button" aria-expanded="false" aria-controls="attendanceAnalysis">
+        <i data-lucide="chart-no-axes-column-increasing"></i>
+        <span>Ver análisis de asistencias</span>
+      </button>
+    </section>
+    <section class="attendance-analysis" id="attendanceAnalysis" aria-labelledby="attendanceAnalysisTitle" hidden>
+      <h2 id="attendanceAnalysisTitle">Análisis de mis asistencias</h2>
+      <p class="attendance-analysis-status" id="attendanceAnalysisStatus" role="status">Selecciona para cargar tu historial de asistencia.</p>
+      <div class="attendance-class-list" id="attendanceClassList"></div>
+    </section>
+
+  </main>
+  <!-- SCRIPT CONECTADO CON EL JS GLOBAL / FIREBASE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, query, where, limit, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
+      authDomain: "docere-931ec.firebaseapp.com",
+      projectId: "docere-931ec",
+      storageBucket: "docere-931ec.firebasestorage.app",
+      messagingSenderId: "1005663843239",
+      appId: "1:1005663843239:web:d8f6c7524a5d10bf797c82",
+      measurementId: "G-B6TDT4VE7S"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const menuToggleBtn = document.getElementById('menuToggle');
+    const navLinks = document.getElementById('navLinks');
+    menuToggleBtn.addEventListener('click', () => {
+      const isOpen = navLinks.classList.toggle('active');
+      menuToggleBtn.setAttribute('aria-expanded', String(isOpen));
+    });
+
+    const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+    if (session?.nombre) document.getElementById('userNameLabel').textContent = session.nombre;
+
+    document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
+      if (!confirm('¿Deseas cerrar sesión?')) return;
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error('Error al cerrar sesión:', error);
+      }
+      localStorage.removeItem('studentSession');
+      localStorage.removeItem('studentSessionLastActivity');
+      window.location.href = 'index.html';
+    });
+
+    function actualizarInterfaz(data, docId) {
+      const nombre = data.nombre || data.asp_nombre || 'Alumno';
+      const curso = data.curso || data.datosAcademicos?.curso || 'Curso de Preparación UNAM';
+      const turno = data.turno || data.datosAcademicos?.turno || 'No asignado';
+      const modalidad = data.modalidad || data.datosAcademicos?.modalidad || 'No asignada';
+      const fechaRegistro = data.fechaRegistro;
+      const fecha = typeof fechaRegistro?.toDate === 'function'
+        ? fechaRegistro.toDate()
+        : fechaRegistro?.seconds
+          ? new Date(fechaRegistro.seconds * 1000)
+          : fechaRegistro ? new Date(fechaRegistro) : null;
+      const inicio = fecha && !Number.isNaN(fecha.getTime())
+        ? new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }).format(fecha)
+        : 'Fecha no disponible';
+
+      document.getElementById('userNameLabel').textContent = nombre;
+      document.getElementById('registeredCourseTitle').textContent = curso;
+      document.getElementById('registeredFolio').textContent = `Folio de inscripción: ${docId || 'DOC-2026-001'}`;
+      document.getElementById('registeredTurno').textContent = `Turno: ${turno}`;
+      document.getElementById('registeredStartDate').textContent = `Inicio: ${inicio}`;
+      document.getElementById('registeredModality').textContent = `Modalidad: ${modalidad}`;
+    }
+
+    function actualizarAvance(avance, detalle = '') {
+      const valor = avance === null || avance === undefined ? NaN : Number(avance);
+      const porcentaje = Number.isFinite(valor) ? Math.min(100, Math.max(0, valor)) : 0;
+      document.getElementById('progressText').textContent = Number.isFinite(valor) ? `${porcentaje}%` : '—';
+      document.getElementById('progressBarFill').style.width = `${porcentaje}%`;
+      document.getElementById('progressDetails').textContent = detalle;
+    }
+
+    function getClassDurationHours(classroom) {
+      const schedule = classroom.horario || {};
+      const storedDuration = Number(schedule.horasPorClase);
+      if (Number.isFinite(storedDuration) && storedDuration > 0) return storedDuration;
+      if (!schedule.horaInicio || !schedule.horaFin) return null;
+      const [startHour, startMinute] = schedule.horaInicio.split(':').map(Number);
+      const [endHour, endMinute] = schedule.horaFin.split(':').map(Number);
+      const duration = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute)) / 60;
+      return Number.isFinite(duration) && duration > 0 ? duration : null;
+    }
+
+    async function calculateAndSaveProgress(student, target) {
+      try {
+        const classroomSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => studentMatchesClassroom(classroom, student));
+
+        if (!classrooms.length) {
+          await updateDoc(doc(db, target.collection, target.id), {
+            avance: 0,
+            avanceHorasAsistidas: 0,
+            avanceHorasTotales: 0,
+            avanceActualizadoEn: serverTimestamp()
+          });
+          actualizarAvance(0, 'Aún no tienes aulas asignadas.');
+          return;
+        }
+
+        const classroomsWithHours = classrooms.map((classroom) => ({
+          classroom,
+          classDuration: getClassDurationHours(classroom),
+          courseHours: Number(classroom.horasCursoTotal)
+        }));
+        const unconfigured = classroomsWithHours.find(({ classDuration, courseHours }) =>
+          !Number.isFinite(classDuration) || classDuration <= 0 || !Number.isFinite(courseHours) || courseHours <= 0
+        );
+        if (unconfigured) {
+          actualizarAvance(null, 'El administrador debe completar el horario y las horas totales de tu aula para calcular el avance.');
+          return;
+        }
+
+        const results = await Promise.all(classroomsWithHours.map(async ({ classroom, classDuration, courseHours }) => {
+          const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'asistencias'));
+          let attendedHours = 0;
+          snapshot.docs.forEach((attendanceDoc) => {
+            const attendance = attendanceDoc.data();
+            const records = Array.isArray(attendance.alumnos) ? attendance.alumnos : [];
+            const studentRecord = records.find((record) =>
+              (record.id === student.id && record.coleccion === student.coleccion)
+              || (student.email && record.email === student.email)
+            );
+            if (!studentRecord) return;
+            const state = getAttendanceState(studentRecord);
+            if (state === 'asistencia' || state === 'retardo') attendedHours += classDuration;
+          });
+          return { attendedHours, courseHours };
+        }));
+
+        const attendedHours = results.reduce((total, result) => total + result.attendedHours, 0);
+        const courseHours = results.reduce((total, result) => total + result.courseHours, 0);
+        const progress = Math.min(100, Math.round((attendedHours / courseHours) * 100));
+        const roundHours = (hours) => Math.round(hours * 100) / 100;
+        await updateDoc(doc(db, target.collection, target.id), {
+          avance: progress,
+          avanceHorasAsistidas: roundHours(attendedHours),
+          avanceHorasTotales: roundHours(courseHours),
+          avanceActualizadoEn: serverTimestamp()
+        });
+        actualizarAvance(progress, `${roundHours(attendedHours)} de ${roundHours(courseHours)} horas del curso completadas. Asistencias y retardos cuentan como horas cursadas.`);
+      } catch (error) {
+        console.error('No se pudo calcular o guardar el avance del curso:', error);
+        actualizarAvance(null, 'No se pudo calcular o guardar el avance. Revisa la conexión y los permisos de Firestore.');
+      }
+    }
+
+    const attendanceAnalysis = document.getElementById('attendanceAnalysis');
+    const attendanceAnalysisStatus = document.getElementById('attendanceAnalysisStatus');
+    const attendanceClassList = document.getElementById('attendanceClassList');
+    const attendanceAnalysisButton = document.getElementById('showAttendanceAnalysis');
+    let attendanceAnalysisLoaded = false;
+    let attendanceAnalysisLoading = false;
+
+    function addAttendanceText(parent, tagName, className, text) {
+      const element = document.createElement(tagName);
+      element.className = className;
+      element.textContent = text;
+      parent.append(element);
+      return element;
+    }
+
+    function studentMatchesClassroom(classroom, student) {
+      return Array.isArray(classroom.alumnos) && classroom.alumnos.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && assignedStudent.email === student.email)
+      );
+    }
+
+    function getAttendanceState(record) {
+      if (['asistencia', 'falta', 'retardo'].includes(record.estado)) return record.estado;
+      return record.presente === true ? 'asistencia' : 'falta';
+    }
+
+    function formatAttendanceDate(date) {
+      const parsed = new Date(`${date}T12:00:00`);
+      return Number.isNaN(parsed.getTime())
+        ? date
+        : new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }).format(parsed);
+    }
+
+    function renderAttendanceClass(classroom, records, error = null) {
+      const card = document.createElement('article');
+      card.className = 'attendance-class-card';
+      addAttendanceText(card, 'h3', '', classroom.nombre || 'Aula');
+      addAttendanceText(card, 'p', 'attendance-class-course', classroom.curso || 'Curso sin especificar');
+      if (error) {
+        addAttendanceText(card, 'p', 'attendance-analysis-status', 'No se pudo consultar la asistencia de esta aula. Revisa los permisos de Firestore.');
+        attendanceClassList.append(card);
+        return;
+      }
+
+      const totals = { asistencia: 0, falta: 0, retardo: 0 };
+      records.forEach(({ estado }) => { totals[estado] += 1; });
+      const recordedCount = records.length;
+      const percentage = (count) => recordedCount ? Math.round((count / recordedCount) * 100) : 0;
+      const metrics = document.createElement('div');
+      metrics.className = 'attendance-metrics';
+      [
+        ['Asistencia', totals.asistencia, 'attendance-state-present'],
+        ['Faltas', totals.falta, 'attendance-state-absent'],
+        ['Retardos', totals.retardo, 'attendance-state-late']
+      ].forEach(([label, count, className]) => {
+        const metric = document.createElement('div');
+        metric.className = 'attendance-metric';
+        addAttendanceText(metric, 'strong', className, `${percentage(count)}%`);
+        addAttendanceText(metric, 'span', '', `${label} · ${count} de ${recordedCount} clases`);
+        metrics.append(metric);
+      });
+      card.append(metrics);
+
+      const chart = document.createElement('div');
+      chart.className = 'attendance-chart';
+      chart.setAttribute('role', 'img');
+      chart.setAttribute('aria-label', `Porcentajes de asistencia de ${classroom.nombre || 'aula'}`);
+      [
+        ['Asistencia', totals.asistencia, 'attendance-present'],
+        ['Falta', totals.falta, 'attendance-absent'],
+        ['Retardo', totals.retardo, 'attendance-late']
+      ].forEach(([label, count, className]) => {
+        const row = document.createElement('div');
+        row.className = 'attendance-chart-row';
+        addAttendanceText(row, 'span', 'attendance-chart-label', label);
+        const track = document.createElement('div');
+        track.className = 'attendance-chart-track';
+        const fill = document.createElement('div');
+        fill.className = `attendance-chart-fill ${className}`;
+        fill.style.width = `${percentage(count)}%`;
+        track.append(fill);
+        row.append(track);
+        addAttendanceText(row, 'span', 'attendance-chart-value', `${percentage(count)}%`);
+        chart.append(row);
+      });
+      card.append(chart);
+
+      if (!records.length) {
+        addAttendanceText(card, 'p', 'attendance-analysis-status', 'Todavía no hay asistencias registradas para esta aula.');
+      } else {
+        const tableWrap = document.createElement('div');
+        tableWrap.className = 'attendance-table-wrap';
+        const table = document.createElement('table');
+        table.className = 'attendance-table';
+        const head = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        ['Fecha', 'Estado'].forEach((label) => addAttendanceText(headerRow, 'th', '', label));
+        head.append(headerRow);
+        const body = document.createElement('tbody');
+        records.forEach(({ fecha, estado }) => {
+          const row = document.createElement('tr');
+          addAttendanceText(row, 'td', '', formatAttendanceDate(fecha));
+          const stateClass = estado === 'asistencia'
+            ? 'attendance-state-present'
+            : estado === 'falta'
+              ? 'attendance-state-absent'
+              : 'attendance-state-late';
+          const stateLabel = estado === 'asistencia' ? 'Asistencia' : estado === 'falta' ? 'Falta' : 'Retardo';
+          addAttendanceText(row, 'td', stateClass, stateLabel);
+          body.append(row);
+        });
+        table.append(head, body);
+        tableWrap.append(table);
+        card.append(tableWrap);
+      }
+      attendanceClassList.append(card);
+    }
+
+    async function loadAttendanceAnalysis() {
+      if (attendanceAnalysisLoaded || attendanceAnalysisLoading) return;
+      if (!session?.id || !session?.coleccion) {
+        attendanceAnalysisStatus.textContent = 'No se pudo identificar tu inscripción. Cierra sesión y vuelve a ingresar.';
+        return;
+      }
+
+      attendanceAnalysisLoading = true;
+      attendanceAnalysisButton.disabled = true;
+      attendanceAnalysisStatus.textContent = 'Buscando tus aulas y asistencias...';
+      attendanceClassList.replaceChildren();
+      try {
+        const classroomSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => studentMatchesClassroom(classroom, session));
+
+        if (!classrooms.length) {
+          attendanceAnalysisStatus.textContent = 'No hay aulas asignadas a tu inscripción activa. Cuando el administrador te agregue a un grupo, podrás consultar aquí tus asistencias.';
+          attendanceAnalysisLoaded = true;
+          return;
+        }
+
+        const classResults = await Promise.all(classrooms.map(async (classroom) => {
+          try {
+            const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'asistencias'));
+            const records = snapshot.docs
+              .map((attendanceDoc) => {
+                const data = attendanceDoc.data();
+                const studentRecord = (Array.isArray(data.alumnos) ? data.alumnos : []).find((item) =>
+                  (item.id === session.id && item.coleccion === session.coleccion)
+                  || (session.email && item.email === session.email)
+                );
+                return studentRecord
+                  ? { fecha: data.fecha || attendanceDoc.id, estado: getAttendanceState(studentRecord) }
+                  : null;
+              })
+              .filter(Boolean)
+              .sort((left, right) => right.fecha.localeCompare(left.fecha));
+            return { classroom, records };
+          } catch (error) {
+            console.error(`No se pudo cargar la asistencia del aula ${classroom.id}:`, error);
+            return { classroom, records: [], error };
+          }
+        }));
+
+        const failedCount = classResults.filter((result) => result.error).length;
+        const totalRecords = classResults.reduce((total, result) => total + result.records.length, 0);
+        classResults.forEach(({ classroom, records, error }) => renderAttendanceClass(classroom, records, error));
+        attendanceAnalysisStatus.textContent = failedCount
+          ? `Se encontraron ${classrooms.length} aula(s). No se pudo leer la asistencia de ${failedCount}; revisa los permisos de Firestore.`
+          : `Análisis de ${classrooms.length} aula(s) · ${totalRecords} registro(s) de asistencia.`;
+        attendanceAnalysisLoaded = true;
+      } catch (error) {
+        console.error('No se pudo cargar el análisis de asistencias:', error);
+        attendanceAnalysisStatus.textContent = 'No se pudo consultar el análisis. Revisa la conexión y los permisos de lectura de Aulas y asistencias en Firestore.';
+      } finally {
+        attendanceAnalysisLoading = false;
+        attendanceAnalysisButton.disabled = false;
+      }
+    }
+
+    attendanceAnalysisButton.addEventListener('click', async () => {
+      const isOpening = attendanceAnalysis.hidden;
+      attendanceAnalysis.hidden = !isOpening;
+      attendanceAnalysisButton.setAttribute('aria-expanded', String(isOpening));
+      if (isOpening) await loadAttendanceAnalysis();
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      const sessionRaw = localStorage.getItem('studentSession');
+      if (!sessionRaw) {
+        window.location.replace('login.html');
+        return;
+      }
+
+      let studentSession;
+      try {
+        studentSession = JSON.parse(sessionRaw);
+      } catch {
+        window.location.replace('login.html');
+        return;
+      }
+
+      const applicantEmail = user?.email || studentSession.email;
+      let progressTarget = null;
+      try {
+        if (applicantEmail) {
+          const applicantQuery = query(
+            collection(db, 'aspirantes_admision'),
+            where('email', '==', applicantEmail),
+            limit(1)
+          );
+          const applicantRecords = await getDocs(applicantQuery);
+          if (!applicantRecords.empty) {
+            const applicantRecord = applicantRecords.docs[0];
+            const applicantData = applicantRecord.data();
+            progressTarget = { collection: 'aspirantes_admision', id: applicantRecord.id };
+            const defaultFields = {};
+            if (!applicantData.turno) defaultFields.turno = applicantData.datosAcademicos?.turno || 'No asignado';
+            if (!applicantData.modalidad) defaultFields.modalidad = applicantData.datosAcademicos?.modalidad || 'En Línea';
+
+            if (Object.keys(defaultFields).length) {
+              try {
+                await updateDoc(doc(db, 'aspirantes_admision', applicantRecord.id), defaultFields);
+                Object.assign(applicantData, defaultFields);
+              } catch (error) {
+                console.error('No se pudieron completar los datos del aspirante:', error);
+              }
+            }
+            actualizarInterfaz({ ...applicantData, ...defaultFields }, applicantRecord.id);
+          }
+        }
+      } catch (error) {
+        console.error('No se pudo verificar el registro del aspirante:', error);
+      }
+
+      if (!progressTarget && user) {
+        try {
+          const userSnap = await getDoc(doc(db, 'users', user.uid));
+          if (userSnap.exists()) {
+            actualizarInterfaz(userSnap.data(), user.uid);
+            progressTarget = { collection: 'users', id: user.uid };
+          }
+        } catch (error) {
+          console.error('No se pudo consultar el perfil del usuario:', error);
+        }
+      }
+
+      if (!progressTarget) {
+        try {
+          progressTarget = await cargarDeAspirantes(applicantEmail);
+        } catch (error) {
+          console.error('No se pudo buscar la inscripción del alumno:', error);
+        }
+      }
+
+      if (!progressTarget && studentSession.coleccion && studentSession.id) {
+        try {
+          const sessionRecord = await getDoc(doc(db, studentSession.coleccion, studentSession.id));
+          if (sessionRecord.exists()) {
+            actualizarInterfaz(sessionRecord.data(), studentSession.id);
+            progressTarget = { collection: studentSession.coleccion, id: studentSession.id };
+          }
+        } catch (error) {
+          console.error('No se pudo consultar el registro vinculado a la sesión:', error);
+        }
+      }
+
+      if (progressTarget) {
+        await calculateAndSaveProgress(studentSession, progressTarget);
+      } else {
+        actualizarAvance(null, 'No se encontró tu inscripción para registrar el avance.');
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+
+    async function cargarDeAspirantes(email) {
+      if (!email) return null;
+      for (const collectionName of ['aspirantes_admision', 'Cursos']) {
+        const q = query(collection(db, collectionName), where('email', '==', email), limit(1));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const snap = querySnapshot.docs[0];
+          actualizarInterfaz(snap.data(), snap.id);
+          return { collection: collectionName, id: snap.id };
+        }
+      }
+      return null;
+    }
+  </script>
+</body>
+</html>

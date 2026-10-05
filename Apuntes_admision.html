@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apuntes de admisión</title>
+  <script src="student-session.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #dbe4ef;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .navbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent);
+      font-size: 1.25rem;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.current {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border: 0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: var(--border); }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 8px;
+      border-left: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none;
+    }
+
+    .user-profile:hover { background: rgba(37, 99, 235, 0.08); }
+
+    .avatar-wrapper {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      background: #e0e7ff;
+      color: var(--accent);
+    }
+
+    .user-info { display: flex; flex-direction: column; }
+    .user-name { color: var(--text); font-size: 13px; font-weight: 600; }
+    .user-role { color: var(--muted); font-size: 11px; }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: 0;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    main {
+      width: min(1120px, calc(100% - 40px));
+      margin: 36px auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .intro {
+      margin: 0 0 24px;
+      color: var(--muted);
+    }
+
+    .subject-card {
+      max-width: 520px;
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .subject-card h2 {
+      margin: 0 0 8px;
+      font-size: 21px;
+    }
+
+    .subject-card p {
+      margin: 0 0 20px;
+      color: var(--muted);
+    }
+
+    .btn {
+      display: inline-flex;
+      min-height: 48px;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 0 18px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 650;
+      text-decoration: none;
+    }
+
+    .btn:hover { background: var(--accent-hover); }
+
+    #accessMessage {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+    }
+
+    @media (max-width: 768px) {
+      .menu-toggle { display: block; }
+      .nav-container { position: relative; }
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 20px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      }
+      .nav-links.active { display: flex; }
+      .user-info { display: none; }
+    }
+
+    @media (max-width: 520px) {
+      .nav-container { gap: 8px; padding: 10px 12px; }
+      .brand { font-size: 1rem; gap: 6px; }
+      .brand svg { width: 20px; }
+      .nav-actions { gap: 6px; }
+      .nav-actions .btn { padding: 9px 10px; }
+      .user-profile { padding: 4px; }
+      main { width: min(100% - 28px, 1120px); margin-top: 26px; }
+      h1 { font-size: 24px; }
+      .subject-card { padding: 20px; }
+      #btnIngresarClase span,
+      #btnCerrarSesion span { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="brand">
+        <i data-lucide="graduation-cap"></i>
+        <span>Portal <br>Académico</span>
+      </a>
+
+      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú" aria-expanded="false">
+        <i data-lucide="menu"></i>
+      </button>
+
+      <ul class="nav-links" id="navLinks">
+        <li><a href="panel_estudiante.html">Mi panel</a></li>
+        <li><a href="mis-cursos.html">Mis Cursos</a></li>
+        <li><a href="Apuntes_admision.html" class="current" aria-current="page">Apuntes</a></li>
+        <li><a href="Material_de_estudio.html" target="_blank">Material de Estudio</a></li>
+        <li><a href="https://www.bidi.unam.mx/" target="_blank">Libreria</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a href="perfil.html" class="user-profile" title="Ir a mi perfil">
+          <div class="avatar-wrapper">
+            <i data-lucide="user-round"></i>
+          </div>
+          <div class="user-info">
+            <span class="user-name" id="userNameLabel">Alumno</span>
+            <span class="user-role">Estudiante</span>
+          </div>
+        </a>
+        <a href="https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1" target="_blank" rel="noopener noreferrer" class="btn btn-primary" id="btnIngresarClase">
+          <i data-lucide="video"></i>
+          <span>Entrar a clase</span>
+        </a>
+        <button class="btn btn-outline" id="btnCerrarSesion">
+          <i data-lucide="log-out"></i>
+          <span>Cerrar sesión</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <h1>Pizarrón Digital</h1>
+    <p class="intro">Apuntes y materiales de tu curso de admisión.</p>
+    <p id="accessMessage" role="status">Verificando tu acceso...</p>
+
+    <section class="subject-card" id="admissionMaterials" hidden>
+      <h2>Español</h2>
+      <p>Unidad 1: Lenguaje y Comunicación</p>
+      <a class="btn" href="https://globalsite.my.canva.site/unidad-1-lengua-y-comunicaci-n" target="_blank" rel="noopener noreferrer">
+        <i data-lucide="external-link" aria-hidden="true"></i>
+        <span>Consultar apunte</span>
+      </a>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, query, where, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
+      authDomain: "docere-931ec.firebaseapp.com",
+      projectId: "docere-931ec",
+      storageBucket: "docere-931ec.firebasestorage.app",
+      messagingSenderId: "1005663843239",
+      appId: "1:1005663843239:web:d8f6c7524a5d10bf797c82",
+      measurementId: "G-B6TDT4VE7S"
+    };
+
+    const message = document.getElementById('accessMessage');
+    const materials = document.getElementById('admissionMaterials');
+
+    try {
+      const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!session?.email) throw new Error('No hay una sesión válida.');
+
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      const applicantQuery = query(
+        collection(db, 'aspirantes_admision'),
+        where('email', '==', session.email),
+        limit(1)
+      );
+      const applicants = await getDocs(applicantQuery);
+
+      if (applicants.empty) {
+        message.textContent = 'Este material está disponible únicamente para aspirantes registrados.';
+      } else {
+        materials.hidden = false;
+        message.hidden = true;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      }
+    } catch (error) {
+      console.error('No se pudo verificar el acceso a los apuntes:', error);
+      message.textContent = 'No se pudo verificar tu acceso. Regresa a Mis Cursos e inténtalo de nuevo.';
+    }
+  </script>
+  <script>
+    const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+    if (session?.nombre) document.getElementById('userNameLabel').textContent = session.nombre;
+
+    const menuToggle = document.getElementById('menuToggle');
+    const navLinks = document.getElementById('navLinks');
+    menuToggle.addEventListener('click', () => {
+      const isOpen = navLinks.classList.toggle('active');
+      menuToggle.setAttribute('aria-expanded', String(isOpen));
+    });
+
+    document.getElementById('btnCerrarSesion').addEventListener('click', () => {
+      if (!confirm('¿Deseas cerrar sesión?')) return;
+      localStorage.removeItem('studentSession');
+      localStorage.removeItem('studentSessionLastActivity');
+      window.location.href = 'index.html';
+    });
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  </script>
+</body>
+</html>

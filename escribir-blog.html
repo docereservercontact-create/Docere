@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Publicar entrada | Docére</title>
+  <meta name="description" content="Panel para publicar nuevas entradas del blog de Docére." />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="logo">
+        <img src="logon.png" alt="DOCÉRE" class="brand-logo" />
+      </a>
+      <div class="nav-actions">
+        <a href="index.html#blog" class="btn btn-outline">Volver al blog</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="section blog-editor-page">
+    <div class="container max-width-md">
+      <div class="section-title">
+        <span>EDITOR DEL BLOG</span>
+        <h1>Publicar una entrada</h1>
+        <p>Comparte una nueva noticia, consejo o recurso con la comunidad Docére.</p>
+      </div>
+
+      <form id="blogForm" class="blog-editor-form">
+        <div class="form-row">
+          <div class="field-group">
+            <label for="author">Nombre del escritor</label>
+            <input type="text" id="author" name="author" placeholder="Tu nombre" required />
+          </div>
+          <div class="field-group">
+            <label for="category">Categoría</label>
+            <select id="category" name="category" required>
+              <option value="Noticias">Noticias</option>
+              <option value="Aprendizaje">Aprendizaje</option>
+              <option value="Admisión">Admisión</option>
+              <option value="Tecnología">Tecnología</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="title">Título de la entrada</label>
+          <input type="text" id="title" name="title" maxlength="120" placeholder="Escribe un título claro y atractivo" required />
+        </div>
+
+        <div class="field-group">
+          <label for="excerpt">Resumen</label>
+          <textarea id="excerpt" name="excerpt" rows="3" maxlength="240" placeholder="Una breve descripción que aparecerá en la tarjeta del blog" required></textarea>
+        </div>
+
+        <div class="field-group">
+          <label for="content">Contenido de la entrada</label>
+          <textarea id="content" name="content" rows="10" placeholder="Escribe aquí el contenido completo de la entrada" required></textarea>
+        </div>
+
+        <div class="field-group">
+          <label for="coverImage">Imagen de portada</label>
+          <input type="file" id="coverImage" name="coverImage" accept="image/jpeg,image/png,image/webp" required />
+          <small class="field-help">Formatos permitidos: JPG, PNG o WebP. Tamaño máximo: 5 MB.</small>
+          <img id="imagePreview" class="blog-image-preview hidden" alt="Vista previa de la imagen seleccionada" />
+        </div>
+
+        <button type="submit" id="publishButton" class="btn btn-primary btn-full">
+          <i data-lucide="upload"></i> Publicar entrada
+        </button>
+        <p id="formStatus" class="form-status" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7Z9VQDme2aOfV5ag",
+      authDomain: "docere-931ec.firebaseapp.com",
+      projectId: "docere-931ec",
+      storageBucket: "docere-931ec.firebasestorage.app",
+      messagingSenderId: "1005663843239",
+      appId: "1:1005663843239:web:d8f6c7524a5d10bf797c82",
+      measurementId: "G-B6TDT4VE7S"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+    const blogForm = document.getElementById('blogForm');
+    const coverImage = document.getElementById('coverImage');
+    const imagePreview = document.getElementById('imagePreview');
+    const publishButton = document.getElementById('publishButton');
+    const formStatus = document.getElementById('formStatus');
+
+    coverImage.addEventListener('change', () => {
+      const file = coverImage.files[0];
+      if (!file) {
+        imagePreview.classList.add('hidden');
+        imagePreview.removeAttribute('src');
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        coverImage.value = '';
+        imagePreview.classList.add('hidden');
+        formStatus.textContent = 'La imagen no puede superar los 5 MB.';
+        formStatus.className = 'form-status error';
+        return;
+      }
+
+      imagePreview.src = URL.createObjectURL(file);
+      imagePreview.classList.remove('hidden');
+      formStatus.textContent = '';
+      formStatus.className = 'form-status';
+    });
+
+    blogForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const file = coverImage.files[0];
+
+      if (!file || file.size > 5 * 1024 * 1024) {
+        formStatus.textContent = 'Selecciona una imagen válida de máximo 5 MB.';
+        formStatus.className = 'form-status error';
+        return;
+      }
+
+      publishButton.disabled = true;
+      formStatus.textContent = 'Subiendo imagen y guardando entrada...';
+      formStatus.className = 'form-status';
+
+      try {
+        const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '-');
+        const imagePath = `blog/${Date.now()}-${safeFileName}`;
+        const imageRef = ref(storage, imagePath);
+        await uploadBytes(imageRef, file, { contentType: file.type });
+        const imageUrl = await getDownloadURL(imageRef);
+
+        await addDoc(collection(db, 'blogEntries'), {
+          author: document.getElementById('author').value.trim(),
+          category: document.getElementById('category').value,
+          title: document.getElementById('title').value.trim(),
+          excerpt: document.getElementById('excerpt').value.trim(),
+          content: document.getElementById('content').value.trim(),
+          imageUrl,
+          imagePath,
+          readingTime: `${Math.max(1, Math.ceil(document.getElementById('content').value.trim().split(/\s+/).length / 200))} min de lectura`,
+          createdAt: serverTimestamp()
+        });
+
+        blogForm.reset();
+        imagePreview.classList.add('hidden');
+        imagePreview.removeAttribute('src');
+        formStatus.textContent = 'La entrada se publicó correctamente.';
+        formStatus.className = 'form-status success';
+      } catch (error) {
+        console.error('Error al publicar la entrada:', error);
+        formStatus.textContent = 'No se pudo publicar. Revisa la configuración y las reglas de Firebase.';
+        formStatus.className = 'form-status error';
+      } finally {
+        publishButton.disabled = false;
+        if (window.lucide) window.lucide.createIcons();
+      }
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+  </script>
+</body>
+</html>
