@@ -655,6 +655,14 @@
       return record.presente === true ? 'asistencia' : 'falta';
     }
 
+    function isUnamAdmissionStudent(session) {
+      const course = String(session?.curso || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+      return /\bUNAM\b/.test(course) && !/\b(IPN|UAM)\b/.test(course);
+    }
+
     async function getStudentProgress(session) {
       if (!session?.id || !session?.coleccion) throw new Error('Sesión de alumno no válida.');
 
@@ -699,6 +707,16 @@
 
       try {
         const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+        if (!isUnamAdmissionStudent(session)) {
+          if (classWindow) {
+            classWindow.opener = null;
+            classWindow.location.href = classMeetingUrl;
+          } else {
+            window.location.assign(classMeetingUrl);
+          }
+          return;
+        }
+
         const progress = await getStudentProgress(session);
         if (progress >= 100) {
           classWindow?.close();
