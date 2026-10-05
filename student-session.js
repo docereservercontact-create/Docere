@@ -32,6 +32,21 @@
     return;
   }
 
+  const currentPage = window.location.pathname.split('/').pop();
+  if (currentPage !== 'mis-cursos.html') {
+    import('./student-access.js')
+      .then(async ({ getStudentAbsenceStatus }) => {
+        if (!hasActiveSession()) return;
+        const student = JSON.parse(localStorage.getItem(sessionKey) || 'null');
+        const absenceStatus = await getStudentAbsenceStatus(student);
+        if (absenceStatus.isSuspended) window.location.replace('mis-cursos.html');
+      })
+      .catch((error) => {
+        console.error('No se pudo verificar el estado de asistencia:', error);
+        if (hasActiveSession()) window.location.replace('mis-cursos.html');
+      });
+  }
+
   function recordActivity() {
     const now = Date.now();
     if (now - lastRecordedActivity < 5000) return;

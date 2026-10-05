@@ -267,10 +267,10 @@
             <span class="user-role">Estudiante</span>
           </div>
         </a>
-        <a href="https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1" target="_blank" rel="noopener noreferrer" class="btn btn-primary" id="btnIngresarClase">
+        <button type="button" class="btn btn-primary" id="btnIngresarClase">
           <i data-lucide="video"></i>
           <span>Entrar a clase</span>
-        </a>
+        </button>
         <button class="btn btn-outline" id="btnCerrarSesion">
           <i data-lucide="log-out"></i>
           <span>Cerrar sesión</span>
@@ -289,6 +289,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -302,6 +303,8 @@
 
     const message = document.getElementById('accessMessage');
     const pizarrasList = document.getElementById('pizarrasList');
+    const classEntryButton = document.getElementById('btnIngresarClase');
+    const classMeetingUrl = 'https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1';
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -320,9 +323,68 @@
       );
     }
 
+    pizarrasList.addEventListener('click', async (event) => {
+      const link = event.target.closest('a[href]');
+      if (!link) return;
+      event.preventDefault();
+      const pizarraWindow = window.open('about:blank', '_blank');
+      try {
+        const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+        const absenceStatus = await getStudentAbsenceStatus(session);
+        if (absenceStatus.isSuspended) {
+          pizarraWindow?.close();
+          pizarrasList.replaceChildren();
+          message.textContent = getSuspensionMessage(absenceStatus);
+          return;
+        }
+        if (pizarraWindow) {
+          pizarraWindow.opener = null;
+          pizarraWindow.location.href = link.href;
+        } else {
+          window.location.assign(link.href);
+        }
+      } catch (error) {
+        console.error('No se pudo verificar la asistencia antes de abrir la pizarra:', error);
+        pizarraWindow?.close();
+        alert('No se pudo verificar tu estado de asistencia. No se abrió la pizarra.');
+      }
+    });
+
+    classEntryButton.addEventListener('click', async () => {
+      classEntryButton.disabled = true;
+      const classWindow = window.open('about:blank', '_blank');
+      try {
+        const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+        const absenceStatus = await getStudentAbsenceStatus(session);
+        if (absenceStatus.isSuspended) {
+          classWindow?.close();
+          alert(getSuspensionMessage(absenceStatus));
+          return;
+        }
+        if (classWindow) {
+          classWindow.opener = null;
+          classWindow.location.href = classMeetingUrl;
+        } else {
+          window.location.assign(classMeetingUrl);
+        }
+      } catch (error) {
+        console.error('No se pudo verificar la asistencia antes de entrar a clase:', error);
+        classWindow?.close();
+        alert('No se pudo verificar tu estado de asistencia. Inténtalo de nuevo.');
+      } finally {
+        classEntryButton.disabled = false;
+      }
+    });
+
     try {
       const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
       if (!session?.id || !session?.coleccion) throw new Error('No hay una sesión válida.');
+      const absenceStatus = await getStudentAbsenceStatus(session);
+      if (absenceStatus.isSuspended) {
+        message.textContent = getSuspensionMessage(absenceStatus);
+        pizarrasList.replaceChildren();
+        return;
+      }
 
       const classroomsSnapshot = await getDocs(collection(db, 'Aulas'));
       const classrooms = classroomsSnapshot.docs

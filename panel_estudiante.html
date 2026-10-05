@@ -585,6 +585,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -714,6 +715,13 @@
 
       try {
         const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+        const absenceStatus = await getStudentAbsenceStatus(session);
+        if (absenceStatus.isSuspended) {
+          classWindow?.close();
+          alert(getSuspensionMessage(absenceStatus));
+          return;
+        }
+
         if (!isUnamAdmissionStudent(session)) {
           if (classWindow) {
             classWindow.opener = null;
@@ -756,6 +764,13 @@
       }
 
       try {
+        const absenceStatus = await getStudentAbsenceStatus(session);
+        if (absenceStatus.isSuspended) {
+          announcementWallStatus.textContent = getSuspensionMessage(absenceStatus);
+          announcementWall.replaceChildren();
+          return;
+        }
+
         const classroomSnapshot = await getDocs(collection(db, 'Aulas'));
         const classrooms = classroomSnapshot.docs
           .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))

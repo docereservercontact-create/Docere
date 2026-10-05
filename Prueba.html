@@ -456,10 +456,10 @@
         </a>
 
         <!-- Botón Entrar a Clase -->
-        <a href="https://us05web.zoom.us/j/3748692842?pwd=w3a0SbHHfhjyhOa3kc7uJWQ19B9EQd.1" target="_blank" class="btn btn-primary" id="btnIngresarClase">
+        <button type="button" class="btn btn-primary" id="btnIngresarClase">
           <i data-lucide="video"></i>
           <span>Entrar a clase</span>
-        </a>
+        </button>
 
         <!-- Botón Cerrar Sesión -->
         <button class="btn btn-outline" id="btnCerrarSesion">
@@ -471,7 +471,7 @@
   </nav>
 
   <!-- CONTENIDO PRINCIPAL -->
-  <main class="dashboard-container">
+  <main class="dashboard-container" id="studentContent" hidden>
   <h1 class="page-title">Mi Inscripción Activa</h1>
 
     <!-- Tarjeta Principal del Curso Inscrito -->
@@ -627,6 +627,38 @@
       <p>Docére ® copyright</p>
     </div>
   </footer>
+
+  <script type="module">
+    import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
+
+    const classEntryButton = document.getElementById('btnIngresarClase');
+    const classMeetingUrl = 'https://us05web.zoom.us/j/3748692842?pwd=w3a0SbHHfhjyhOa3kc7uJWQ19B9EQd.1';
+    classEntryButton.addEventListener('click', async () => {
+      classEntryButton.disabled = true;
+      const classWindow = window.open('about:blank', '_blank');
+      try {
+        const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+        const absenceStatus = await getStudentAbsenceStatus(session);
+        if (absenceStatus.isSuspended) {
+          classWindow?.close();
+          alert(getSuspensionMessage(absenceStatus));
+          return;
+        }
+        if (classWindow) {
+          classWindow.opener = null;
+          classWindow.location.href = classMeetingUrl;
+        } else {
+          window.location.assign(classMeetingUrl);
+        }
+      } catch (error) {
+        console.error('No se pudo verificar la asistencia antes de entrar a clase:', error);
+        classWindow?.close();
+        alert('No se pudo verificar tu estado de asistencia. Inténtalo de nuevo.');
+      } finally {
+        classEntryButton.disabled = false;
+      }
+    });
+  </script>
 
   <!-- JAVASCRIPT -->
   <script>
