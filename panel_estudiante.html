@@ -270,6 +270,13 @@
       font-size: 12px;
     }
 
+    .pizarra-link {
+      display: inline-block;
+      color: var(--accent);
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
     .announcement-content {
       overflow-wrap: anywhere;
       line-height: 1.6;
@@ -500,7 +507,7 @@
         <li><a href="panel_estudiante.html" class="current" aria-current="page">Mi panel</a></li>
         <li><a href="#assignments">Asignaciones</a></li>
         <li><a href="mis-cursos.html">Mis Cursos</a></li>
-        <li><a href="Material_de_estudio.html">Apuntes</a></li>
+        <li><a href="Apuntes_admision.html">Apuntes</a></li>
         <li><a href="Material_de_estudio.html" target="_blank">Material de Estudio</a></li>
         <li><a href="https://www.bidi.unam.mx/" target="_blank">Libreria</a></li>      
       </ul>
@@ -521,10 +528,10 @@
         </a>
 
         <!-- Botón Entrar a Clase --> 
-        <a href="https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1" target="_blank" class="btn btn-primary" id="btnIngresarClase">
+        <button type="button" class="btn btn-primary" id="btnIngresarClase">
           <i data-lucide="video"></i>
           <span>Entrar a clase</span>
-        </a>
+        </button>
 
         <!-- Botón Cerrar Sesión -->
         <button class="btn btn-outline" id="btnCerrarSesion">
@@ -637,6 +644,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -650,8 +658,8 @@
 
     const announcementWall = document.getElementById('announcementWall');
     const announcementWallStatus = document.getElementById('announcementWallStatus');
-    const assignmentsList = document.getElementById('assignmentsList');
-    const assignmentsStatus = document.getElementById('assignmentsStatus');
+    const classEntryButton = document.getElementById('btnIngresarClase');
+    const classMeetingUrl = 'https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1';
     const app = initializeApp(firebaseConfig, 'studentAnnouncementWall');
     const db = getFirestore(app);
 
@@ -692,139 +700,119 @@
     function isStudentInClassroom(classroom, student) {
       if (!Array.isArray(classroom.alumnos)) return false;
       return classroom.alumnos.some((assignedStudent) =>
-        assignedStudent.id === student.id
-        && assignedStudent.coleccion === student.coleccion
+        (assignedStudent.id === student.id
+        && assignedStudent.coleccion === student.coleccion)
         || student.email && assignedStudent.email === student.email
       );
     }
 
-    function formatAssignmentDeadline(value) {
-      if (!value) return 'Sin fecha de entrega';
-      const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
-      return Number.isNaN(date.getTime())
-        ? 'Fecha de entrega no disponible'
-        : new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    function getClassDurationHours(classroom) {
+      const schedule = classroom.horario || {};
+      const storedDuration = Number(schedule.horasPorClase);
+      if (Number.isFinite(storedDuration) && storedDuration > 0) return storedDuration;
+      if (!schedule.horaInicio || !schedule.horaFin) return null;
+      const [startHour, startMinute] = schedule.horaInicio.split(':').map(Number);
+      const [endHour, endMinute] = schedule.horaFin.split(':').map(Number);
+      const duration = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute)) / 60;
+      return Number.isFinite(duration) && duration > 0 ? duration : null;
     }
 
-    function getAssignmentDeadlineTime(value) {
-      if (!value) return Infinity;
-      const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
-      const time = date.getTime();
-      return Number.isFinite(time) ? time : Infinity;
+    function getAttendanceState(record) {
+      if (['asistencia', 'falta', 'retardo'].includes(record.estado)) return record.estado;
+      return record.presente === true ? 'asistencia' : 'falta';
     }
 
-    function taskIsAssignedToStudent(task, student) {
-      if (!Array.isArray(task.alumnosAsignados)) return false;
-      return task.alumnosAsignados.some((assignedStudent) =>
-        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
-        || (student.email && assignedStudent.email === student.email)
-      );
+    function isUnamAdmissionStudent(session) {
+      const course = String(session?.curso || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+      return /\bUNAM\b/.test(course) && !/\b(IPN|UAM)\b/.test(course);
     }
 
-    function safeAssignmentUrl(value) {
-      if (typeof value !== 'string') return null;
-      try {
-        const url = new URL(value);
-        return ['https:', 'http:'].includes(url.protocol) ? url.href : null;
-      } catch {
-        return null;
-      }
-    }
+    async function getStudentProgress(session) {
+      if (!session?.id || !session?.coleccion) throw new Error('Sesión de alumno no válida.');
 
-    async function loadStudentAssignments(classrooms, student) {
-      assignmentsList.replaceChildren();
-      if (!classrooms.length) {
-        assignmentsStatus.textContent = 'Aún no estás asignado a un aula. Cuando te asignen una, aquí aparecerán tus tareas.';
-        return;
-      }
+      const classroomSnapshot = await getDocs(collection(db, 'Aulas'));
+      const classrooms = classroomSnapshot.docs
+        .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+        .filter((classroom) => isStudentInClassroom(classroom, session));
 
-      const results = await Promise.all(classrooms.map(async (classroom) => {
-        try {
-          const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'tareas'));
-          return snapshot.docs
-            .map((taskDoc) => ({
-              id: taskDoc.id,
-              aulaId: classroom.id,
-              aulaNombre: classroom.nombre || 'Aula',
-              curso: classroom.curso || '',
-              ...taskDoc.data()
-            }))
-            .filter((task) => taskIsAssignedToStudent(task, student));
-        } catch (error) {
-          console.error(`No se pudieron cargar las tareas del aula ${classroom.id}:`, error);
-          return null;
+      if (!classrooms.length) throw new Error('No hay aulas asignadas para verificar el avance.');
+
+      const classProgress = await Promise.all(classrooms.map(async (classroom) => {
+        const classDuration = getClassDurationHours(classroom);
+        const courseHours = Number(classroom.horasCursoTotal);
+        if (!Number.isFinite(classDuration) || classDuration <= 0 || !Number.isFinite(courseHours) || courseHours <= 0) {
+          throw new Error('El horario o las horas del aula no están configurados.');
         }
-      }));
-      const failedCount = results.filter((result) => result === null).length;
-      const tasks = results
-        .filter(Boolean)
-        .flat()
-        .sort((left, right) => getAssignmentDeadlineTime(left.fechaEntrega) - getAssignmentDeadlineTime(right.fechaEntrega));
 
-      if (!tasks.length) {
-        assignmentsStatus.textContent = failedCount
-          ? 'No se pudieron consultar tus tareas. Revisa los permisos de lectura de Firestore.'
-          : 'No tienes tareas asignadas por el momento.';
-        return;
-      }
-
-      assignmentsStatus.textContent = failedCount
-        ? `Mostrando ${tasks.length} tarea(s). No se pudieron consultar ${failedCount} aula(s).`
-        : `${tasks.length} tarea(s) asignada(s).`;
-      tasks.forEach((task) => {
-        const card = document.createElement('article');
-        card.className = 'assignment-card';
-        const main = document.createElement('div');
-        const heading = document.createElement('div');
-        heading.className = 'assignment-heading';
-        const icon = document.createElement('span');
-        icon.className = 'assignment-icon';
-        const clipboardIcon = document.createElement('i');
-        clipboardIcon.setAttribute('data-lucide', 'clipboard-list');
-        icon.append(clipboardIcon);
-        const headingText = document.createElement('div');
-        addWallText(headingText, 'h3', 'assignment-title', task.titulo || 'Tarea');
-        addWallText(headingText, 'p', 'assignment-meta', `${task.curso || task.aulaNombre} · ${task.aulaNombre}`);
-        heading.append(icon, headingText);
-        main.append(heading);
-        if (task.instrucciones) {
-          const instructions = document.createElement('div');
-          instructions.className = 'assignment-instructions';
-          instructions.innerHTML = sanitizeAnnouncement(task.instrucciones);
-          main.append(instructions);
-        }
-        const attachments = Array.isArray(task.adjuntos) ? task.adjuntos : [];
-        const attachmentList = document.createElement('div');
-        attachmentList.className = 'assignment-attachments';
-        attachments.forEach((attachment) => {
-          const safeUrl = safeAssignmentUrl(attachment.url);
-          if (!safeUrl) return;
-          const link = document.createElement('a');
-          link.className = 'assignment-attachment';
-          link.href = safeUrl;
-          link.target = '_blank';
-          link.rel = 'noopener noreferrer';
-          const linkIcon = document.createElement('i');
-          linkIcon.setAttribute('data-lucide', 'external-link');
-          link.append(linkIcon, document.createTextNode(attachment.nombre || new URL(safeUrl).hostname));
-          attachmentList.append(link);
+        const attendanceSnapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'asistencias'));
+        let attendedHours = 0;
+        attendanceSnapshot.docs.forEach((attendanceDoc) => {
+          const attendance = attendanceDoc.data();
+          const studentRecord = (Array.isArray(attendance.alumnos) ? attendance.alumnos : []).find((record) =>
+            (record.id === session.id && record.coleccion === session.coleccion)
+            || (session.email && record.email === session.email)
+          );
+          if (studentRecord && ['asistencia', 'retardo'].includes(getAttendanceState(studentRecord))) {
+            attendedHours += classDuration;
+          }
         });
-        if (attachmentList.childElementCount) main.append(attachmentList);
+        return { attendedHours, courseHours };
+      }));
 
-        const summary = document.createElement('aside');
-        summary.className = 'assignment-summary';
-        const summaryHeading = document.createElement('div');
-        summaryHeading.className = 'assignment-summary-title';
-        addWallText(summaryHeading, 'span', '', 'Tu trabajo');
-        addWallText(summaryHeading, 'span', 'assignment-status', 'Asignado');
-        addWallText(summary, 'p', 'assignment-points', `${task.puntos ?? 100} puntos`);
-        addWallText(summary, 'p', 'assignment-due', `Fecha de entrega: ${formatAssignmentDeadline(task.fechaEntrega)}`);
-        summary.prepend(summaryHeading);
-        card.append(main, summary);
-        assignmentsList.append(card);
-      });
-      if (typeof lucide !== 'undefined') lucide.createIcons();
+      const attendedHours = classProgress.reduce((total, progress) => total + progress.attendedHours, 0);
+      const courseHours = classProgress.reduce((total, progress) => total + progress.courseHours, 0);
+      return Math.min(100, Math.round((attendedHours / courseHours) * 100));
     }
+
+    classEntryButton.addEventListener('click', async () => {
+      classEntryButton.disabled = true;
+      classEntryButton.setAttribute('aria-busy', 'true');
+      const classWindow = window.open('about:blank', '_blank');
+
+      try {
+        const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+        const absenceStatus = await getStudentAbsenceStatus(session);
+        if (absenceStatus.isSuspended) {
+          classWindow?.close();
+          alert(getSuspensionMessage(absenceStatus));
+          return;
+        }
+
+        if (!isUnamAdmissionStudent(session)) {
+          if (classWindow) {
+            classWindow.opener = null;
+            classWindow.location.href = classMeetingUrl;
+          } else {
+            window.location.assign(classMeetingUrl);
+          }
+          return;
+        }
+
+        const progress = await getStudentProgress(session);
+        if (progress >= 100) {
+          classWindow?.close();
+          alert('Ya no tienes horas disponibles. Comunícate con un asesor de ventas o con tu profesor asignado.');
+          return;
+        }
+
+        if (classWindow) {
+          classWindow.opener = null;
+          classWindow.location.href = classMeetingUrl;
+        } else {
+          window.location.assign(classMeetingUrl);
+        }
+      } catch (error) {
+        console.error('No se pudo verificar el avance antes de entrar a clase:', error);
+        classWindow?.close();
+        alert('No se pudo verificar tu avance. Inténtalo de nuevo o comunícate con un asesor de ventas o con tu profesor asignado.');
+      } finally {
+        classEntryButton.disabled = false;
+        classEntryButton.removeAttribute('aria-busy');
+      }
+    });
 
     async function loadStudentAnnouncements() {
       const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
@@ -837,6 +825,13 @@
       }
 
       try {
+        const absenceStatus = await getStudentAbsenceStatus(session);
+        if (absenceStatus.isSuspended) {
+          announcementWallStatus.textContent = getSuspensionMessage(absenceStatus);
+          announcementWall.replaceChildren();
+          return;
+        }
+
         const classroomSnapshot = await getDocs(collection(db, 'Aulas'));
         const classrooms = classroomSnapshot.docs
           .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
@@ -849,39 +844,56 @@
           return;
         }
 
-        await loadStudentAssignments(classrooms, session);
-
-        const announcementResults = await Promise.all(classrooms.map(async (classroom) => {
-          try {
-            const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'anuncios'));
-            return snapshot.docs.map((announcementDoc) => ({
-              id: announcementDoc.id,
-              aulaId: classroom.id,
-              aulaNombre: classroom.nombre || 'Aula',
-              ...announcementDoc.data()
-            }));
-          } catch (error) {
-            console.error(`No se pudieron cargar los anuncios del aula ${classroom.id}:`, error);
-            return null;
-          }
+        const classroomResults = await Promise.all(classrooms.map(async (classroom) => {
+          const [announcementsResult, pizarrasResult] = await Promise.all([
+            getDocs(collection(db, 'Aulas', classroom.id, 'anuncios'))
+              .then((snapshot) => snapshot.docs.map((announcementDoc) => ({
+                id: announcementDoc.id,
+                aulaId: classroom.id,
+                aulaNombre: classroom.nombre || 'Aula',
+                ...announcementDoc.data()
+              })))
+              .catch((error) => {
+                console.error(`No se pudieron cargar los anuncios del aula ${classroom.id}:`, error);
+                return null;
+              }),
+            getDocs(collection(db, 'Aulas', classroom.id, 'pizarras'))
+              .then((snapshot) => snapshot.docs
+                .map((pizarraDoc) => ({
+                  id: pizarraDoc.id,
+                  aulaId: classroom.id,
+                  aulaNombre: classroom.nombre || 'Aula',
+                  ...pizarraDoc.data()
+                }))
+                .filter((pizarra) => pizarra.publicado === true))
+              .catch((error) => {
+                console.error(`No se pudieron cargar las pizarras del aula ${classroom.id}:`, error);
+                return null;
+              })
+          ]);
+          return { announcements: announcementsResult, pizarras: pizarrasResult };
         }));
-        const failedClassrooms = announcementResults.filter((result) => result === null).length;
-        const announcements = announcementResults
-          .filter(Boolean)
-          .flat()
+        const failedClassrooms = classroomResults.filter((result) =>
+          result.announcements === null || result.pizarras === null
+        ).length;
+        const announcements = classroomResults
+          .flatMap((result) => result.announcements || [])
+          .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+        const pizarras = classroomResults
+          .flatMap((result) => result.pizarras || [])
           .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
 
         announcementWall.replaceChildren();
-        if (!announcements.length) {
+        if (!announcements.length && !pizarras.length) {
           announcementWallStatus.textContent = failedClassrooms
-            ? 'No se pudieron consultar los anuncios. Revisa los permisos de lectura de Firestore.'
-            : 'Todavía no hay anuncios en tus aulas.';
+            ? 'No se pudieron consultar todos los anuncios o pizarras. Revisa los permisos de lectura de Firestore.'
+            : 'Todavía no hay anuncios ni pizarras publicadas en tus aulas.';
           return;
         }
 
         announcementWallStatus.textContent = failedClassrooms
-          ? `Mostrando anuncios. No se pudieron cargar los de ${failedClassrooms} aula(s); revisa los permisos de Firestore.`
-          : `${announcements.length} anuncio(s) de ${classrooms.length} aula(s).`;
+          ? `Mostrando contenido disponible. No se pudieron consultar anuncios o pizarras de ${failedClassrooms} aula(s); revisa los permisos de Firestore.`
+          : `${announcements.length} anuncio(s) y ${pizarras.length} pizarra(s) publicada(s) de ${classrooms.length} aula(s).`;
         announcements.forEach((announcement) => {
           const card = document.createElement('article');
           card.className = 'class-announcement';
@@ -892,6 +904,24 @@
           content.className = 'announcement-content';
           content.innerHTML = sanitizeAnnouncement(announcement.contenido || '');
           card.append(content);
+          announcementWall.append(card);
+        });
+        pizarras.forEach((pizarra) => {
+          const card = document.createElement('article');
+          card.className = 'class-announcement';
+          addWallText(card, 'p', 'announcement-class', `${pizarra.aulaNombre} · Pizarra`);
+          addWallText(card, 'h3', '', pizarra.nombre || 'Pizarra');
+          try {
+            const linkUrl = new URL(pizarra.enlace);
+            if (['http:', 'https:'].includes(linkUrl.protocol)) {
+              const link = addWallText(card, 'a', 'pizarra-link', 'Abrir pizarra');
+              link.href = linkUrl.href;
+              link.target = '_blank';
+              link.rel = 'noopener noreferrer';
+            }
+          } catch (error) {
+            console.error(`El enlace de la pizarra ${pizarra.id} no es válido.`);
+          }
           announcementWall.append(card);
         });
       } catch (error) {

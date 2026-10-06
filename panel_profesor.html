@@ -446,6 +446,150 @@
       return announcements;
     }
 
+    async function renderPizarras(aula) {
+      const pizarras = document.createElement('section');
+      pizarras.className = 'announcements';
+      const form = document.createElement('form');
+      form.className = 'announcement-form';
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.maxLength = 120;
+      nameInput.required = true;
+      nameInput.placeholder = 'Nombre de la pizarra';
+      nameInput.setAttribute('aria-label', 'Nombre de la pizarra');
+      const urlInput = document.createElement('input');
+      urlInput.type = 'url';
+      urlInput.required = true;
+      urlInput.placeholder = 'https://...';
+      urlInput.setAttribute('aria-label', 'Enlace de la pizarra');
+      const publishField = document.createElement('label');
+      publishField.className = 'task-check-field';
+      const publishInput = document.createElement('input');
+      publishInput.type = 'checkbox';
+      const publishLabel = document.createElement('span');
+      publishLabel.textContent = 'Publicar para los alumnos';
+      publishField.append(publishInput, publishLabel);
+      const saveButton = document.createElement('button');
+      saveButton.className = 'announcement-submit';
+      saveButton.type = 'submit';
+      saveButton.textContent = 'Guardar pizarra';
+      const formStatus = addText(form, 'p', 'attendance-status', '');
+      formStatus.setAttribute('role', 'status');
+      form.prepend(nameInput, urlInput, publishField, saveButton);
+      const pizarraList = document.createElement('div');
+      pizarraList.className = 'announcement-list';
+      pizarras.append(form, pizarraList);
+      let editingPizarraId = null;
+
+      function resetForm() {
+        editingPizarraId = null;
+        nameInput.value = '';
+        urlInput.value = '';
+        publishInput.checked = false;
+      }
+
+      async function loadPizarras() {
+        pizarraList.replaceChildren();
+        const snapshot = await getDocs(collection(db, 'Aulas', aula.id, 'pizarras'));
+        const records = snapshot.docs.map((pizarraDoc) => ({ id: pizarraDoc.id, ...pizarraDoc.data() }));
+        records.sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+        if (!records.length) {
+          addText(pizarraList, 'p', 'tab-placeholder', 'Todavía no hay pizarras en esta aula.');
+          return;
+        }
+
+        records.forEach((record) => {
+          const card = document.createElement('article');
+          card.className = 'announcement-card';
+          const cardHeader = document.createElement('div');
+          cardHeader.className = 'announcement-card-header';
+          addText(cardHeader, 'h3', '', record.nombre || 'Pizarra');
+          const editButton = addText(cardHeader, 'button', 'announcement-edit', 'Editar');
+          editButton.type = 'button';
+          editButton.addEventListener('click', () => {
+            editingPizarraId = record.id;
+            nameInput.value = record.nombre || '';
+            urlInput.value = record.enlace || '';
+            publishInput.checked = record.publicado === true;
+            formStatus.textContent = 'Edita los datos y guarda para actualizar la pizarra.';
+            nameInput.focus();
+            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          });
+          cardHeader.append(editButton);
+          card.append(cardHeader);
+          addText(card, 'p', 'announcement-meta', record.publicado === true ? 'Publicada para los alumnos' : 'Borrador · no visible para los alumnos');
+          try {
+            const linkUrl = new URL(record.enlace);
+            if (!['http:', 'https:'].includes(linkUrl.protocol)) throw new Error('Protocolo no permitido.');
+            const link = addText(card, 'a', 'announcement-meta', record.enlace);
+            link.href = linkUrl.href;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+          } catch {
+            addText(card, 'p', 'announcement-meta', 'Enlace no disponible.');
+          }
+          pizarraList.append(card);
+        });
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!nameInput.value.trim()) {
+          formStatus.textContent = 'Escribe el nombre de la pizarra.';
+          nameInput.focus();
+          return;
+        }
+        let parsedUrl;
+        try {
+          parsedUrl = new URL(urlInput.value.trim());
+        } catch {
+          formStatus.textContent = 'Ingresa un enlace válido.';
+          return;
+        }
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+          formStatus.textContent = 'El enlace debe comenzar con http:// o https://.';
+          return;
+        }
+
+        saveButton.disabled = true;
+        formStatus.textContent = 'Guardando pizarra...';
+        try {
+          const pizarraData = {
+            nombre: nameInput.value.trim(),
+            enlace: parsedUrl.href,
+            publicado: publishInput.checked,
+            profesorDocId: session.teacherDocId,
+            profesorNombre: session.nombre || 'Profesor',
+            actualizadoEn: serverTimestamp()
+          };
+          if (editingPizarraId) {
+            await updateDoc(doc(db, 'Aulas', aula.id, 'pizarras', editingPizarraId), pizarraData);
+          } else {
+            await setDoc(doc(collection(db, 'Aulas', aula.id, 'pizarras')), {
+              ...pizarraData,
+              creadoEn: serverTimestamp()
+            });
+          }
+          resetForm();
+          formStatus.textContent = 'Pizarra guardada correctamente.';
+          await loadPizarras();
+        } catch (error) {
+          console.error(`No se pudo guardar la pizarra del aula ${aula.id}:`, error);
+          formStatus.textContent = 'No se pudo guardar la pizarra. Revisa los permisos de Firestore.';
+        } finally {
+          saveButton.disabled = false;
+        }
+      });
+
+      try {
+        await loadPizarras();
+      } catch (error) {
+        console.error(`No se pudieron cargar las pizarras del aula ${aula.id}:`, error);
+        addText(pizarraList, 'p', 'attendance-status', 'No se pudieron cargar las pizarras. Revisa los permisos de Firestore.');
+      }
+      return pizarras;
+    }
+
     function attendanceStatus(studentRecord) {
       if (['asistencia', 'falta', 'retardo'].includes(studentRecord.estado)) return studentRecord.estado;
       return studentRecord.presente === true ? 'asistencia' : 'falta';
@@ -1170,6 +1314,7 @@
       content.setAttribute('role', 'tabpanel');
       const tabOptions = [
         { id: 'padlet', label: 'Padlet' },
+        { id: 'pizarras', label: 'Pizarras' },
         { id: 'attendance', label: 'Lista de asistencias' },
         { id: 'grades', label: 'Lista de calificaciones' },
         { id: 'tasks', label: 'Tareas' },
@@ -1185,6 +1330,8 @@
         content.replaceChildren();
         if (selectedId === 'padlet') {
           content.append(await renderAnnouncements(aula));
+        } else if (selectedId === 'pizarras') {
+          content.append(await renderPizarras(aula));
         } else if (selectedId === 'attendance') {
           content.append(await renderAttendance(aula));
         } else if (selectedId === 'tasks') {
