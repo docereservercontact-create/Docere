@@ -286,6 +286,52 @@
       text-align: center;
     }
 
+    .assignment-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .assignment-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 260px;
+      gap: 22px;
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg-card);
+    }
+
+    .assignment-heading {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .assignment-icon {
+      display: grid;
+      flex: 0 0 38px;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border-radius: 50%;
+      background: #eaf1ff;
+      color: var(--accent);
+    }
+
+    .assignment-title { margin-bottom: 5px; font-size: 1.25rem; }
+    .assignment-meta { color: var(--text-secondary); font-size: 13px; }
+    .assignment-instructions { margin-top: 16px; overflow-wrap: anywhere; line-height: 1.6; }
+    .assignment-instructions > :first-child { margin-top: 0; }
+    .assignment-instructions > :last-child { margin-bottom: 0; }
+    .assignment-attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
+    .assignment-attachment { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--accent); overflow-wrap: anywhere; }
+    .assignment-summary { align-self: start; padding: 16px; border-radius: 10px; background: #eaf0f9; }
+    .assignment-summary-title { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; font-weight: 650; }
+    .assignment-status { color: var(--accent); font-size: 12px; }
+    .assignment-points { margin-bottom: 12px; color: var(--text-secondary); font-size: 13px; }
+    .assignment-due { color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
+
     /* --- FOOTER --- */
     footer {
       background-color: var(--footer-bg);
@@ -393,6 +439,7 @@
 
     @media (max-width: 768px) {
       .menu-toggle { display: block; }
+      .assignment-card { grid-template-columns: 1fr; gap: 16px; }
       .nav-links {
         display: none;
         position: absolute;
@@ -451,6 +498,7 @@
 
       <ul class="nav-links" id="navLinks">
         <li><a href="panel_estudiante.html" class="current" aria-current="page">Mi panel</a></li>
+        <li><a href="#assignments">Asignaciones</a></li>
         <li><a href="mis-cursos.html">Mis Cursos</a></li>
         <li><a href="Material_de_estudio.html">Apuntes</a></li>
         <li><a href="Material_de_estudio.html" target="_blank">Material de Estudio</a></li>
@@ -505,6 +553,17 @@
       </div>
       <p class="wall-status" id="announcementWallStatus" role="status">Cargando anuncios de tus clases...</p>
       <div class="announcement-wall-list" id="announcementWall"></div>
+    </section>
+
+    <section class="announcement-wall" id="assignments" aria-labelledby="assignmentsTitle">
+      <div class="wall-header">
+        <div class="wall-title">
+          <i data-lucide="clipboard-list" style="color: var(--accent);"></i>
+          <h2 id="assignmentsTitle">Asignaciones</h2>
+        </div>
+      </div>
+      <p class="wall-status" id="assignmentsStatus" role="status">Cargando tareas asignadas...</p>
+      <div class="assignment-list" id="assignmentsList"></div>
     </section>
   </main>
 
@@ -591,6 +650,8 @@
 
     const announcementWall = document.getElementById('announcementWall');
     const announcementWallStatus = document.getElementById('announcementWallStatus');
+    const assignmentsList = document.getElementById('assignmentsList');
+    const assignmentsStatus = document.getElementById('assignmentsStatus');
     const app = initializeApp(firebaseConfig, 'studentAnnouncementWall');
     const db = getFirestore(app);
 
@@ -637,11 +698,141 @@
       );
     }
 
+    function formatAssignmentDeadline(value) {
+      if (!value) return 'Sin fecha de entrega';
+      const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+      return Number.isNaN(date.getTime())
+        ? 'Fecha de entrega no disponible'
+        : new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    }
+
+    function getAssignmentDeadlineTime(value) {
+      if (!value) return Infinity;
+      const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+      const time = date.getTime();
+      return Number.isFinite(time) ? time : Infinity;
+    }
+
+    function taskIsAssignedToStudent(task, student) {
+      if (!Array.isArray(task.alumnosAsignados)) return false;
+      return task.alumnosAsignados.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && assignedStudent.email === student.email)
+      );
+    }
+
+    function safeAssignmentUrl(value) {
+      if (typeof value !== 'string') return null;
+      try {
+        const url = new URL(value);
+        return ['https:', 'http:'].includes(url.protocol) ? url.href : null;
+      } catch {
+        return null;
+      }
+    }
+
+    async function loadStudentAssignments(classrooms, student) {
+      assignmentsList.replaceChildren();
+      if (!classrooms.length) {
+        assignmentsStatus.textContent = 'Aún no estás asignado a un aula. Cuando te asignen una, aquí aparecerán tus tareas.';
+        return;
+      }
+
+      const results = await Promise.all(classrooms.map(async (classroom) => {
+        try {
+          const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'tareas'));
+          return snapshot.docs
+            .map((taskDoc) => ({
+              id: taskDoc.id,
+              aulaId: classroom.id,
+              aulaNombre: classroom.nombre || 'Aula',
+              curso: classroom.curso || '',
+              ...taskDoc.data()
+            }))
+            .filter((task) => taskIsAssignedToStudent(task, student));
+        } catch (error) {
+          console.error(`No se pudieron cargar las tareas del aula ${classroom.id}:`, error);
+          return null;
+        }
+      }));
+      const failedCount = results.filter((result) => result === null).length;
+      const tasks = results
+        .filter(Boolean)
+        .flat()
+        .sort((left, right) => getAssignmentDeadlineTime(left.fechaEntrega) - getAssignmentDeadlineTime(right.fechaEntrega));
+
+      if (!tasks.length) {
+        assignmentsStatus.textContent = failedCount
+          ? 'No se pudieron consultar tus tareas. Revisa los permisos de lectura de Firestore.'
+          : 'No tienes tareas asignadas por el momento.';
+        return;
+      }
+
+      assignmentsStatus.textContent = failedCount
+        ? `Mostrando ${tasks.length} tarea(s). No se pudieron consultar ${failedCount} aula(s).`
+        : `${tasks.length} tarea(s) asignada(s).`;
+      tasks.forEach((task) => {
+        const card = document.createElement('article');
+        card.className = 'assignment-card';
+        const main = document.createElement('div');
+        const heading = document.createElement('div');
+        heading.className = 'assignment-heading';
+        const icon = document.createElement('span');
+        icon.className = 'assignment-icon';
+        const clipboardIcon = document.createElement('i');
+        clipboardIcon.setAttribute('data-lucide', 'clipboard-list');
+        icon.append(clipboardIcon);
+        const headingText = document.createElement('div');
+        addWallText(headingText, 'h3', 'assignment-title', task.titulo || 'Tarea');
+        addWallText(headingText, 'p', 'assignment-meta', `${task.curso || task.aulaNombre} · ${task.aulaNombre}`);
+        heading.append(icon, headingText);
+        main.append(heading);
+        if (task.instrucciones) {
+          const instructions = document.createElement('div');
+          instructions.className = 'assignment-instructions';
+          instructions.innerHTML = sanitizeAnnouncement(task.instrucciones);
+          main.append(instructions);
+        }
+        const attachments = Array.isArray(task.adjuntos) ? task.adjuntos : [];
+        const attachmentList = document.createElement('div');
+        attachmentList.className = 'assignment-attachments';
+        attachments.forEach((attachment) => {
+          const safeUrl = safeAssignmentUrl(attachment.url);
+          if (!safeUrl) return;
+          const link = document.createElement('a');
+          link.className = 'assignment-attachment';
+          link.href = safeUrl;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          const linkIcon = document.createElement('i');
+          linkIcon.setAttribute('data-lucide', 'external-link');
+          link.append(linkIcon, document.createTextNode(attachment.nombre || new URL(safeUrl).hostname));
+          attachmentList.append(link);
+        });
+        if (attachmentList.childElementCount) main.append(attachmentList);
+
+        const summary = document.createElement('aside');
+        summary.className = 'assignment-summary';
+        const summaryHeading = document.createElement('div');
+        summaryHeading.className = 'assignment-summary-title';
+        addWallText(summaryHeading, 'span', '', 'Tu trabajo');
+        addWallText(summaryHeading, 'span', 'assignment-status', 'Asignado');
+        addWallText(summary, 'p', 'assignment-points', `${task.puntos ?? 100} puntos`);
+        addWallText(summary, 'p', 'assignment-due', `Fecha de entrega: ${formatAssignmentDeadline(task.fechaEntrega)}`);
+        summary.prepend(summaryHeading);
+        card.append(main, summary);
+        assignmentsList.append(card);
+      });
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
     async function loadStudentAnnouncements() {
       const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
       if (!session?.id || !session?.coleccion) {
         announcementWallStatus.textContent = 'No se encontró la sesión del alumno. Inicia sesión para consultar tus anuncios.';
         announcementWall.replaceChildren();
+        assignmentsStatus.textContent = 'No se encontró la sesión del alumno. Inicia sesión para consultar tus tareas.';
+        assignmentsList.replaceChildren();
         return;
       }
 
@@ -654,8 +845,11 @@
         if (!classrooms.length) {
           announcementWallStatus.textContent = 'Aún no estás asignado a un aula. Cuando el administrador te agregue, aquí verás sus anuncios.';
           announcementWall.replaceChildren();
+          await loadStudentAssignments([], session);
           return;
         }
+
+        await loadStudentAssignments(classrooms, session);
 
         const announcementResults = await Promise.all(classrooms.map(async (classroom) => {
           try {
@@ -704,6 +898,8 @@
         console.error('No se pudieron cargar las aulas o anuncios del alumno:', error);
         announcementWallStatus.textContent = 'No se pudo cargar el muro. Revisa la conexión y los permisos de Firestore.';
         announcementWall.replaceChildren();
+        assignmentsStatus.textContent = 'No se pudieron cargar las tareas. Revisa la conexión y los permisos de Firestore.';
+        assignmentsList.replaceChildren();
       }
     }
 

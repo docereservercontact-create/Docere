@@ -138,6 +138,9 @@
     .task-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
     .task-card h4 { margin: 0 0 6px; font-size: 16px; }
     .task-card p { margin: 5px 0; color: var(--muted); font-size: 13px; }
+    .task-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .task-card-actions button { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; }
+    .task-card-actions .task-delete-button { border-color: #f3b4b0; color: var(--red); }
     .task-composer { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
     .task-composer-main, .task-composer-sidebar { display: grid; gap: 14px; }
     .task-composer-card { min-width: 0; padding: 18px; border: 1px solid #d6dce3; border-radius: 8px; background: #fff; }
@@ -775,6 +778,13 @@
         : new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
     }
 
+    function formatDateTimeLocal(value) {
+      if (!value) return '';
+      const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    }
+
     async function renderTasks(aula) {
       const tasksPage = document.createElement('section');
       tasksPage.className = 'tasks-page';
@@ -807,6 +817,31 @@
           if (Array.isArray(task.alumnosAsignados)) {
             addText(card, 'p', '', `Asignada a ${task.alumnosAsignados.length} alumno(s).`);
           }
+          const actions = document.createElement('div');
+          actions.className = 'task-card-actions';
+          const editButton = addText(actions, 'button', '', 'Editar');
+          editButton.type = 'button';
+          editButton.addEventListener('click', () => openTaskComposer(task));
+          const deleteButton = addText(actions, 'button', 'task-delete-button', 'Eliminar');
+          deleteButton.type = 'button';
+          deleteButton.addEventListener('click', async () => {
+            if (!confirm(`¿Eliminar la tarea "${task.titulo || 'Tarea sin título'}"? Esta acción no se puede deshacer.`)) return;
+            deleteButton.disabled = true;
+            editButton.disabled = true;
+            deleteButton.textContent = 'Eliminando...';
+            try {
+              await deleteDoc(doc(db, 'Aulas', aula.id, 'tareas', task.id));
+              const refreshedTasks = await renderTasks(aula);
+              tasksPage.replaceWith(refreshedTasks);
+            } catch (error) {
+              console.error(`No se pudo eliminar la tarea ${task.id} del aula ${aula.id}:`, error);
+              deleteButton.disabled = false;
+              editButton.disabled = false;
+              deleteButton.textContent = 'Eliminar';
+              listStatus.textContent = 'No se pudo eliminar la tarea. Revisa los permisos de Firestore.';
+            }
+          });
+          card.append(actions);
           taskList.append(card);
         });
       } catch (error) {
@@ -814,7 +849,7 @@
         listStatus.textContent = 'No se pudieron cargar las tareas. Revisa los permisos de lectura de Firestore.';
       }
 
-      createButton.addEventListener('click', () => {
+      function openTaskComposer(editingTask = null) {
         const composer = document.createElement('form');
         composer.className = 'task-composer';
         const main = document.createElement('div');
@@ -828,6 +863,7 @@
         titleInput.required = true;
         titleInput.placeholder = 'Título*';
         titleInput.setAttribute('aria-label', 'Título de la tarea');
+        titleInput.value = editingTask?.titulo || '';
 
         const editorToolbar = document.createElement('div');
         editorToolbar.className = 'editor-toolbar';
@@ -839,6 +875,7 @@
         instructions.setAttribute('aria-label', 'Instrucciones de la tarea');
         instructions.setAttribute('aria-multiline', 'true');
         instructions.dataset.placeholder = 'Instrucciones (opcional)';
+        instructions.innerHTML = sanitizeRichHtml(editingTask?.instrucciones || '');
         [
           ['bold', 'B', 'Negrita', 'font-weight:700'],
           ['italic', 'I', 'Cursiva', 'font-style:italic'],
@@ -865,7 +902,24 @@
         attachments.className = 'task-attachments';
         const addAttachmentButton = addText(contentCard, 'button', 'task-add-link', '＋ Agregar enlace');
         addAttachmentButton.type = 'button';
-        const attachmentItems = [];
+        const attachmentItems = Array.isArray(editingTask?.adjuntos) ? [...editingTask.adjuntos] : [];
+        attachmentItems.forEach(({ url, nombre }) => {
+          if (typeof url !== 'string') return;
+          let parsedUrl;
+          try {
+            parsedUrl = new URL(url);
+          } catch {
+            return;
+          }
+          if (!['http:', 'https:'].includes(parsedUrl.protocol)) return;
+          const link = document.createElement('a');
+          link.className = 'task-attachment-link';
+          link.href = parsedUrl.href;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = nombre || parsedUrl.hostname;
+          attachments.append(link);
+        });
         addAttachmentButton.addEventListener('click', () => {
           const address = window.prompt('Pega un enlace web (Drive, YouTube u otro recurso):');
           if (!address) return;
@@ -916,13 +970,22 @@
           const label = document.createElement('label');
           const checkbox = document.createElement('input');
           checkbox.type = 'checkbox';
-          checkbox.checked = true;
+          const existingAssignees = Array.isArray(editingTask?.alumnosAsignados)
+            ? editingTask.alumnosAsignados
+            : aula.alumnos;
+          checkbox.checked = existingAssignees.some((assigned) =>
+            assigned.id === student.id && assigned.coleccion === student.coleccion
+          );
           checkbox.dataset.studentKey = `${student.coleccion}/${student.id}`;
           const name = document.createElement('span');
           name.textContent = student.nombre || student.email || 'Alumno';
           label.append(checkbox, name);
           assigneeList.append(label);
         });
+        const initialCheckedCount = assigneeList.querySelectorAll('input:checked').length;
+        assigneeSummary.textContent = initialCheckedCount === aula.alumnos.length
+          ? `Todos los alumnos (${initialCheckedCount})`
+          : `${initialCheckedCount} alumno(s) seleccionado(s)`;
         assigneeList.addEventListener('change', () => {
           const checkedCount = assigneeList.querySelectorAll('input:checked').length;
           assigneeSummary.textContent = checkedCount === aula.alumnos.length
@@ -940,7 +1003,7 @@
         pointsInput.min = '0';
         pointsInput.max = '10000';
         pointsInput.step = '1';
-        pointsInput.value = '100';
+        pointsInput.value = String(editingTask?.puntos ?? 100);
         pointsInput.required = true;
         pointsField.append(pointsInput);
 
@@ -949,12 +1012,14 @@
         dueDateField.append(document.createTextNode('Fecha de entrega'));
         const dueDateInput = document.createElement('input');
         dueDateInput.type = 'datetime-local';
+        dueDateInput.value = formatDateTimeLocal(editingTask?.fechaEntrega);
         dueDateField.append(dueDateInput);
 
         const closeField = document.createElement('label');
         closeField.className = 'task-check-field';
         const closeInput = document.createElement('input');
         closeInput.type = 'checkbox';
+        closeInput.checked = Boolean(editingTask?.cerrarEntregas);
         const closeText = document.createElement('span');
         closeText.textContent = 'Cerrar entregas después de la fecha límite';
         closeField.append(closeInput, closeText);
@@ -966,6 +1031,7 @@
         topicInput.type = 'text';
         topicInput.maxLength = 80;
         topicInput.placeholder = 'Ej. Álgebra';
+        topicInput.value = editingTask?.tema || '';
         topicField.append(topicInput);
         settingsCard.append(courseField, assignField, pointsField, dueDateField, closeField, topicField);
 
@@ -975,7 +1041,7 @@
         actions.className = 'task-form-actions';
         const cancelButton = addText(actions, 'button', 'task-secondary-button', 'Cancelar');
         cancelButton.type = 'button';
-        const saveButton = addText(actions, 'button', 'task-primary-button', 'Asignar tarea');
+        const saveButton = addText(actions, 'button', 'task-primary-button', editingTask ? 'Guardar cambios' : 'Asignar tarea');
         saveButton.type = 'submit';
         const formStatus = addText(actionsCard, 'p', 'task-form-status', '');
         formStatus.setAttribute('role', 'status');
@@ -1023,7 +1089,7 @@
 
           saveButton.disabled = true;
           cancelButton.disabled = true;
-          formStatus.textContent = 'Guardando y asignando tarea...';
+          formStatus.textContent = editingTask ? 'Guardando cambios...' : 'Guardando y asignando tarea...';
           try {
             const alumnosAsignados = aula.alumnos
               .filter((student) => selectedKeys.has(`${student.coleccion}/${student.id}`))
@@ -1033,7 +1099,7 @@
                 nombre: student.nombre || '',
                 email: student.email || ''
               }));
-            await setDoc(doc(collection(db, 'Aulas', aula.id, 'tareas')), {
+            const taskData = {
               titulo: titleInput.value.trim(),
               instrucciones: safeInstructions,
               puntos: points,
@@ -1046,19 +1112,31 @@
               aulaNombre: aula.nombre || '',
               curso: aula.curso || '',
               profesorDocId: session.teacherDocId,
-              profesorNombre: session.nombre || 'Profesor',
-              creadoEn: serverTimestamp()
-            });
-            listStatus.textContent = 'Tarea asignada correctamente.';
+              profesorNombre: session.nombre || 'Profesor'
+            };
+            if (editingTask) {
+              await updateDoc(doc(db, 'Aulas', aula.id, 'tareas', editingTask.id), {
+                ...taskData,
+                actualizadoEn: serverTimestamp()
+              });
+            } else {
+              await setDoc(doc(collection(db, 'Aulas', aula.id, 'tareas')), {
+                ...taskData,
+                creadoEn: serverTimestamp()
+              });
+            }
+            listStatus.textContent = editingTask ? 'Tarea actualizada correctamente.' : 'Tarea asignada correctamente.';
             tasksPage.replaceWith(await renderTasks(aula));
           } catch (error) {
-            console.error(`No se pudo asignar la tarea en el aula ${aula.id}:`, error);
-            formStatus.textContent = 'No se pudo guardar la tarea. Revisa los permisos de escritura de Firestore.';
+            console.error(`No se pudo ${editingTask ? 'actualizar' : 'asignar'} la tarea en el aula ${aula.id}:`, error);
+            formStatus.textContent = `No se pudo ${editingTask ? 'actualizar' : 'guardar'} la tarea. Revisa los permisos de escritura de Firestore.`;
             saveButton.disabled = false;
             cancelButton.disabled = false;
           }
         });
-      });
+      }
+
+      createButton.addEventListener('click', () => openTaskComposer());
       return tasksPage;
     }
 
