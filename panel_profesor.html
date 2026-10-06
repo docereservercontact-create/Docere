@@ -6,6 +6,7 @@
   <meta name="description" content="Aulas y alumnos asignados al profesor.">
   <title>Panel del profesor | Docére</title>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="panel-visual-theme.css">
   <style>
     :root {
       --page: #f4f7fb;
@@ -216,9 +217,11 @@
     }
   </style>
 </head>
-<body>
+<body class="teacher-dashboard">
   <header class="topbar">
-    <div class="brand"><span class="brand-icon"><i data-lucide="graduation-cap"></i></span><span>Portal Docére</span></div>
+    <a class="brand brand-logo" href="index.html" aria-label="Docére, inicio">
+      <img src="logon.png" alt="Docére">
+    </a>
     <div class="identity">
       <span id="teacherName">Profesor</span>
       <span class="teacher-email" id="teacherEmail"></span>

@@ -1,0 +1,517 @@
+:root {
+  --theme-ink: #172b4d;
+  --theme-muted: #667892;
+  --theme-blue: #2878e8;
+  --theme-teal: #087f8c;
+  --theme-cyan: #17a6a1;
+  --theme-line: #e2eaf3;
+  --theme-surface: #fff;
+  --theme-page: #f2f7fb;
+  --theme-shadow: 0 12px 34px rgba(32, 65, 105, .08);
+}
+
+body.student-dashboard,
+body.teacher-dashboard {
+  background:
+    radial-gradient(ellipse at 8% 0, rgba(56, 189, 190, .1), transparent 34rem),
+    radial-gradient(ellipse at 100% 18%, rgba(63, 131, 248, .08), transparent 32rem),
+    var(--theme-page);
+  color: var(--theme-ink);
+}
+
+body.student-dashboard .dashboard-container {
+  max-width: 1240px;
+  padding-top: 4px;
+}
+
+body.student-dashboard .welcome-header {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 190px;
+  display: flex;
+  align-items: center;
+  padding: clamp(26px, 5vw, 52px);
+  border: 0;
+  border-radius: 22px;
+  background: linear-gradient(120deg, #153b69 0%, #126985 55%, #159a9c 100%);
+  box-shadow: 0 18px 38px rgba(24, 91, 125, .2);
+  color: #fff;
+}
+
+body.student-dashboard .welcome-header::before,
+body.student-dashboard .welcome-header::after {
+  position: absolute;
+  z-index: -1;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+body.student-dashboard .welcome-header::before {
+  top: -130px;
+  right: 8%;
+  width: 300px;
+  height: 300px;
+  box-shadow: 0 0 0 28px rgba(255, 255, 255, .035), 0 0 0 58px rgba(255, 255, 255, .025);
+}
+
+body.student-dashboard .welcome-header::after {
+  right: 26%;
+  bottom: -165px;
+  width: 250px;
+  height: 250px;
+  background: rgba(93, 218, 197, .08);
+}
+
+body.student-dashboard .welcome-text {
+  max-width: 720px;
+}
+
+body.student-dashboard .welcome-text h1 {
+  margin-bottom: 10px;
+  color: #fff;
+  font-size: clamp(1.6rem, 3.2vw, 2.35rem);
+  letter-spacing: -.035em;
+}
+
+body.student-dashboard .welcome-text p {
+  max-width: 580px;
+  color: rgba(255, 255, 255, .84);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+body.student-dashboard .announcement-wall {
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid rgba(218, 229, 241, .9);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: var(--theme-shadow);
+}
+
+body.student-dashboard .wall-header {
+  margin-bottom: 16px;
+}
+
+body.student-dashboard .wall-title {
+  gap: 12px;
+}
+
+body.student-dashboard .wall-title > svg {
+  width: 40px;
+  height: 40px;
+  padding: 9px;
+  border-radius: 13px;
+  background: #e7f7f6;
+  color: var(--theme-teal) !important;
+}
+
+body.student-dashboard #assignments .wall-title > svg {
+  background: #fff4e4;
+  color: #d88719 !important;
+}
+
+body.student-dashboard .wall-title h2 {
+  color: var(--theme-ink);
+  font-size: clamp(1.15rem, 2vw, 1.35rem);
+  letter-spacing: -.02em;
+}
+
+body.student-dashboard .wall-status {
+  color: var(--theme-muted);
+  line-height: 1.55;
+}
+
+body.student-dashboard .class-announcement {
+  padding: clamp(15px, 2.5vw, 21px);
+  border: 1px solid var(--theme-line);
+  border-left: 4px solid var(--theme-cyan);
+  border-radius: 13px;
+  background: linear-gradient(135deg, #fff 0%, #f8fcfd 100%);
+  box-shadow: 0 5px 16px rgba(39, 71, 111, .045);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+body.student-dashboard .class-announcement:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(39, 71, 111, .09);
+}
+
+body.student-dashboard .announcement-class {
+  color: var(--theme-teal);
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+body.student-dashboard .class-announcement h3 {
+  color: var(--theme-ink);
+  font-size: 1.08rem;
+}
+
+body.student-dashboard .announcement-content {
+  color: #40536d;
+  line-height: 1.75;
+}
+
+body.student-dashboard .assignment-card {
+  border-color: var(--theme-line);
+  border-radius: 15px;
+  box-shadow: 0 6px 18px rgba(39, 71, 111, .05);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+body.student-dashboard .assignment-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(39, 71, 111, .09);
+}
+
+body.student-dashboard .assignment-icon {
+  background: linear-gradient(145deg, #e5f1ff, #e6f8f5);
+  color: var(--theme-teal);
+}
+
+body.student-dashboard .assignment-title {
+  color: var(--theme-ink);
+  line-height: 1.35;
+}
+
+body.student-dashboard .assignment-meta,
+body.student-dashboard .assignment-instructions {
+  color: #52647d;
+}
+
+body.student-dashboard .assignment-summary {
+  border: 1px solid #e2edf6;
+  background: linear-gradient(145deg, #f0f7ff, #effaf8);
+}
+
+body.teacher-dashboard .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  min-height: 68px;
+  padding-right: max(20px, calc((100vw - 1280px) / 2));
+  padding-left: max(20px, calc((100vw - 1280px) / 2));
+  border-bottom-color: rgba(216, 228, 241, .9);
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 4px 18px rgba(24, 53, 88, .045);
+  backdrop-filter: blur(12px);
+}
+
+body.teacher-dashboard .brand {
+  color: var(--theme-ink);
+  font-size: 16px;
+  letter-spacing: -.02em;
+}
+
+body.teacher-dashboard .brand-logo img {
+  display: block;
+  width: 164px;
+  height: 46px;
+  object-fit: contain;
+}
+
+body.teacher-dashboard .brand-icon {
+  border-radius: 11px;
+  background: linear-gradient(145deg, #e7f1ff, #def7f2);
+  color: var(--theme-teal);
+}
+
+body.teacher-dashboard .logout {
+  border-color: #dce7f1;
+  border-radius: 9px;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+
+body.teacher-dashboard .logout:hover {
+  transform: translateY(-1px);
+  border-color: #c1d8ed;
+  background: #f5faff;
+}
+
+body.teacher-dashboard .panel-layout {
+  grid-template-columns: 258px minmax(0, 1fr);
+}
+
+body.teacher-dashboard .class-sidebar {
+  background: linear-gradient(180deg, #153b5d 0%, #164a66 58%, #12616d 100%);
+  border-right: 0;
+  color: #fff;
+}
+
+body.teacher-dashboard .sidebar-heading {
+  padding: 9px 12px 16px;
+  color: rgba(255, 255, 255, .9);
+  font-size: 13px;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+
+body.teacher-dashboard .sidebar-heading svg {
+  width: 18px;
+  height: 18px;
+  color: #73e0cc;
+}
+
+body.teacher-dashboard .class-sidebar .status {
+  padding: 0 12px;
+  color: rgba(230, 245, 255, .75);
+}
+
+body.teacher-dashboard .class-list {
+  gap: 6px;
+}
+
+body.teacher-dashboard .class-nav-button {
+  min-height: 54px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: rgba(255, 255, 255, .88);
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+body.teacher-dashboard .class-nav-button:hover {
+  transform: translateX(2px);
+  background: rgba(255, 255, 255, .09);
+}
+
+body.teacher-dashboard .class-nav-button[aria-current="true"] {
+  border-color: rgba(255, 255, 255, .17);
+  background: linear-gradient(110deg, rgba(92, 220, 194, .24), rgba(96, 165, 250, .18));
+  color: #fff;
+  box-shadow: inset 3px 0 #6be0cd;
+}
+
+body.teacher-dashboard .class-initial {
+  background: rgba(255, 255, 255, .14);
+  color: #fff;
+}
+
+body.teacher-dashboard .class-nav-button[aria-current="true"] .class-initial {
+  background: #bff4e9;
+  color: #15525c;
+}
+
+body.teacher-dashboard .class-nav-course {
+  color: rgba(231, 243, 251, .67);
+}
+
+body.teacher-dashboard .class-workspace {
+  padding-top: clamp(24px, 4vw, 44px);
+}
+
+body.teacher-dashboard .class-heading {
+  margin-bottom: 21px;
+}
+
+body.teacher-dashboard .class-heading h1 {
+  color: var(--theme-ink);
+  font-size: clamp(24px, 3vw, 32px);
+  letter-spacing: -.035em;
+}
+
+body.teacher-dashboard .class-heading p {
+  color: var(--theme-muted);
+  font-size: 14px;
+}
+
+body.teacher-dashboard .classroom {
+  border-color: #dfe8f1;
+  border-radius: 17px;
+  box-shadow: var(--theme-shadow);
+}
+
+body.teacher-dashboard .classroom-header {
+  min-height: 190px;
+  align-items: center;
+  padding: clamp(20px, 4vw, 34px);
+  background: linear-gradient(120deg, #174b70, #117f8c 70%, #1aa49b);
+}
+
+body.teacher-dashboard .classroom-banner-1 {
+  background: linear-gradient(120deg, #155e75, #159b9f);
+}
+
+body.teacher-dashboard .classroom-banner-2 {
+  background: linear-gradient(120deg, #334b78, #547ac0);
+}
+
+body.teacher-dashboard .classroom-banner-3 {
+  background: linear-gradient(120deg, #704d4a, #b87854);
+}
+
+body.teacher-dashboard .student-count {
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 255, 255, .24);
+  background: rgba(255, 255, 255, .16);
+  backdrop-filter: blur(8px);
+}
+
+body.teacher-dashboard .class-tabs {
+  gap: 4px;
+  padding: 8px 10px 0;
+  background: #f8fbfe;
+}
+
+body.teacher-dashboard .class-tab {
+  min-height: 46px;
+  padding: 0 14px;
+  border-bottom-width: 3px;
+  border-radius: 9px 9px 0 0;
+  color: #5d6e85;
+  font-size: 12px;
+  transition: color .18s ease, background .18s ease;
+}
+
+body.teacher-dashboard .class-tab:hover {
+  background: #edf5fa;
+}
+
+body.teacher-dashboard .class-tab[aria-selected="true"] {
+  border-bottom-color: var(--theme-cyan);
+  background: #e8f7f5;
+  color: #11656f;
+}
+
+body.teacher-dashboard .tab-content {
+  padding: clamp(14px, 2.5vw, 24px);
+}
+
+body.teacher-dashboard .announcement-form,
+body.teacher-dashboard .task-composer-card {
+  border-color: #e1eaf3;
+  border-radius: 13px;
+  background: #f9fbfe;
+  box-shadow: 0 5px 18px rgba(39, 71, 111, .04);
+}
+
+body.teacher-dashboard .announcement-card,
+body.teacher-dashboard .task-card {
+  border-color: #e1eaf3;
+  border-radius: 11px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(39, 71, 111, .04);
+}
+
+body.teacher-dashboard .announcement-form input,
+body.teacher-dashboard .task-title-input,
+body.teacher-dashboard .task-field input,
+body.teacher-dashboard .task-field select,
+body.teacher-dashboard .attendance-controls input,
+body.teacher-dashboard .attendance-row select {
+  border-color: #d7e3ef;
+  border-radius: 8px;
+}
+
+body.teacher-dashboard .announcement-form input:focus,
+body.teacher-dashboard .task-title-input:focus,
+body.teacher-dashboard .task-field input:focus,
+body.teacher-dashboard .task-field select:focus,
+body.teacher-dashboard .attendance-controls input:focus,
+body.teacher-dashboard .attendance-row select:focus {
+  outline: 3px solid rgba(23, 166, 161, .16);
+  border-color: var(--theme-cyan);
+}
+
+body.teacher-dashboard .announcement-submit,
+body.teacher-dashboard .task-primary-button,
+body.teacher-dashboard .attendance-save {
+  border-radius: 9px;
+  background: linear-gradient(110deg, #2479df, #118f9a);
+  box-shadow: 0 5px 12px rgba(28, 120, 168, .17);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+body.teacher-dashboard .announcement-submit:hover,
+body.teacher-dashboard .task-primary-button:hover,
+body.teacher-dashboard .attendance-save:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(28, 120, 168, .22);
+}
+
+body.teacher-dashboard .announcement-edit,
+body.teacher-dashboard .task-card-actions button,
+body.teacher-dashboard .task-secondary-button {
+  border-color: #dce7f1;
+  border-radius: 8px;
+}
+
+body.teacher-dashboard .attendance-stat {
+  border-color: #dce7f1;
+  border-radius: 9px;
+  background: #f7fbfd;
+}
+
+@media (max-width: 960px) {
+  body.teacher-dashboard .panel-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.teacher-dashboard .class-sidebar {
+    background: linear-gradient(110deg, #153b5d, #12616d);
+  }
+
+  body.teacher-dashboard .class-nav-button {
+    flex-basis: min(260px, 76vw);
+  }
+}
+
+@media (max-width: 620px) {
+  body.student-dashboard .welcome-header {
+    min-height: 166px;
+    border-radius: 17px;
+  }
+
+  body.student-dashboard .announcement-wall {
+    border-radius: 15px;
+  }
+
+  body.teacher-dashboard .topbar {
+    min-height: 60px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  body.teacher-dashboard .brand-logo img {
+    width: 140px;
+    height: 42px;
+  }
+
+  body.teacher-dashboard .class-sidebar {
+    padding: 12px;
+  }
+
+  body.teacher-dashboard .class-nav-button {
+    flex-basis: min(230px, 78vw);
+  }
+
+  body.teacher-dashboard .classroom {
+    border-radius: 13px;
+  }
+
+  body.teacher-dashboard .classroom-header {
+    min-height: 150px;
+  }
+
+  body.teacher-dashboard .class-tabs {
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+
+  body.teacher-dashboard .class-tab {
+    padding-right: 11px;
+    padding-left: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.student-dashboard *,
+  body.teacher-dashboard * {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}

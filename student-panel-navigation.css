@@ -2,8 +2,10 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  border-bottom: 1px solid #e2e8f0;
-  background: #fff;
+  border-bottom: 1px solid rgba(218, 229, 241, .9);
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 4px 18px rgba(24, 53, 88, .045);
+  backdrop-filter: blur(12px);
 }
 
 .student-nav-container {
@@ -22,17 +24,15 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 9px;
-  color: #2563eb;
-  font-size: 1.15rem;
-  font-weight: 700;
-  line-height: 1.15;
+  gap: 0;
   text-decoration: none;
 }
 
-.student-brand svg {
-  width: 26px;
-  height: 26px;
+.student-brand img {
+  display: block;
+  width: 164px;
+  height: 46px;
+  object-fit: contain;
 }
 
 .student-nav-links {
@@ -50,20 +50,25 @@
 .student-nav-links a {
   display: block;
   padding: 8px 0;
+  border-radius: 8px;
   color: #475569;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.35;
   text-decoration: none;
   white-space: nowrap;
+  transition: color .18s ease, background .18s ease;
 }
 
 .student-nav-links a:hover,
 .student-nav-links a[aria-current="page"] {
-  color: #2563eb;
+  color: #116e82;
 }
 
 .student-nav-links a[aria-current="page"] {
+  padding-right: 10px;
+  padding-left: 10px;
+  background: #e8f7f5;
   font-weight: 650;
 }
 
@@ -84,11 +89,17 @@
   height: 40px;
   align-items: center;
   justify-content: center;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #dce7f1;
   border-radius: 8px;
-  background: #fff;
-  color: #0f172a;
+  background: linear-gradient(145deg, #fff, #f2fafb);
+  color: #175e75;
   cursor: pointer;
+  transition: background .18s ease, transform .18s ease;
+}
+
+.student-menu-toggle:hover {
+  transform: translateY(-1px);
+  background: #e8f7f5;
 }
 
 .student-menu-toggle svg {
@@ -130,6 +141,11 @@
     padding: 10px 8px;
     white-space: normal;
   }
+
+  .student-nav-links a[aria-current="page"] {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -140,13 +156,12 @@
   }
 
   .student-brand {
-    gap: 6px;
-    font-size: 1rem;
+    max-width: 140px;
   }
 
-  .student-brand svg {
-    width: 22px;
-    height: 22px;
+  .student-brand img {
+    width: 140px;
+    height: 42px;
   }
 
   .student-navbar .user-info,
