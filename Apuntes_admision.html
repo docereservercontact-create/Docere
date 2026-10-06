@@ -308,6 +308,14 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    function withTimeout(promise, messageText, timeoutMs = 20000) {
+      let timeoutId;
+      const timeout = new Promise((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(messageText)), timeoutMs);
+      });
+      return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
+    }
+
     function addText(parent, tagName, className, text) {
       const element = document.createElement(tagName);
       element.className = className;
@@ -379,23 +387,24 @@
     try {
       const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
       if (!session?.id || !session?.coleccion) throw new Error('No hay una sesión válida.');
-      const absenceStatus = await getStudentAbsenceStatus(session);
-      if (absenceStatus.isSuspended) {
-        message.textContent = getSuspensionMessage(absenceStatus);
-        pizarrasList.replaceChildren();
-        return;
-      }
-
-      const classroomsSnapshot = await getDocs(collection(db, 'Aulas'));
+      message.textContent = 'Buscando tus aulas...';
+      const classroomsSnapshot = await withTimeout(
+        getDocs(collection(db, 'Aulas')),
+        'La consulta de aulas está tardando demasiado. Revisa tu conexión e inténtalo de nuevo.'
+      );
       const classrooms = classroomsSnapshot.docs
         .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
         .filter((classroom) => isStudentInClassroom(classroom, session));
       if (!classrooms.length) {
         message.textContent = 'Todavía no estás asignado a un aula.';
       } else {
+        message.textContent = 'Cargando las pizarras publicadas de tus aulas...';
         const classroomResults = await Promise.all(classrooms.map(async (classroom) => {
           try {
-            const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'pizarras'));
+            const snapshot = await withTimeout(
+              getDocs(collection(db, 'Aulas', classroom.id, 'pizarras')),
+              `La consulta de pizarras del aula ${classroom.nombre || classroom.id} está tardando demasiado.`
+            );
             return snapshot.docs
               .map((pizarraDoc) => ({ id: pizarraDoc.id, ...pizarraDoc.data() }))
               .filter((pizarra) => pizarra.publicado === true)
