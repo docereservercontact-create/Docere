@@ -466,6 +466,7 @@
       publishField.className = 'task-check-field';
       const publishInput = document.createElement('input');
       publishInput.type = 'checkbox';
+      publishInput.checked = true;
       const publishLabel = document.createElement('span');
       publishLabel.textContent = 'Publicar para los alumnos';
       publishField.append(publishInput, publishLabel);
@@ -485,7 +486,7 @@
         editingPizarraId = null;
         nameInput.value = '';
         urlInput.value = '';
-        publishInput.checked = false;
+        publishInput.checked = true;
       }
 
       async function loadPizarras() {
