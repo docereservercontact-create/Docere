@@ -233,25 +233,33 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="student-panel-navigation.css">
+  <script src="student-panel-navigation.js" defer></script>
 </head>
 <body>
 
   <!-- NAVBAR -->
-  <nav class="navbar">
-    <div class="nav-container">
-      <a href="panel_estudiante.html" class="brand">
+  <nav class="navbar student-navbar">
+    <div class="student-nav-container">
+      <a href="index.html" class="student-brand">
         <i data-lucide="graduation-cap"></i>
-        <span>Portal Académico</span>
+        <span>Portal <br>Académico</span>
       </a>
 
-      <ul class="nav-links" id="navLinks">
+      <button class="student-menu-toggle" id="studentMenuToggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="studentNavLinks">
+        <i data-lucide="menu"></i>
+      </button>
+
+      <ul class="student-nav-links" id="studentNavLinks">
         <li><a href="panel_estudiante.html">Mi panel</a></li>
+        <li><a href="panel_estudiante.html#assignments">Asignaciones</a></li>
         <li><a href="mis-cursos.html">Mis Cursos</a></li>
-        <li><a href="mis-cursos.html">Apuntes</a></li>
-        <li><a href="https://www.bidi.unam.mx/" target="_blank">Material de Estudio</a></li>
+        <li><a href="Apuntes_admision.html">Apuntes</a></li>
+        <li><a href="Material_de_estudio.html">Material de Estudio</a></li>
+        <li><a href="https://www.bidi.unam.mx/" target="_blank" rel="noopener noreferrer">Libreria</a></li>
       </ul>
 
-      <div class="nav-actions">
+      <div class="student-nav-actions">
         <button class="btn btn-outline" id="btnCerrarSesion">
           <i data-lucide="log-out"></i>
           <span>Cerrar sesión</span>

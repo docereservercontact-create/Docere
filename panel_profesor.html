@@ -164,23 +164,55 @@
     .task-check-field input { width: 17px; height: 17px; margin: 1px 0 0; }
     .task-form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
     .task-form-status { min-height: 18px; margin: 0; color: var(--muted); font-size: 13px; }
+    @media (max-width: 960px) {
+      .panel-layout { grid-template-columns: minmax(0, 1fr); }
+      .class-sidebar { padding: 14px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
+      .class-list { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; padding-bottom: 4px; }
+      .class-nav-button { flex: 0 0 min(250px, 75vw); }
+      .class-workspace { padding: 20px clamp(16px, 3vw, 32px) 32px; }
+      .task-composer { grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); }
+      .footer-top { grid-template-columns: 1fr; gap: 28px; }
+    }
     @media (max-width: 620px) {
-      .topbar { padding: 11px 14px; }
+      .topbar { align-items: flex-start; padding: 11px 14px; }
+      .brand { gap: 7px; font-size: 14px; }
+      .brand-icon { width: 32px; height: 32px; flex: 0 0 32px; }
+      .identity { gap: 8px; font-size: 12px; }
       .teacher-email { display: none; }
-      .panel-layout { grid-template-columns: 1fr; }
-      .class-sidebar { padding: 12px; border-right: 0; border-bottom: 1px solid var(--line); }
-      .class-list { display: flex; overflow-x: auto; }
-      .class-nav-button { flex: 0 0 210px; }
-      .class-workspace { padding: 18px 14px 28px; }
-      .classroom-header { min-height: 150px; padding: 18px; }
-      .tab-content { padding: 14px; }
+      .logout { min-height: 36px; padding: 0 8px; }
+      .logout span { display: none; }
+      .class-sidebar { padding: 12px; }
+      .class-workspace { padding: 16px 12px 24px; }
+      .class-heading { margin-bottom: 14px; }
+      .classroom-header { min-height: 130px; padding: 16px; }
+      .student-count { font-size: 10px; }
+      .class-tab { min-height: 44px; padding: 0 10px; font-size: 11px; }
+      .tab-content { min-height: 250px; padding: 12px; }
       .students { grid-template-columns: 1fr; }
       .attendance-row { grid-template-columns: 1fr; gap: 7px; }
-      .task-composer { grid-template-columns: 1fr; }
+      .attendance-controls { align-items: stretch; }
+      .attendance-controls label,
+      .attendance-controls input,
+      .attendance-save { width: 100%; }
+      .task-composer { grid-template-columns: minmax(0, 1fr); }
       .task-composer-sidebar { grid-row: 1; }
       .task-composer-card { padding: 14px; }
-      .logout { padding: 0 9px; }
-      .logout span { display: none; }
+      .tasks-toolbar { align-items: flex-start; flex-direction: column; }
+      .tasks-toolbar button,
+      .announcement-submit,
+      .task-form-actions button { width: 100%; }
+      .announcement-card-header { flex-wrap: wrap; }
+      .footer-columns { grid-template-columns: 1fr; gap: 20px; }
+      footer { padding: 32px 16px 16px; }
+      .footer-top { gap: 24px; margin-bottom: 24px; }
+      .footer-bottom { padding-top: 16px; font-size: 12px; }
+    }
+    @media (max-width: 380px) {
+      .topbar { gap: 8px; padding-right: 10px; padding-left: 10px; }
+      .brand { font-size: 12px; }
+      .classroom-header { flex-direction: column; gap: 8px; }
+      .student-count { align-self: flex-start; }
+      .task-composer-card { padding: 11px; }
     }
   </style>
 </head>

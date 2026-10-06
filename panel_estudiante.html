@@ -270,13 +270,6 @@
       font-size: 12px;
     }
 
-    .pizarra-link {
-      display: inline-block;
-      color: var(--accent);
-      font-weight: 600;
-      overflow-wrap: anywhere;
-    }
-
     .announcement-content {
       overflow-wrap: anywhere;
       line-height: 1.6;
@@ -438,36 +431,54 @@
 
     /* --- RESPONSIVE --- */
     @media (max-width: 900px) {
+      .dashboard-container {
+        width: min(100%, 1200px);
+        margin: 24px auto;
+        padding: 0 18px;
+      }
+      .welcome-header,
+      .announcement-wall {
+        padding: 20px;
+      }
+      .assignment-card {
+        grid-template-columns: minmax(0, 1fr) minmax(210px, 260px);
+        gap: 16px;
+        padding: 18px;
+      }
       .footer-top {
         grid-template-columns: 1fr;
-        gap: 30px;
+        gap: 28px;
       }
     }
 
     @media (max-width: 768px) {
-      .menu-toggle { display: block; }
       .assignment-card { grid-template-columns: 1fr; gap: 16px; }
-      .nav-links {
-        display: none;
-        position: absolute;
-        top: 100%;
-        left: 0;
-        width: 100%;
-        background-color: var(--bg-card);
-        flex-direction: column;
-        padding: 20px;
-        border-bottom: 1px solid var(--border);
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-      }
-      .nav-links.active { display: flex; }
-      .user-info { display: none; }
-
       .footer-columns {
         grid-template-columns: repeat(2, 1fr);
       }
     }
 
     @media (max-width: 480px) {
+      .dashboard-container {
+        margin: 18px auto;
+        padding: 0 12px;
+      }
+      .welcome-header,
+      .announcement-wall {
+        padding: 16px;
+        margin-bottom: 18px;
+        border-radius: 10px;
+      }
+      .welcome-text h1 { font-size: 1.25rem; }
+      .welcome-text p,
+      .wall-status { font-size: 13px; line-height: 1.5; }
+      .wall-header { margin-bottom: 14px; }
+      .wall-title { align-items: flex-start; }
+      .wall-title h2 { font-size: 1.1rem; }
+      .class-announcement { padding: 14px; }
+      .assignment-card { gap: 14px; padding: 14px; }
+      .assignment-title { font-size: 1.1rem; }
+      .assignment-summary { padding: 13px; }
       .footer-columns {
         grid-template-columns: 1fr;
       }
@@ -475,6 +486,16 @@
         flex-direction: column;
         align-items: flex-start;
       }
+    }
+
+    @media (max-width: 360px) {
+      .dashboard-container { padding: 0 10px; }
+      .welcome-header,
+      .announcement-wall { padding: 13px; }
+      .assignment-heading { gap: 9px; }
+      .assignment-icon { flex-basis: 32px; width: 32px; height: 32px; }
+      .assignment-attachment { width: 100%; }
+      .footer-columns { gap: 18px; }
     }
 
     /* Ocultar elementos secundarios al imprimir */
@@ -488,31 +509,33 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="student-panel-navigation.css">
+  <script src="student-panel-navigation.js" defer></script>
 </head>
 <body>
 
   <!-- NAVBAR -->
-  <nav class="navbar">
-    <div class="nav-container">
-      <a href="index.html" class="brand">
+  <nav class="navbar student-navbar">
+    <div class="student-nav-container">
+      <a href="index.html" class="student-brand">
         <i data-lucide="graduation-cap"></i>
         <span>Portal <br>Académico</span>
       </a>
 
-      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">
+      <button class="student-menu-toggle" id="studentMenuToggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="studentNavLinks">
         <i data-lucide="menu"></i>
       </button>
 
-      <ul class="nav-links" id="navLinks">
+      <ul class="student-nav-links" id="studentNavLinks">
         <li><a href="panel_estudiante.html" class="current" aria-current="page">Mi panel</a></li>
-        <li><a href="#assignments">Asignaciones</a></li>
+        <li><a href="panel_estudiante.html#assignments">Asignaciones</a></li>
         <li><a href="mis-cursos.html">Mis Cursos</a></li>
         <li><a href="Apuntes_admision.html">Apuntes</a></li>
-        <li><a href="Material_de_estudio.html" target="_blank">Material de Estudio</a></li>
-        <li><a href="https://www.bidi.unam.mx/" target="_blank">Libreria</a></li>      
+        <li><a href="Material_de_estudio.html">Material de Estudio</a></li>
+        <li><a href="https://www.bidi.unam.mx/" target="_blank" rel="noopener noreferrer">Libreria</a></li>
       </ul>
 
-      <div class="nav-actions">
+      <div class="student-nav-actions">
         <!-- Foto / Perfil Alumno (Enlace a perfil.html) -->
         <a href="perfil.html" class="user-profile" title="Ir a mi perfil">
           <div class="avatar-wrapper">
@@ -845,55 +868,36 @@
         }
 
         const classroomResults = await Promise.all(classrooms.map(async (classroom) => {
-          const [announcementsResult, pizarrasResult] = await Promise.all([
-            getDocs(collection(db, 'Aulas', classroom.id, 'anuncios'))
-              .then((snapshot) => snapshot.docs.map((announcementDoc) => ({
-                id: announcementDoc.id,
-                aulaId: classroom.id,
-                aulaNombre: classroom.nombre || 'Aula',
-                ...announcementDoc.data()
-              })))
-              .catch((error) => {
-                console.error(`No se pudieron cargar los anuncios del aula ${classroom.id}:`, error);
-                return null;
-              }),
-            getDocs(collection(db, 'Aulas', classroom.id, 'pizarras'))
-              .then((snapshot) => snapshot.docs
-                .map((pizarraDoc) => ({
-                  id: pizarraDoc.id,
-                  aulaId: classroom.id,
-                  aulaNombre: classroom.nombre || 'Aula',
-                  ...pizarraDoc.data()
-                }))
-                .filter((pizarra) => pizarra.publicado === true))
-              .catch((error) => {
-                console.error(`No se pudieron cargar las pizarras del aula ${classroom.id}:`, error);
-                return null;
-              })
-          ]);
-          return { announcements: announcementsResult, pizarras: pizarrasResult };
+          try {
+            const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'anuncios'));
+            return snapshot.docs.map((announcementDoc) => ({
+              id: announcementDoc.id,
+              aulaId: classroom.id,
+              aulaNombre: classroom.nombre || 'Aula',
+              ...announcementDoc.data()
+            }));
+          } catch (error) {
+            console.error(`No se pudieron cargar los anuncios del aula ${classroom.id}:`, error);
+            return null;
+          }
         }));
-        const failedClassrooms = classroomResults.filter((result) =>
-          result.announcements === null || result.pizarras === null
-        ).length;
+        const failedClassrooms = classroomResults.filter((result) => result === null).length;
         const announcements = classroomResults
-          .flatMap((result) => result.announcements || [])
-          .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
-        const pizarras = classroomResults
-          .flatMap((result) => result.pizarras || [])
+          .filter(Boolean)
+          .flat()
           .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
 
         announcementWall.replaceChildren();
-        if (!announcements.length && !pizarras.length) {
+        if (!announcements.length) {
           announcementWallStatus.textContent = failedClassrooms
-            ? 'No se pudieron consultar todos los anuncios o pizarras. Revisa los permisos de lectura de Firestore.'
-            : 'Todavía no hay anuncios ni pizarras publicadas en tus aulas.';
+            ? 'No se pudieron consultar los anuncios. Revisa los permisos de lectura de Firestore.'
+            : 'Todavía no hay anuncios en tus aulas.';
           return;
         }
 
         announcementWallStatus.textContent = failedClassrooms
-          ? `Mostrando contenido disponible. No se pudieron consultar anuncios o pizarras de ${failedClassrooms} aula(s); revisa los permisos de Firestore.`
-          : `${announcements.length} anuncio(s) y ${pizarras.length} pizarra(s) publicada(s) de ${classrooms.length} aula(s).`;
+          ? `Mostrando anuncios disponibles. No se pudieron consultar los anuncios de ${failedClassrooms} aula(s); revisa los permisos de Firestore.`
+          : `${announcements.length} anuncio(s) de ${classrooms.length} aula(s).`;
         announcements.forEach((announcement) => {
           const card = document.createElement('article');
           card.className = 'class-announcement';
@@ -904,24 +908,6 @@
           content.className = 'announcement-content';
           content.innerHTML = sanitizeAnnouncement(announcement.contenido || '');
           card.append(content);
-          announcementWall.append(card);
-        });
-        pizarras.forEach((pizarra) => {
-          const card = document.createElement('article');
-          card.className = 'class-announcement';
-          addWallText(card, 'p', 'announcement-class', `${pizarra.aulaNombre} · Pizarra`);
-          addWallText(card, 'h3', '', pizarra.nombre || 'Pizarra');
-          try {
-            const linkUrl = new URL(pizarra.enlace);
-            if (['http:', 'https:'].includes(linkUrl.protocol)) {
-              const link = addWallText(card, 'a', 'pizarra-link', 'Abrir pizarra');
-              link.href = linkUrl.href;
-              link.target = '_blank';
-              link.rel = 'noopener noreferrer';
-            }
-          } catch (error) {
-            console.error(`El enlace de la pizarra ${pizarra.id} no es válido.`);
-          }
           announcementWall.append(card);
         });
       } catch (error) {
@@ -959,16 +945,6 @@
       // 2. Inicializar Lucide Icons
       if (typeof lucide !== 'undefined') {
         lucide.createIcons();
-      }
-
-      // 3. Menú Responsive
-      const menuToggleBtn = document.getElementById('menuToggle');
-      const navLinks = document.getElementById('navLinks');
-
-      if (menuToggleBtn && navLinks) {
-        menuToggleBtn.addEventListener('click', () => {
-          navLinks.classList.toggle('active');
-        });
       }
 
       // 4. Cerrar Sesión

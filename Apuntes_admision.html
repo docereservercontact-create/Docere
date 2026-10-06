@@ -236,28 +236,31 @@
       #btnCerrarSesion span { display: none; }
     }
   </style>
+  <link rel="stylesheet" href="student-panel-navigation.css">
+  <script src="student-panel-navigation.js" defer></script>
 </head>
 <body>
-  <nav class="navbar">
-    <div class="nav-container">
-      <a href="index.html" class="brand">
+  <nav class="navbar student-navbar">
+    <div class="student-nav-container">
+      <a href="index.html" class="student-brand">
         <i data-lucide="graduation-cap"></i>
         <span>Portal <br>Académico</span>
       </a>
 
-      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú" aria-expanded="false">
+      <button class="student-menu-toggle" id="studentMenuToggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="studentNavLinks">
         <i data-lucide="menu"></i>
       </button>
 
-      <ul class="nav-links" id="navLinks">
+      <ul class="student-nav-links" id="studentNavLinks">
         <li><a href="panel_estudiante.html">Mi panel</a></li>
+        <li><a href="panel_estudiante.html#assignments">Asignaciones</a></li>
         <li><a href="mis-cursos.html">Mis Cursos</a></li>
         <li><a href="Apuntes_admision.html" class="current" aria-current="page">Apuntes</a></li>
-        <li><a href="Material_de_estudio.html" target="_blank">Material de Estudio</a></li>
-        <li><a href="https://www.bidi.unam.mx/" target="_blank">Libreria</a></li>
+        <li><a href="Material_de_estudio.html">Material de Estudio</a></li>
+        <li><a href="https://www.bidi.unam.mx/" target="_blank" rel="noopener noreferrer">Libreria</a></li>
       </ul>
 
-      <div class="nav-actions">
+      <div class="student-nav-actions">
         <a href="perfil.html" class="user-profile" title="Ir a mi perfil">
           <div class="avatar-wrapper">
             <i data-lucide="user-round"></i>
@@ -460,13 +463,6 @@
   <script>
     const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
     if (session?.nombre) document.getElementById('userNameLabel').textContent = session.nombre;
-
-    const menuToggle = document.getElementById('menuToggle');
-    const navLinks = document.getElementById('navLinks');
-    menuToggle.addEventListener('click', () => {
-      const isOpen = navLinks.classList.toggle('active');
-      menuToggle.setAttribute('aria-expanded', String(isOpen));
-    });
 
     document.getElementById('btnCerrarSesion').addEventListener('click', () => {
       if (!confirm('¿Deseas cerrar sesión?')) return;

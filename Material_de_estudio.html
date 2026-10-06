@@ -451,29 +451,33 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="student-panel-navigation.css">
+  <script src="student-panel-navigation.js" defer></script>
 </head>
 <body>
 
   <!-- NAVBAR -->
-  <nav class="navbar">
-    <div class="nav-container">
-      <a href="index.html" class="brand">
+  <nav class="navbar student-navbar">
+    <div class="student-nav-container">
+      <a href="index.html" class="student-brand">
         <i data-lucide="graduation-cap"></i>
         <span>Portal <br>Académico</span>
       </a>
 
-      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">
+      <button class="student-menu-toggle" id="studentMenuToggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="studentNavLinks">
         <i data-lucide="menu"></i>
       </button>
 
-      <ul class="nav-links" id="navLinks">
+      <ul class="student-nav-links" id="studentNavLinks">
         <li><a href="panel_estudiante.html">Mi panel</a></li>
+        <li><a href="panel_estudiante.html#assignments">Asignaciones</a></li>
         <li><a href="mis-cursos.html">Mis Cursos</a></li>
-        <li><a href="Material_de_estudio.html">Material de Estudio</a></li  >
-        <li><a href="https://www.bidi.unam.mx/">Libreria</a></li>      
-      </ul> 
+        <li><a href="Apuntes_admision.html">Apuntes</a></li>
+        <li><a href="Material_de_estudio.html" aria-current="page">Material de Estudio</a></li>
+        <li><a href="https://www.bidi.unam.mx/" target="_blank" rel="noopener noreferrer">Libreria</a></li>
+      </ul>
 
-      <div class="nav-actions">
+      <div class="student-nav-actions">
         <!-- Foto / Perfil Alumno (Enlace a perfil.html) -->
         <a href="perfil.html" class="user-profile" title="Ir a mi perfil">
           <div class="avatar-wrapper">
@@ -691,15 +695,6 @@
       }
 
       // 3. Menú Responsive
-      const menuToggleBtn = document.getElementById('menuToggle');
-      const navLinks = document.getElementById('navLinks');
-
-      if (menuToggleBtn && navLinks) {
-        menuToggleBtn.addEventListener('click', () => {
-          navLinks.classList.toggle('active');
-        });
-      }
-
       // 4. Cerrar Sesión
       const btnCerrarSesion = document.getElementById('btnCerrarSesion');
       if (btnCerrarSesion) {
