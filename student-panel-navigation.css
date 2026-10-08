@@ -79,6 +79,28 @@
   gap: 10px;
 }
 
+.student-navbar .notification-button {
+  display: inline-grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid #dce7f1;
+  border-radius: 8px;
+  background: #fff;
+  color: #175e75;
+  text-decoration: none;
+}
+
+.student-navbar .notification-button:hover {
+  background: #e8f7f5;
+}
+
+.student-navbar .notification-button svg {
+  width: 19px;
+  height: 19px;
+}
+
 .student-navbar .user-profile {
   flex: 0 0 auto;
 }
@@ -148,6 +170,25 @@
   }
 }
 
+@media (max-width: 900px) {
+  .student-navbar .user-info,
+  .student-nav-actions .btn span {
+    display: none;
+  }
+
+  .student-navbar .user-profile {
+    padding: 4px;
+    border-left: 0;
+  }
+
+  .student-nav-actions .btn {
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+    padding: 8px;
+  }
+}
+
 @media (max-width: 640px) {
   .student-nav-container {
     min-height: 60px;
@@ -162,16 +203,6 @@
   .student-brand img {
     width: 140px;
     height: 42px;
-  }
-
-  .student-navbar .user-info,
-  .student-nav-actions .btn span {
-    display: none;
-  }
-
-  .student-navbar .user-profile {
-    padding: 4px;
-    border-left: 0;
   }
 
   .student-nav-actions {
