@@ -30,6 +30,17 @@ function getAttendanceState(record) {
   return record.presente === true ? 'asistencia' : 'falta';
 }
 
+function getClassDurationHours(classroom) {
+  const schedule = classroom.horario || {};
+  const storedDuration = Number(schedule.horasPorClase);
+  if (Number.isFinite(storedDuration) && storedDuration > 0) return storedDuration;
+  if (!schedule.horaInicio || !schedule.horaFin) return null;
+  const [startHour, startMinute] = schedule.horaInicio.split(':').map(Number);
+  const [endHour, endMinute] = schedule.horaFin.split(':').map(Number);
+  const duration = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute)) / 60;
+  return Number.isFinite(duration) && duration > 0 ? duration : null;
+}
+
 export async function getStudentAbsenceStatus(student) {
   if (!student?.id || !student?.coleccion) throw new Error('No se pudo identificar la sesión del alumno.');
 
@@ -38,24 +49,31 @@ export async function getStudentAbsenceStatus(student) {
     .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
     .filter((classroom) => studentMatchesClassroom(classroom, student));
   const attendanceResults = await Promise.all(classrooms.map(async (classroom) => {
+    const totalHours = Number(classroom.horasCursoTotal);
+    const classDuration = getClassDurationHours(classroom);
+    if (!Number.isFinite(totalHours) || totalHours <= 0 || !classDuration) {
+      throw new Error(`El aula ${classroom.nombre || classroom.id} no tiene configuradas las horas totales o la duración de clase.`);
+    }
     const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'asistencias'));
-    return snapshot.docs.map((attendanceDoc) => {
+    const records = snapshot.docs.map((attendanceDoc) => {
       const attendance = attendanceDoc.data();
       return (Array.isArray(attendance.alumnos) ? attendance.alumnos : []).find((record) =>
         (record.id === student.id && record.coleccion === student.coleccion)
         || (student.email && record.email === student.email)
       );
     }).filter(Boolean);
+    const absenceHours = records.filter((record) => getAttendanceState(record) === 'falta').length * classDuration;
+    return { absenceHours, totalHours };
   }));
 
-  const records = attendanceResults.flat();
-  const absences = records.filter((record) => getAttendanceState(record) === 'falta').length;
-  const total = records.length;
+  const absences = attendanceResults.reduce((total, result) => total + result.absenceHours, 0);
+  const total = attendanceResults.reduce((sum, result) => sum + result.totalHours, 0);
+  const percent = total ? (absences / total) * 100 : 0;
   return {
     absences,
     total,
-    percent: total ? (absences / total) * 100 : 0,
-    isSuspended: total > 0 && absences * 5 >= total
+    percent,
+    isSuspended: total > 0 && percent >= ABSENCE_SUSPENSION_PERCENT
   };
 }
 
