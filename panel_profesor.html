@@ -623,7 +623,7 @@
               const board = boardDoc.data();
               return board.materiaId === subjectId
                 || subjectId.startsWith('legacy:')
-                  && !board.materiaId
+                  && (!board.materiaId || !subjects.has(board.materiaId))
                   && (board.materia || board.nombre || '').toLocaleLowerCase() === normalizedName;
             })
             .map((boardDoc) => boardDoc.ref);
@@ -722,7 +722,7 @@
         const records = snapshot.docs.map((pizarraDoc) => ({ id: pizarraDoc.id, ...pizarraDoc.data() }));
         records.forEach((record) => {
           if (record.materiaId && subjects.has(record.materiaId)) return;
-          const subjectName = record.materia || (record.materiaId ? 'Materia no disponible' : record.nombre);
+          const subjectName = record.materia || record.nombre || 'Otras pizarras';
           if (!subjectName) return;
           const exists = Array.from(subjects.values()).some((subject) =>
             subject.nombre.toLocaleLowerCase() === subjectName.toLocaleLowerCase()

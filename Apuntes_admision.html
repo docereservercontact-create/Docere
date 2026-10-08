@@ -429,7 +429,8 @@
                 ...pizarra,
                 aulaId: classroom.id,
                 aulaNombre: classroom.nombre || 'Aula',
-                materiaNombre: subjectNames.get(pizarra.materiaId) || pizarra.materia || 'Materia no disponible'
+                materiaNombre: subjectNames.get(pizarra.materiaId) || pizarra.materia || pizarra.nombre || 'Otras pizarras',
+                materiaResuelta: Boolean(subjectNames.get(pizarra.materiaId))
               }));
           } catch (error) {
             console.error(`No se pudieron cargar las pizarras del aula ${classroom.id}:`, error);
@@ -445,7 +446,7 @@
         const subjectGroups = new Map();
         pizarras.forEach((pizarra) => {
           const materia = (pizarra.materiaNombre || pizarra.materia || pizarra.nombre || 'Otras pizarras').trim();
-          const groupKey = `${pizarra.aulaId}/${pizarra.materiaId || materia.toLocaleLowerCase()}`;
+          const groupKey = `${pizarra.aulaId}/${pizarra.materiaResuelta ? pizarra.materiaId : materia.toLocaleLowerCase()}`;
           if (!subjectGroups.has(groupKey)) {
             subjectGroups.set(groupKey, { materia, aulaNombre: pizarra.aulaNombre, topics: [] });
           }
