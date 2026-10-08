@@ -102,7 +102,104 @@
 }
 
 .student-navbar .user-profile {
+  display: flex;
   flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border-left: 1px solid #dce7f1;
+  border-radius: 8px;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.student-navbar .user-profile:hover {
+  background: #eff6ff;
+}
+
+.student-navbar .avatar-wrapper {
+  display: flex;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 2px solid #2563eb;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #2563eb;
+}
+
+.student-navbar .avatar-wrapper svg {
+  width: 22px;
+  height: 22px;
+}
+
+.student-navbar .user-info {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.student-navbar .user-name {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.student-navbar .user-role {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.student-navbar .btn {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 15px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+}
+
+.student-navbar .btn svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.student-navbar .btn-primary {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.student-navbar .btn-primary:hover {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+}
+
+.student-navbar .btn-outline {
+  border-color: #dce7f1;
+  background: #fff;
+  color: #0f172a;
+}
+
+.student-navbar .btn-outline:hover {
+  background: #f1f5f9;
 }
 
 .student-menu-toggle {
