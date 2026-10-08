@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Asignaciones de tus aulas.">
+  <title>Mis asignaciones | Docére</title>
+  <script src="student-session.js"></script>
+  <style>
+    :root {
+      --page: #f4f7fb;
+      --surface: #fff;
+      --ink: #142033;
+      --muted: #64748b;
+      --line: #dce4ee;
+      --blue: #155eef;
+      --green: #087f5b;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--page); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .page { width: min(100% - 40px, 1040px); margin: 0 auto; padding: 32px 0 48px; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+    .page-header h1 { margin: 0; font-size: 28px; }
+    .back-link { color: var(--blue); font-size: 14px; font-weight: 600; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    .status { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+    .assignment-list { display: grid; gap: 14px; }
+    .assignment-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 230px); gap: 22px; padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+    .assignment-card h2 { margin: 0 0 6px; font-size: 19px; overflow-wrap: anywhere; }
+    .assignment-context, .assignment-meta { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .assignment-instructions { margin-top: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+    .assignment-instructions > :first-child { margin-top: 0; }
+    .assignment-instructions > :last-child { margin-bottom: 0; }
+    .assignment-attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .assignment-attachments a { color: var(--blue); overflow-wrap: anywhere; }
+    .assignment-details { align-self: start; display: grid; gap: 8px; padding: 14px; border-radius: 6px; background: #f1f5f9; }
+    .assignment-details strong { font-size: 14px; }
+    .assignment-points { color: var(--green); font-size: 13px; font-weight: 700; }
+    .empty { padding: 28px 18px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); text-align: center; }
+    @media (max-width: 640px) {
+      .page { width: min(100% - 28px, 1040px); padding-top: 22px; }
+      .page-header { align-items: flex-start; flex-direction: column-reverse; gap: 12px; margin-bottom: 18px; }
+      .page-header h1 { font-size: 24px; }
+      .assignment-card { grid-template-columns: 1fr; gap: 14px; padding: 15px; }
+      .assignment-details { grid-row: 2; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <h1>Mis asignaciones</h1>
+      <a class="back-link" href="panel_estudiante.html">Volver a mi panel</a>
+    </header>
+    <p class="status" id="assignmentsStatus" role="status" aria-live="polite">Cargando asignaciones...</p>
+    <section class="assignment-list" id="assignmentsList" aria-label="Asignaciones del alumno"></section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { collection, getDocs, getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
+
+    const firebaseConfig = {
+      apiKey: 'AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag',
+      authDomain: 'docere-931ec.firebaseapp.com',
+      projectId: 'docere-931ec',
+      storageBucket: 'docere-931ec.firebasestorage.app',
+      messagingSenderId: '1005663843239',
+      appId: '1:1005663843239:web:d8f6c7524a5d10bf797c82',
+      measurementId: 'G-B6TDT4VE7S'
+    };
+
+    const app = initializeApp(firebaseConfig, 'studentAssignments');
+    const db = getFirestore(app);
+    const assignmentsStatus = document.getElementById('assignmentsStatus');
+    const assignmentsList = document.getElementById('assignmentsList');
+
+    function addText(parent, tagName, className, text) {
+      const element = document.createElement(tagName);
+      element.className = className;
+      element.textContent = text;
+      parent.append(element);
+      return element;
+    }
+
+    function isStudentInClassroom(classroom, student) {
+      return Array.isArray(classroom.alumnos) && classroom.alumnos.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && assignedStudent.email === student.email)
+      );
+    }
+
+    function isTaskAssignedToStudent(task, student) {
+      if (!Array.isArray(task.alumnosAsignados)) return true;
+      return task.alumnosAsignados.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && assignedStudent.email === student.email)
+      );
+    }
+
+    function sanitizeRichHtml(html) {
+      const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'H2', 'H3', 'UL', 'OL', 'LI', 'BLOCKQUOTE']);
+      const blockedTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'SVG', 'MATH']);
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+
+      function copySafeNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || '');
+        if (node.nodeType !== Node.ELEMENT_NODE || blockedTags.has(node.tagName)) return document.createDocumentFragment();
+        const fragment = document.createDocumentFragment();
+        const target = allowedTags.has(node.tagName) ? document.createElement(node.tagName.toLowerCase()) : fragment;
+        Array.from(node.childNodes).forEach((child) => target.append(copySafeNode(child)));
+        return target;
+      }
+
+      const safeContent = document.createElement('div');
+      Array.from(parsed.body.childNodes).forEach((node) => safeContent.append(copySafeNode(node)));
+      return safeContent.innerHTML;
+    }
+
+    function formatDeadline(value) {
+      if (!value) return 'Sin fecha de entrega';
+      const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+      return Number.isNaN(date.getTime())
+        ? 'Fecha de entrega no válida'
+        : new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    }
+
+    function renderAssignment(task) {
+      const card = document.createElement('article');
+      card.className = 'assignment-card';
+      const content = document.createElement('div');
+      addText(content, 'h2', '', task.titulo || 'Asignación sin título');
+      addText(content, 'p', 'assignment-context', `${task.curso || 'Curso'} · ${task.aulaNombre || 'Aula'}`);
+      if (task.profesorNombre) addText(content, 'p', 'assignment-meta', `Profesor: ${task.profesorNombre}`);
+
+      const instructions = document.createElement('div');
+      instructions.className = 'assignment-instructions';
+      instructions.innerHTML = sanitizeRichHtml(task.instrucciones || '');
+      content.append(instructions);
+
+      if (Array.isArray(task.adjuntos) && task.adjuntos.length) {
+        const attachments = document.createElement('div');
+        attachments.className = 'assignment-attachments';
+        task.adjuntos.forEach((attachment) => {
+          try {
+            const url = new URL(attachment.url);
+            if (!['http:', 'https:'].includes(url.protocol)) return;
+            const link = addText(attachments, 'a', '', attachment.nombre || url.hostname);
+            link.href = url.href;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+          } catch {
+            return;
+          }
+        });
+        if (attachments.childElementCount) content.append(attachments);
+      }
+
+      const details = document.createElement('aside');
+      details.className = 'assignment-details';
+      addText(details, 'strong', '', task.tema || 'Tarea');
+      addText(details, 'span', 'assignment-points', `${task.puntos ?? 100} puntos`);
+      addText(details, 'span', 'assignment-meta', `Entrega: ${formatDeadline(task.fechaEntrega)}`);
+      card.append(content, details);
+      return card;
+    }
+
+    async function loadAssignments() {
+      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!student?.id || !student?.coleccion) {
+        assignmentsStatus.textContent = 'No se encontró la sesión del alumno. Inicia sesión para consultar tus asignaciones.';
+        return;
+      }
+
+      try {
+        const absenceStatus = await getStudentAbsenceStatus(student);
+        if (absenceStatus.isSuspended) {
+          assignmentsStatus.textContent = getSuspensionMessage(absenceStatus);
+          return;
+        }
+
+        const classroomsSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomsSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => isStudentInClassroom(classroom, student));
+
+        if (!classrooms.length) {
+          assignmentsStatus.textContent = 'Aún no estás asignado a un aula.';
+          assignmentsList.append(addText(document.createElement('div'), 'p', 'empty', 'Cuando se te asigne un aula, aquí aparecerán tus tareas.'));
+          return;
+        }
+
+        const classroomResults = await Promise.all(classrooms.map(async (classroom) => {
+          try {
+            const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'tareas'));
+            return snapshot.docs
+              .map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }))
+              .filter((task) => isTaskAssignedToStudent(task, student))
+              .map((task) => ({ ...task, aulaId: classroom.id, aulaNombre: classroom.nombre || task.aulaNombre || 'Aula', curso: classroom.curso || task.curso || '' }));
+          } catch (error) {
+            console.error(`No se pudieron cargar las asignaciones del aula ${classroom.id}:`, error);
+            return null;
+          }
+        }));
+
+        const failedCount = classroomResults.filter((result) => result === null).length;
+        const assignments = classroomResults
+          .filter(Boolean)
+          .flat()
+          .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+        assignmentsList.replaceChildren();
+        if (!assignments.length) {
+          assignmentsStatus.textContent = failedCount
+            ? `No se pudieron consultar las tareas de ${failedCount} aula(s). Revisa los permisos de Firestore.`
+            : 'Todavía no tienes asignaciones.';
+          return;
+        }
+
+        assignments.forEach((task) => assignmentsList.append(renderAssignment(task)));
+        assignmentsStatus.textContent = failedCount
+          ? `${assignments.length} asignación(es). No se pudieron consultar ${failedCount} aula(s).`
+          : `${assignments.length} asignación(es) en ${classrooms.length} aula(s).`;
+      } catch (error) {
+        console.error('No se pudieron cargar las asignaciones del alumno:', error);
+        assignmentsStatus.textContent = 'No se pudieron cargar tus asignaciones. Revisa la conexión y los permisos de Firestore.';
+      }
+    }
+
+    loadAssignments();
+  </script>
+</body>
+</html>
