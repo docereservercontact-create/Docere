@@ -63,7 +63,7 @@
     .tab-content[hidden] { display: none; }
     .announcements { display: grid; gap: 14px; }
     .announcement-form { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
-    .announcement-form input { min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; font: inherit; }
+    .announcement-form input, .announcement-form select { min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
     .editor-toolbar { display: flex; flex-wrap: wrap; gap: 5px; }
     .editor-toolbar button { min-width: 36px; min-height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); cursor: pointer; }
     .editor-toolbar button:hover { background: #edf3fb; }
@@ -242,7 +242,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDoc, query, where, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, query, where, getDocs, addDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { logSessionEvent } from './session-audit.js';
 
     const firebaseConfig = {
@@ -489,14 +489,26 @@
     async function renderPizarras(aula) {
       const pizarras = document.createElement('section');
       pizarras.className = 'announcements';
+      const subjectForm = document.createElement('form');
+      subjectForm.className = 'announcement-form';
+      const newSubjectInput = document.createElement('input');
+      newSubjectInput.type = 'text';
+      newSubjectInput.maxLength = 80;
+      newSubjectInput.required = true;
+      newSubjectInput.placeholder = 'Nueva materia (ej. Historia)';
+      newSubjectInput.setAttribute('aria-label', 'Nombre de la nueva materia');
+      const createSubjectButton = addText(subjectForm, 'button', 'announcement-submit', 'Crear materia');
+      createSubjectButton.type = 'submit';
+      const subjectStatus = addText(subjectForm, 'p', 'attendance-status', '');
+      subjectStatus.setAttribute('role', 'status');
+      subjectForm.prepend(newSubjectInput);
+
       const form = document.createElement('form');
       form.className = 'announcement-form';
-      const subjectInput = document.createElement('input');
-      subjectInput.type = 'text';
-      subjectInput.maxLength = 80;
-      subjectInput.required = true;
-      subjectInput.placeholder = 'Materia (ej. Historia)';
-      subjectInput.setAttribute('aria-label', 'Materia de la pizarra');
+      const subjectSelect = document.createElement('select');
+      subjectSelect.required = true;
+      subjectSelect.setAttribute('aria-label', 'Materia de la pizarra');
+      subjectSelect.add(new Option('Selecciona una materia', ''));
       const nameInput = document.createElement('input');
       nameInput.type = 'text';
       nameInput.maxLength = 120;
@@ -520,26 +532,93 @@
       saveButton.className = 'announcement-submit';
       saveButton.type = 'submit';
       saveButton.textContent = 'Guardar pizarra';
+      saveButton.disabled = true;
       const formStatus = addText(form, 'p', 'attendance-status', '');
       formStatus.setAttribute('role', 'status');
-      form.prepend(subjectInput, nameInput, urlInput, publishField, saveButton);
+      form.prepend(subjectSelect, nameInput, urlInput, publishField, saveButton);
       const pizarraList = document.createElement('div');
       pizarraList.className = 'announcement-list';
-      pizarras.append(form, pizarraList);
+      pizarras.append(subjectForm, form, pizarraList);
       let editingPizarraId = null;
+      const subjects = new Map();
+
+      function renderSubjectOptions(selectedId = '') {
+        subjectSelect.replaceChildren(new Option('Selecciona una materia', ''));
+        Array.from(subjects.entries())
+          .sort((left, right) => left[1].nombre.localeCompare(right[1].nombre, 'es'))
+          .forEach(([id, subject]) => subjectSelect.add(new Option(subject.nombre, id)));
+        subjectSelect.value = selectedId;
+        saveButton.disabled = !subjectSelect.value;
+      }
 
       function resetForm() {
         editingPizarraId = null;
-        subjectInput.value = '';
         nameInput.value = '';
         urlInput.value = '';
         publishInput.checked = true;
+        renderSubjectOptions(subjectSelect.value);
       }
+
+      subjectForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const subjectName = newSubjectInput.value.trim();
+        if (!subjectName) return;
+        const existingSubject = Array.from(subjects.entries()).find(([, subject]) =>
+          subject.nombre.toLocaleLowerCase() === subjectName.toLocaleLowerCase()
+        );
+        if (existingSubject) {
+          renderSubjectOptions(existingSubject[0]);
+          subjectStatus.textContent = 'Esa materia ya existe. Ya puedes agregarle una pizarra.';
+          subjectForm.reset();
+          return;
+        }
+
+        createSubjectButton.disabled = true;
+        subjectStatus.textContent = 'Creando materia...';
+        try {
+          const subjectDoc = await addDoc(collection(db, 'Aulas', aula.id, 'materias'), {
+            nombre: subjectName,
+            profesorDocId: session.teacherDocId,
+            creadoEn: serverTimestamp()
+          });
+          subjects.set(subjectDoc.id, { nombre: subjectName });
+          renderSubjectOptions(subjectDoc.id);
+          subjectForm.reset();
+          subjectStatus.textContent = `Materia ${subjectName} creada. Ahora agrega sus pizarras.`;
+        } catch (error) {
+          console.error(`No se pudo crear la materia del aula ${aula.id}:`, error);
+          subjectStatus.textContent = 'No se pudo crear la materia. Revisa los permisos de Firestore.';
+        } finally {
+          createSubjectButton.disabled = false;
+        }
+      });
+
+      subjectSelect.addEventListener('change', () => {
+        saveButton.disabled = !subjectSelect.value;
+        if (!editingPizarraId) formStatus.textContent = '';
+      });
 
       async function loadPizarras() {
         pizarraList.replaceChildren();
-        const snapshot = await getDocs(collection(db, 'Aulas', aula.id, 'pizarras'));
+        const [snapshot, subjectsSnapshot] = await Promise.all([
+          getDocs(collection(db, 'Aulas', aula.id, 'pizarras')),
+          getDocs(collection(db, 'Aulas', aula.id, 'materias'))
+        ]);
+        subjects.clear();
+        subjectsSnapshot.docs.forEach((subjectDoc) => {
+          const data = subjectDoc.data();
+          if (data.nombre) subjects.set(subjectDoc.id, { nombre: data.nombre });
+        });
         const records = snapshot.docs.map((pizarraDoc) => ({ id: pizarraDoc.id, ...pizarraDoc.data() }));
+        records.forEach((record) => {
+          const subjectName = record.materia || record.nombre;
+          if (!subjectName) return;
+          const exists = Array.from(subjects.values()).some((subject) =>
+            subject.nombre.toLocaleLowerCase() === subjectName.toLocaleLowerCase()
+          );
+          if (!exists) subjects.set(`legacy:${subjectName.toLocaleLowerCase()}`, { nombre: subjectName });
+        });
+        renderSubjectOptions(subjectSelect.value);
         records.sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
         if (!records.length) {
           addText(pizarraList, 'p', 'tab-placeholder', 'Todavía no hay pizarras en esta aula.');
@@ -556,7 +635,11 @@
           editButton.type = 'button';
           editButton.addEventListener('click', () => {
             editingPizarraId = record.id;
-            subjectInput.value = record.materia || '';
+            const subjectName = record.materia || record.nombre || '';
+            const subjectEntry = Array.from(subjects.entries()).find(([, subject]) =>
+              subject.nombre.toLocaleLowerCase() === subjectName.toLocaleLowerCase()
+            );
+            renderSubjectOptions(subjectEntry?.[0] || '');
             nameInput.value = record.nombre || '';
             urlInput.value = record.enlace || '';
             publishInput.checked = record.publicado === true;
@@ -583,9 +666,10 @@
 
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        if (!subjectInput.value.trim()) {
-          formStatus.textContent = 'Escribe la materia de la pizarra.';
-          subjectInput.focus();
+        const selectedSubject = subjects.get(subjectSelect.value);
+        if (!selectedSubject) {
+          formStatus.textContent = 'Crea o selecciona una materia para agregar la pizarra.';
+          subjectSelect.focus();
           return;
         }
         if (!nameInput.value.trim()) {
@@ -609,7 +693,7 @@
         formStatus.textContent = 'Guardando pizarra...';
         try {
           const pizarraData = {
-            materia: subjectInput.value.trim(),
+            materia: selectedSubject.nombre,
             nombre: nameInput.value.trim(),
             enlace: parsedUrl.href,
             publicado: publishInput.checked,
