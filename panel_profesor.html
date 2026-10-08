@@ -491,12 +491,18 @@
       pizarras.className = 'announcements';
       const form = document.createElement('form');
       form.className = 'announcement-form';
+      const subjectInput = document.createElement('input');
+      subjectInput.type = 'text';
+      subjectInput.maxLength = 80;
+      subjectInput.required = true;
+      subjectInput.placeholder = 'Materia (ej. Historia)';
+      subjectInput.setAttribute('aria-label', 'Materia de la pizarra');
       const nameInput = document.createElement('input');
       nameInput.type = 'text';
       nameInput.maxLength = 120;
       nameInput.required = true;
-      nameInput.placeholder = 'Nombre de la pizarra';
-      nameInput.setAttribute('aria-label', 'Nombre de la pizarra');
+      nameInput.placeholder = 'Tema (ej. Unidad 1)';
+      nameInput.setAttribute('aria-label', 'Tema de la pizarra');
       const urlInput = document.createElement('input');
       urlInput.type = 'url';
       urlInput.required = true;
@@ -516,7 +522,7 @@
       saveButton.textContent = 'Guardar pizarra';
       const formStatus = addText(form, 'p', 'attendance-status', '');
       formStatus.setAttribute('role', 'status');
-      form.prepend(nameInput, urlInput, publishField, saveButton);
+      form.prepend(subjectInput, nameInput, urlInput, publishField, saveButton);
       const pizarraList = document.createElement('div');
       pizarraList.className = 'announcement-list';
       pizarras.append(form, pizarraList);
@@ -524,6 +530,7 @@
 
       function resetForm() {
         editingPizarraId = null;
+        subjectInput.value = '';
         nameInput.value = '';
         urlInput.value = '';
         publishInput.checked = true;
@@ -544,11 +551,12 @@
           card.className = 'announcement-card';
           const cardHeader = document.createElement('div');
           cardHeader.className = 'announcement-card-header';
-          addText(cardHeader, 'h3', '', record.nombre || 'Pizarra');
+          addText(cardHeader, 'h3', '', `${record.materia || 'Materia sin asignar'} · ${record.nombre || 'Tema'}`);
           const editButton = addText(cardHeader, 'button', 'announcement-edit', 'Editar');
           editButton.type = 'button';
           editButton.addEventListener('click', () => {
             editingPizarraId = record.id;
+            subjectInput.value = record.materia || '';
             nameInput.value = record.nombre || '';
             urlInput.value = record.enlace || '';
             publishInput.checked = record.publicado === true;
@@ -575,8 +583,13 @@
 
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (!subjectInput.value.trim()) {
+          formStatus.textContent = 'Escribe la materia de la pizarra.';
+          subjectInput.focus();
+          return;
+        }
         if (!nameInput.value.trim()) {
-          formStatus.textContent = 'Escribe el nombre de la pizarra.';
+          formStatus.textContent = 'Escribe el tema de la pizarra.';
           nameInput.focus();
           return;
         }
@@ -596,6 +609,7 @@
         formStatus.textContent = 'Guardando pizarra...';
         try {
           const pizarraData = {
+            materia: subjectInput.value.trim(),
             nombre: nameInput.value.trim(),
             enlace: parsedUrl.href,
             publicado: publishInput.checked,

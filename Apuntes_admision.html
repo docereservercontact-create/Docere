@@ -177,6 +177,11 @@
       color: var(--muted);
     }
 
+    .subject-topics { display: grid; gap: 7px; }
+    .subject-topic-link { color: var(--accent); font-size: 16px; line-height: 1.45; overflow-wrap: anywhere; text-decoration: none; }
+    .subject-topic-link:hover { color: var(--accent-hover); text-decoration: underline; }
+    .subject-topic-link:focus-visible { border-radius: 3px; outline: 2px solid var(--accent); outline-offset: 3px; }
+
     .btn {
       display: inline-flex;
       min-height: 48px;
@@ -410,7 +415,7 @@
             return snapshot.docs
               .map((pizarraDoc) => ({ id: pizarraDoc.id, ...pizarraDoc.data() }))
               .filter((pizarra) => pizarra.publicado === true)
-              .map((pizarra) => ({ ...pizarra, aulaNombre: classroom.nombre || 'Aula' }));
+              .map((pizarra) => ({ ...pizarra, aulaId: classroom.id, aulaNombre: classroom.nombre || 'Aula' }));
           } catch (error) {
             console.error(`No se pudieron cargar las pizarras del aula ${classroom.id}:`, error);
             return null;
@@ -422,26 +427,36 @@
           .flat()
           .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
 
+        const subjectGroups = new Map();
         pizarras.forEach((pizarra) => {
+          const materia = (pizarra.materia || pizarra.nombre || 'Otras pizarras').trim();
+          const groupKey = `${pizarra.aulaId}/${materia.toLocaleLowerCase()}`;
+          if (!subjectGroups.has(groupKey)) {
+            subjectGroups.set(groupKey, { materia, aulaNombre: pizarra.aulaNombre, topics: [] });
+          }
+          subjectGroups.get(groupKey).topics.push(pizarra);
+        });
+
+        subjectGroups.forEach(({ materia, aulaNombre, topics }) => {
           const card = document.createElement('article');
           card.className = 'subject-card';
-          addText(card, 'h2', '', pizarra.nombre || 'Pizarra');
-          addText(card, 'p', '', pizarra.aulaNombre);
-          try {
-            const linkUrl = new URL(pizarra.enlace);
-            if (!['http:', 'https:'].includes(linkUrl.protocol)) throw new Error('Protocolo no permitido.');
-            const link = document.createElement('a');
-            link.className = 'btn';
-            link.href = linkUrl.href;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-            link.append(document.createElement('i'));
-            link.firstElementChild.setAttribute('data-lucide', 'external-link');
-            link.append(document.createTextNode('Abrir pizarra'));
-            card.append(link);
-          } catch {
-            addText(card, 'p', '', 'El enlace de esta pizarra no está disponible.');
-          }
+          addText(card, 'h2', '', materia);
+          addText(card, 'p', '', aulaNombre);
+          const topicList = document.createElement('div');
+          topicList.className = 'subject-topics';
+          topics.forEach((pizarra) => {
+            try {
+              const linkUrl = new URL(pizarra.enlace);
+              if (!['http:', 'https:'].includes(linkUrl.protocol)) throw new Error('Protocolo no permitido.');
+              const link = addText(topicList, 'a', 'subject-topic-link', pizarra.nombre || 'Abrir pizarra');
+              link.href = linkUrl.href;
+              link.target = '_blank';
+              link.rel = 'noopener noreferrer';
+            } catch {
+              addText(topicList, 'span', 'subject-topic-link', `${pizarra.nombre || 'Tema'} · Enlace no disponible`);
+            }
+          });
+          card.append(topicList);
           pizarrasList.append(card);
         });
 
