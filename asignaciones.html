@@ -59,7 +59,7 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-    import { collection, getDocs, getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { collection, getDocs, getFirestore, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
 
     const firebaseConfig = {
@@ -192,36 +192,58 @@
           return;
         }
 
-        const classroomResults = await Promise.all(classrooms.map(async (classroom) => {
-          try {
-            const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'tareas'));
-            return snapshot.docs
-              .map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }))
-              .filter((task) => isTaskAssignedToStudent(task, student))
-              .map((task) => ({ ...task, aulaId: classroom.id, aulaNombre: classroom.nombre || task.aulaNombre || 'Aula', curso: classroom.curso || task.curso || '' }));
-          } catch (error) {
-            console.error(`No se pudieron cargar las asignaciones del aula ${classroom.id}:`, error);
-            return null;
-          }
-        }));
+        const assignmentsByClassroom = new Map();
+        const loadedClassrooms = new Set();
+        const unsubscribeTasks = [];
 
-        const failedCount = classroomResults.filter((result) => result === null).length;
-        const assignments = classroomResults
-          .filter(Boolean)
-          .flat()
-          .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
-        assignmentsList.replaceChildren();
-        if (!assignments.length) {
-          assignmentsStatus.textContent = failedCount
-            ? `No se pudieron consultar las tareas de ${failedCount} aula(s). Revisa los permisos de Firestore.`
-            : 'Todavía no tienes asignaciones.';
-          return;
+        function renderAssignments() {
+          const assignments = Array.from(assignmentsByClassroom.values())
+            .filter(Boolean)
+            .flat()
+            .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+          assignmentsList.replaceChildren();
+          assignments.forEach((task) => assignmentsList.append(renderAssignment(task)));
+
+          const failedCount = Array.from(assignmentsByClassroom.values()).filter((result) => result === null).length;
+          if (loadedClassrooms.size < classrooms.length) {
+            assignmentsStatus.textContent = assignments.length
+              ? `${assignments.length} asignación(es). Cargando ${classrooms.length - loadedClassrooms.size} aula(s)...`
+              : 'Cargando asignaciones...';
+          } else if (!assignments.length) {
+            assignmentsStatus.textContent = failedCount
+              ? `No se pudieron consultar las tareas de ${failedCount} aula(s). Revisa los permisos de Firestore.`
+              : 'Todavía no tienes asignaciones.';
+          } else {
+            assignmentsStatus.textContent = failedCount
+              ? `${assignments.length} asignación(es). No se pudieron consultar ${failedCount} aula(s).`
+              : `${assignments.length} asignación(es) en ${classrooms.length} aula(s).`;
+          }
         }
 
-        assignments.forEach((task) => assignmentsList.append(renderAssignment(task)));
-        assignmentsStatus.textContent = failedCount
-          ? `${assignments.length} asignación(es). No se pudieron consultar ${failedCount} aula(s).`
-          : `${assignments.length} asignación(es) en ${classrooms.length} aula(s).`;
+        classrooms.forEach((classroom) => {
+          const unsubscribe = onSnapshot(collection(db, 'Aulas', classroom.id, 'tareas'), (snapshot) => {
+            assignmentsByClassroom.set(classroom.id, snapshot.docs
+              .map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }))
+              .filter((task) => isTaskAssignedToStudent(task, student))
+              .map((task) => ({
+                ...task,
+                aulaId: classroom.id,
+                aulaNombre: classroom.nombre || task.aulaNombre || 'Aula',
+                curso: classroom.curso || task.curso || ''
+              })));
+            loadedClassrooms.add(classroom.id);
+            renderAssignments();
+          }, (error) => {
+            console.error(`No se pudieron escuchar las asignaciones del aula ${classroom.id}:`, error);
+            assignmentsByClassroom.set(classroom.id, null);
+            loadedClassrooms.add(classroom.id);
+            renderAssignments();
+          });
+          unsubscribeTasks.push(unsubscribe);
+        });
+
+        window.addEventListener('pagehide', () => unsubscribeTasks.forEach((unsubscribe) => unsubscribe()), { once: true });
+        assignmentsStatus.textContent = 'Cargando asignaciones...';
       } catch (error) {
         console.error('No se pudieron cargar las asignaciones del alumno:', error);
         assignmentsStatus.textContent = 'No se pudieron cargar tus asignaciones. Revisa la conexión y los permisos de Firestore.';
