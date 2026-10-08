@@ -242,7 +242,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDoc, query, where, getDocs, addDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, query, where, getDocs, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { logSessionEvent } from './session-audit.js';
 
     const firebaseConfig = {
@@ -542,6 +542,10 @@
       let editingPizarraId = null;
       const subjects = new Map();
 
+      function getSubjectDocumentId(subjectName) {
+        return `materia-${encodeURIComponent(subjectName.trim().toLocaleLowerCase())}`;
+      }
+
       function renderSubjectOptions(selectedId = '') {
         subjectSelect.replaceChildren(new Option('Selecciona una materia', ''));
         Array.from(subjects.entries())
@@ -576,13 +580,14 @@
         createSubjectButton.disabled = true;
         subjectStatus.textContent = 'Creando materia...';
         try {
-          const subjectDoc = await addDoc(collection(db, 'Aulas', aula.id, 'materias'), {
+          const subjectId = getSubjectDocumentId(subjectName);
+          await setDoc(doc(db, 'Aulas', aula.id, 'materias', subjectId), {
             nombre: subjectName,
             profesorDocId: session.teacherDocId,
             creadoEn: serverTimestamp()
-          });
-          subjects.set(subjectDoc.id, { nombre: subjectName });
-          renderSubjectOptions(subjectDoc.id);
+          }, { merge: true });
+          subjects.set(subjectId, { nombre: subjectName });
+          renderSubjectOptions(subjectId);
           subjectForm.reset();
           subjectStatus.textContent = `Materia ${subjectName} creada. Ahora agrega sus pizarras.`;
         } catch (error) {
@@ -630,15 +635,20 @@
           card.className = 'announcement-card';
           const cardHeader = document.createElement('div');
           cardHeader.className = 'announcement-card-header';
-          addText(cardHeader, 'h3', '', `${record.materia || 'Materia sin asignar'} · ${record.nombre || 'Tema'}`);
+          const subjectName = record.materiaId
+            ? subjects.get(record.materiaId)?.nombre || 'Materia no disponible'
+            : record.materia || 'Materia sin asignar';
+          addText(cardHeader, 'h3', '', `${subjectName} · ${record.nombre || 'Tema'}`);
           const editButton = addText(cardHeader, 'button', 'announcement-edit', 'Editar');
           editButton.type = 'button';
           editButton.addEventListener('click', () => {
             editingPizarraId = record.id;
             const subjectName = record.materia || record.nombre || '';
-            const subjectEntry = Array.from(subjects.entries()).find(([, subject]) =>
-              subject.nombre.toLocaleLowerCase() === subjectName.toLocaleLowerCase()
-            );
+            const subjectEntry = record.materiaId && subjects.has(record.materiaId)
+              ? [record.materiaId, subjects.get(record.materiaId)]
+              : Array.from(subjects.entries()).find(([, subject]) =>
+                subject.nombre.toLocaleLowerCase() === subjectName.toLocaleLowerCase()
+              );
             renderSubjectOptions(subjectEntry?.[0] || '');
             nameInput.value = record.nombre || '';
             urlInput.value = record.enlace || '';
@@ -692,8 +702,20 @@
         saveButton.disabled = true;
         formStatus.textContent = 'Guardando pizarra...';
         try {
+          let subjectId = subjectSelect.value;
+          if (subjectId.startsWith('legacy:')) {
+            subjectId = getSubjectDocumentId(selectedSubject.nombre);
+            await setDoc(doc(db, 'Aulas', aula.id, 'materias', subjectId), {
+              nombre: selectedSubject.nombre,
+              profesorDocId: session.teacherDocId,
+              creadoEn: serverTimestamp()
+            }, { merge: true });
+            subjects.delete(subjectSelect.value);
+            subjects.set(subjectId, { nombre: selectedSubject.nombre });
+            renderSubjectOptions(subjectId);
+          }
           const pizarraData = {
-            materia: selectedSubject.nombre,
+            materiaId: subjectId,
             nombre: nameInput.value.trim(),
             enlace: parsedUrl.href,
             publicado: publishInput.checked,
@@ -702,7 +724,10 @@
             actualizadoEn: serverTimestamp()
           };
           if (editingPizarraId) {
-            await updateDoc(doc(db, 'Aulas', aula.id, 'pizarras', editingPizarraId), pizarraData);
+            await updateDoc(doc(db, 'Aulas', aula.id, 'pizarras', editingPizarraId), {
+              ...pizarraData,
+              materia: deleteField()
+            });
           } else {
             await setDoc(doc(collection(db, 'Aulas', aula.id, 'pizarras')), {
               ...pizarraData,

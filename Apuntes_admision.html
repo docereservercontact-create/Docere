@@ -412,10 +412,25 @@
               getDocs(collection(db, 'Aulas', classroom.id, 'pizarras')),
               `La consulta de pizarras del aula ${classroom.nombre || classroom.id} está tardando demasiado.`
             );
+            let subjectNames = new Map();
+            try {
+              const subjectsSnapshot = await withTimeout(
+                getDocs(collection(db, 'Aulas', classroom.id, 'materias')),
+                `La consulta de materias del aula ${classroom.nombre || classroom.id} está tardando demasiado.`
+              );
+              subjectNames = new Map(subjectsSnapshot.docs.map((subjectDoc) => [subjectDoc.id, subjectDoc.data().nombre]));
+            } catch (error) {
+              console.error(`No se pudieron consultar las materias del aula ${classroom.id}:`, error);
+            }
             return snapshot.docs
               .map((pizarraDoc) => ({ id: pizarraDoc.id, ...pizarraDoc.data() }))
               .filter((pizarra) => pizarra.publicado === true)
-              .map((pizarra) => ({ ...pizarra, aulaId: classroom.id, aulaNombre: classroom.nombre || 'Aula' }));
+              .map((pizarra) => ({
+                ...pizarra,
+                aulaId: classroom.id,
+                aulaNombre: classroom.nombre || 'Aula',
+                materiaNombre: subjectNames.get(pizarra.materiaId) || pizarra.materia || 'Materia no disponible'
+              }));
           } catch (error) {
             console.error(`No se pudieron cargar las pizarras del aula ${classroom.id}:`, error);
             return null;
@@ -429,8 +444,8 @@
 
         const subjectGroups = new Map();
         pizarras.forEach((pizarra) => {
-          const materia = (pizarra.materia || pizarra.nombre || 'Otras pizarras').trim();
-          const groupKey = `${pizarra.aulaId}/${materia.toLocaleLowerCase()}`;
+          const materia = (pizarra.materiaNombre || pizarra.materia || pizarra.nombre || 'Otras pizarras').trim();
+          const groupKey = `${pizarra.aulaId}/${pizarra.materiaId || materia.toLocaleLowerCase()}`;
           if (!subjectGroups.has(groupKey)) {
             subjectGroups.set(groupKey, { materia, aulaNombre: pizarra.aulaNombre, topics: [] });
           }
