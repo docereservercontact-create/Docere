@@ -87,6 +87,9 @@
     .pizarra-entry { flex-wrap: wrap; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
     .pizarra-entry > a { min-width: 0; color: var(--blue); overflow-wrap: anywhere; }
     .pizarra-actions { flex: 0 0 auto; }
+    .pizarra-order-button { min-height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font-size: 12px; cursor: pointer; }
+    .pizarra-order-button:hover:not(:disabled) { background: #edf3fb; }
+    .pizarra-order-button:disabled { opacity: .45; cursor: not-allowed; }
     .pizarra-delete { flex: 0 0 auto; min-height: 34px; padding: 0 10px; border: 1px solid #fecdca; border-radius: 5px; background: #fff; color: var(--red); font-size: 12px; font-weight: 650; cursor: pointer; }
     .pizarra-delete:hover { background: #fef3f2; }
     .pizarra-delete:disabled, .announcement-edit:disabled { opacity: .6; cursor: wait; }
@@ -574,6 +577,40 @@
         renderSubjectOptions(subjectSelect.value);
       }
 
+      function getBoardOrder(board) {
+        return Number.isFinite(board.orden) ? board.orden : -(board.creadoEn?.toMillis?.() || 0);
+      }
+
+      async function moveBoard(subjectId, boardId, direction, moveButton) {
+        const subjectBoards = boardsBySubject.get(subjectId) || [];
+        const currentIndex = subjectBoards.findIndex((board) => board.id === boardId);
+        const targetIndex = currentIndex + direction;
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= subjectBoards.length) return;
+
+        moveButton.disabled = true;
+        formStatus.textContent = 'Actualizando el orden de las pizarras...';
+        const reorderedBoards = [...subjectBoards];
+        [reorderedBoards[currentIndex], reorderedBoards[targetIndex]] = [reorderedBoards[targetIndex], reorderedBoards[currentIndex]];
+        try {
+          for (let offset = 0; offset < reorderedBoards.length; offset += 450) {
+            const batch = writeBatch(db);
+            reorderedBoards.slice(offset, offset + 450).forEach((board, index) => {
+              batch.update(doc(db, 'Aulas', aula.id, 'pizarras', board.id), {
+                orden: offset + index,
+                actualizadoEn: serverTimestamp()
+              });
+            });
+            await batch.commit();
+          }
+          formStatus.textContent = 'Orden actualizado.';
+          await loadPizarras();
+        } catch (error) {
+          console.error(`No se pudo reordenar las pizarras del aula ${aula.id}:`, error);
+          formStatus.textContent = 'No se pudo guardar el orden. Revisa los permisos de Firestore.';
+          moveButton.disabled = false;
+        }
+      }
+
       async function deleteSubject(subjectId, subjectName, deleteButton) {
         const legacySubject = subjectId.startsWith('legacy:');
         deleteButton.disabled = true;
@@ -693,7 +730,6 @@
           if (!exists) subjects.set(`legacy:${subjectName.toLocaleLowerCase()}`, { nombre: subjectName });
         });
         renderSubjectOptions(subjectSelect.value);
-        records.sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
         const boardsBySubject = new Map(Array.from(subjects.keys(), (subjectId) => [subjectId, []]));
         records.forEach((record) => {
           let subjectId = record.materiaId;
@@ -707,6 +743,7 @@
           if (!boardsBySubject.has(subjectId)) boardsBySubject.set(subjectId, []);
           boardsBySubject.get(subjectId).push(record);
         });
+        boardsBySubject.forEach((subjectBoards) => subjectBoards.sort((left, right) => getBoardOrder(left) - getBoardOrder(right)));
 
         if (!subjects.size) addText(pizarraList, 'p', 'tab-placeholder', 'Crea una materia para empezar a agregar pizarras.');
         Array.from(subjects.entries())
@@ -741,6 +778,17 @@
               }
               const actions = document.createElement('div');
               actions.className = 'pizarra-actions';
+              const boardIndex = subjectBoards.indexOf(record);
+              const moveUpButton = addText(actions, 'button', 'pizarra-order-button', 'Subir');
+              moveUpButton.type = 'button';
+              moveUpButton.disabled = boardIndex === 0;
+              moveUpButton.setAttribute('aria-label', `Subir ${record.nombre || 'pizarra'}`);
+              moveUpButton.addEventListener('click', () => moveBoard(subjectId, record.id, -1, moveUpButton));
+              const moveDownButton = addText(actions, 'button', 'pizarra-order-button', 'Bajar');
+              moveDownButton.type = 'button';
+              moveDownButton.disabled = boardIndex === subjectBoards.length - 1;
+              moveDownButton.setAttribute('aria-label', `Bajar ${record.nombre || 'pizarra'}`);
+              moveDownButton.addEventListener('click', () => moveBoard(subjectId, record.id, 1, moveDownButton));
               const editButton = addText(actions, 'button', 'announcement-edit', 'Editar');
               editButton.type = 'button';
               editButton.addEventListener('click', () => {
@@ -815,6 +863,9 @@
             publicado: publishInput.checked,
             profesorDocId: session.teacherDocId,
             profesorNombre: session.nombre || 'Profesor',
+            ...(editingPizarraId ? {} : {
+              orden: Math.max(-1, ...(boardsBySubject.get(subjectId) || []).map(getBoardOrder)) + 1
+            }),
             actualizadoEn: serverTimestamp()
           };
           if (editingPizarraId) {

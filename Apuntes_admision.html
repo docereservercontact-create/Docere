@@ -452,6 +452,9 @@
           subjectGroups.get(groupKey).topics.push(pizarra);
         });
 
+        const getBoardOrder = (pizarra) => Number.isFinite(pizarra.orden)
+          ? pizarra.orden
+          : -(pizarra.creadoEn?.toMillis?.() || 0);
         subjectGroups.forEach(({ materia, aulaNombre, topics }) => {
           const card = document.createElement('article');
           card.className = 'subject-card';
@@ -459,6 +462,7 @@
           addText(card, 'p', '', aulaNombre);
           const topicList = document.createElement('div');
           topicList.className = 'subject-topics';
+          topics.sort((left, right) => getBoardOrder(left) - getBoardOrder(right));
           topics.forEach((pizarra) => {
             try {
               const linkUrl = new URL(pizarra.enlace);
