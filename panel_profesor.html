@@ -555,6 +555,7 @@
       pizarras.append(subjectForm, form, pizarraList);
       let editingPizarraId = null;
       const subjects = new Map();
+      const boardsBySubject = new Map();
 
       function getSubjectDocumentId(subjectName) {
         return `materia-${encodeURIComponent(subjectName.trim().toLocaleLowerCase())}`;
@@ -730,7 +731,8 @@
           if (!exists) subjects.set(`legacy:${subjectName.toLocaleLowerCase()}`, { nombre: subjectName });
         });
         renderSubjectOptions(subjectSelect.value);
-        const boardsBySubject = new Map(Array.from(subjects.keys(), (subjectId) => [subjectId, []]));
+        boardsBySubject.clear();
+        subjects.forEach((_, subjectId) => boardsBySubject.set(subjectId, []));
         records.forEach((record) => {
           let subjectId = record.materiaId;
           if (!subjectId || !subjects.has(subjectId)) {
