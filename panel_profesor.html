@@ -80,6 +80,17 @@
     .announcement-body { overflow-wrap: anywhere; line-height: 1.55; }
     .announcement-edit { flex: 0 0 auto; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--blue); font-size: 12px; font-weight: 650; cursor: pointer; }
     .announcement-edit:hover { background: #edf3fb; }
+    .pizarra-group { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
+    .pizarra-group-header, .pizarra-entry, .pizarra-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .pizarra-group-header h3, .pizarra-entry strong { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+    .pizarra-group-header h3 { font-size: 16px; }
+    .pizarra-entry { flex-wrap: wrap; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+    .pizarra-entry > a { min-width: 0; color: var(--blue); overflow-wrap: anywhere; }
+    .pizarra-actions { flex: 0 0 auto; }
+    .pizarra-delete { flex: 0 0 auto; min-height: 34px; padding: 0 10px; border: 1px solid #fecdca; border-radius: 5px; background: #fff; color: var(--red); font-size: 12px; font-weight: 650; cursor: pointer; }
+    .pizarra-delete:hover { background: #fef3f2; }
+    .pizarra-delete:disabled, .announcement-edit:disabled { opacity: .6; cursor: wait; }
+    .pizarra-group-empty { margin: 0; color: var(--muted); font-size: 13px; }
     .announcement-body > :first-child { margin-top: 0; }
     .announcement-body > :last-child { margin-bottom: 0; }
     .attendance-summary { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -242,7 +253,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDoc, query, where, getDocs, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, query, where, getDocs, setDoc, updateDoc, deleteDoc, deleteField, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { logSessionEvent } from './session-audit.js';
 
     const firebaseConfig = {
@@ -563,6 +574,63 @@
         renderSubjectOptions(subjectSelect.value);
       }
 
+      async function deleteSubject(subjectId, subjectName, deleteButton) {
+        const legacySubject = subjectId.startsWith('legacy:');
+        deleteButton.disabled = true;
+        subjectStatus.textContent = `Preparando la eliminación de ${subjectName}...`;
+        try {
+          const boardsSnapshot = await getDocs(collection(db, 'Aulas', aula.id, 'pizarras'));
+          const normalizedName = subjectName.toLocaleLowerCase();
+          const boardReferences = boardsSnapshot.docs
+            .filter((boardDoc) => {
+              const board = boardDoc.data();
+              return board.materiaId === subjectId
+                || subjectId.startsWith('legacy:')
+                  && !board.materiaId
+                  && (board.materia || board.nombre || '').toLocaleLowerCase() === normalizedName;
+            })
+            .map((boardDoc) => boardDoc.ref);
+          const deleteCount = boardReferences.length + (legacySubject ? 0 : 1);
+          if (!confirm(`¿Eliminar la materia "${subjectName}" y sus ${boardReferences.length} pizarra(s)? Se eliminarán ${deleteCount} registro(s) y no se puede deshacer.`)) {
+            deleteButton.disabled = false;
+            subjectStatus.textContent = '';
+            return;
+          }
+          subjectStatus.textContent = `Eliminando ${subjectName} y sus pizarras...`;
+          const references = [...boardReferences];
+          if (!legacySubject) references.push(doc(db, 'Aulas', aula.id, 'materias', subjectId));
+          for (let offset = 0; offset < references.length; offset += 500) {
+            const batch = writeBatch(db);
+            references.slice(offset, offset + 500).forEach((reference) => batch.delete(reference));
+            await batch.commit();
+          }
+          subjects.delete(subjectId);
+          renderSubjectOptions('');
+          resetForm();
+          subjectStatus.textContent = `Materia ${subjectName} eliminada.`;
+          await loadPizarras();
+        } catch (error) {
+          console.error(`No se pudo eliminar la materia ${subjectName} del aula ${aula.id}:`, error);
+          subjectStatus.textContent = 'No se pudo eliminar la materia y sus pizarras. Revisa los permisos de Firestore.';
+          deleteButton.disabled = false;
+        }
+      }
+
+      async function deleteBoard(record, deleteButton) {
+        if (!confirm(`¿Eliminar la pizarra "${record.nombre || 'Tema'}"? Esta acción no se puede deshacer.`)) return;
+        deleteButton.disabled = true;
+        formStatus.textContent = 'Eliminando pizarra...';
+        try {
+          await deleteDoc(doc(db, 'Aulas', aula.id, 'pizarras', record.id));
+          formStatus.textContent = 'Pizarra eliminada.';
+          await loadPizarras();
+        } catch (error) {
+          console.error(`No se pudo eliminar la pizarra ${record.id} del aula ${aula.id}:`, error);
+          formStatus.textContent = 'No se pudo eliminar la pizarra. Revisa los permisos de Firestore.';
+          deleteButton.disabled = false;
+        }
+      }
+
       subjectForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         const subjectName = newSubjectInput.value.trim();
@@ -616,7 +684,8 @@
         });
         const records = snapshot.docs.map((pizarraDoc) => ({ id: pizarraDoc.id, ...pizarraDoc.data() }));
         records.forEach((record) => {
-          const subjectName = record.materia || record.nombre;
+          if (record.materiaId && subjects.has(record.materiaId)) return;
+          const subjectName = record.materia || (record.materiaId ? 'Materia no disponible' : record.nombre);
           if (!subjectName) return;
           const exists = Array.from(subjects.values()).some((subject) =>
             subject.nombre.toLocaleLowerCase() === subjectName.toLocaleLowerCase()
@@ -625,53 +694,78 @@
         });
         renderSubjectOptions(subjectSelect.value);
         records.sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
-        if (!records.length) {
-          addText(pizarraList, 'p', 'tab-placeholder', 'Todavía no hay pizarras en esta aula.');
-          return;
-        }
-
+        const boardsBySubject = new Map(Array.from(subjects.keys(), (subjectId) => [subjectId, []]));
         records.forEach((record) => {
-          const card = document.createElement('article');
-          card.className = 'announcement-card';
-          const cardHeader = document.createElement('div');
-          cardHeader.className = 'announcement-card-header';
-          const subjectName = record.materiaId
-            ? subjects.get(record.materiaId)?.nombre || 'Materia no disponible'
-            : record.materia || 'Materia sin asignar';
-          addText(cardHeader, 'h3', '', `${subjectName} · ${record.nombre || 'Tema'}`);
-          const editButton = addText(cardHeader, 'button', 'announcement-edit', 'Editar');
-          editButton.type = 'button';
-          editButton.addEventListener('click', () => {
-            editingPizarraId = record.id;
-            const subjectName = record.materia || record.nombre || '';
-            const subjectEntry = record.materiaId && subjects.has(record.materiaId)
-              ? [record.materiaId, subjects.get(record.materiaId)]
-              : Array.from(subjects.entries()).find(([, subject]) =>
-                subject.nombre.toLocaleLowerCase() === subjectName.toLocaleLowerCase()
-              );
-            renderSubjectOptions(subjectEntry?.[0] || '');
-            nameInput.value = record.nombre || '';
-            urlInput.value = record.enlace || '';
-            publishInput.checked = record.publicado === true;
-            formStatus.textContent = 'Edita los datos y guarda para actualizar la pizarra.';
-            nameInput.focus();
-            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          });
-          cardHeader.append(editButton);
-          card.append(cardHeader);
-          addText(card, 'p', 'announcement-meta', record.publicado === true ? 'Publicada para los alumnos' : 'Borrador · no visible para los alumnos');
-          try {
-            const linkUrl = new URL(record.enlace);
-            if (!['http:', 'https:'].includes(linkUrl.protocol)) throw new Error('Protocolo no permitido.');
-            const link = addText(card, 'a', 'announcement-meta', record.enlace);
-            link.href = linkUrl.href;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-          } catch {
-            addText(card, 'p', 'announcement-meta', 'Enlace no disponible.');
+          let subjectId = record.materiaId;
+          if (!subjectId || !subjects.has(subjectId)) {
+            const legacyName = (record.materia || record.nombre || '').toLocaleLowerCase();
+            subjectId = Array.from(subjects.entries()).find(([, subject]) =>
+              subject.nombre.toLocaleLowerCase() === legacyName
+            )?.[0];
           }
-          pizarraList.append(card);
+          if (!subjectId) return;
+          if (!boardsBySubject.has(subjectId)) boardsBySubject.set(subjectId, []);
+          boardsBySubject.get(subjectId).push(record);
         });
+
+        if (!subjects.size) addText(pizarraList, 'p', 'tab-placeholder', 'Crea una materia para empezar a agregar pizarras.');
+        Array.from(subjects.entries())
+          .sort((left, right) => left[1].nombre.localeCompare(right[1].nombre, 'es'))
+          .forEach(([subjectId, subject]) => {
+            const group = document.createElement('section');
+            group.className = 'pizarra-group';
+            const groupHeader = document.createElement('div');
+            groupHeader.className = 'pizarra-group-header';
+            addText(groupHeader, 'h3', '', subject.nombre);
+            const deleteSubjectButton = addText(groupHeader, 'button', 'pizarra-delete', 'Eliminar materia');
+            deleteSubjectButton.type = 'button';
+            deleteSubjectButton.setAttribute('aria-label', `Eliminar materia ${subject.nombre} y sus pizarras`);
+            deleteSubjectButton.addEventListener('click', () => deleteSubject(subjectId, subject.nombre, deleteSubjectButton));
+            group.append(groupHeader);
+
+            const subjectBoards = boardsBySubject.get(subjectId) || [];
+            if (!subjectBoards.length) addText(group, 'p', 'pizarra-group-empty', 'Todavía no hay pizarras en esta materia.');
+            subjectBoards.forEach((record) => {
+              const entry = document.createElement('div');
+              entry.className = 'pizarra-entry';
+              let link;
+              try {
+                const linkUrl = new URL(record.enlace);
+                if (!['http:', 'https:'].includes(linkUrl.protocol)) throw new Error('Protocolo no permitido.');
+                link = addText(entry, 'a', '', record.nombre || 'Tema');
+                link.href = linkUrl.href;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+              } catch {
+                addText(entry, 'strong', '', `${record.nombre || 'Tema'} · Enlace no disponible`);
+              }
+              const actions = document.createElement('div');
+              actions.className = 'pizarra-actions';
+              const editButton = addText(actions, 'button', 'announcement-edit', 'Editar');
+              editButton.type = 'button';
+              editButton.addEventListener('click', () => {
+                editingPizarraId = record.id;
+                const subjectEntry = record.materiaId && subjects.has(record.materiaId)
+                  ? record.materiaId
+                  : subjectId;
+                renderSubjectOptions(subjectEntry);
+                nameInput.value = record.nombre || '';
+                urlInput.value = record.enlace || '';
+                publishInput.checked = record.publicado === true;
+                formStatus.textContent = 'Edita los datos y guarda para actualizar la pizarra.';
+                nameInput.focus();
+                form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              });
+              const deleteBoardButton = addText(actions, 'button', 'pizarra-delete', 'Eliminar');
+              deleteBoardButton.type = 'button';
+              deleteBoardButton.setAttribute('aria-label', `Eliminar pizarra ${record.nombre || 'Tema'}`);
+              deleteBoardButton.addEventListener('click', () => deleteBoard(record, deleteBoardButton));
+              actions.prepend(editButton);
+              entry.append(actions);
+              group.append(entry);
+            });
+            pizarraList.append(group);
+          });
       }
 
       form.addEventListener('submit', async (event) => {
