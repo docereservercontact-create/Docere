@@ -91,6 +91,23 @@
       gap: 14px;
     }
 
+    .notification-wrapper { position: relative; }
+    .notification-button { position: relative; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text-primary); cursor: pointer; }
+    .notification-button:hover, .notification-button[aria-expanded="true"] { background: #eff6ff; color: var(--accent); }
+    .notification-count { position: absolute; top: -5px; right: -5px; display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border: 2px solid #fff; border-radius: 999px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; line-height: 1; }
+    .notification-count[hidden], .notification-panel[hidden], .notification-toast[hidden] { display: none; }
+    .notification-panel { position: absolute; z-index: 110; top: calc(100% + 10px); right: 0; display: grid; width: min(340px, calc(100vw - 28px)); max-height: min(420px, 70vh); overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: #fff; box-shadow: 0 12px 30px rgba(15, 23, 42, .18); }
+    .notification-panel-header { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 14px; border-bottom: 1px solid var(--border); background: #fff; }
+    .notification-panel-header h2 { font-size: 14px; }
+    .notification-mark-read { padding: 0; border: 0; background: transparent; color: var(--accent); font-size: 12px; font-weight: 650; cursor: pointer; }
+    .notification-list { display: grid; }
+    .notification-item { display: grid; gap: 4px; padding: 12px 14px; border: 0; border-bottom: 1px solid var(--border); background: #fff; color: var(--text-primary); text-align: left; cursor: pointer; }
+    .notification-item:hover { background: #f8fafc; }
+    .notification-item strong { font-size: 13px; }
+    .notification-item span, .notification-empty { color: var(--text-secondary); font-size: 12px; }
+    .notification-empty { padding: 18px 14px; }
+    .notification-toast { position: fixed; z-index: 120; top: 76px; right: max(16px, calc((100vw - 1160px) / 2)); max-width: min(360px, calc(100vw - 32px)); padding: 12px 16px; border: 1px solid #bfdbfe; border-left: 4px solid var(--accent); border-radius: 7px; background: #fff; color: var(--text-primary); box-shadow: 0 8px 24px rgba(15, 23, 42, .18); font-size: 13px; }
+
     .btn {
       display: inline-flex;
       align-items: center;
@@ -550,6 +567,22 @@
           </div>
         </a>
 
+        <div class="notification-wrapper">
+          <button type="button" class="notification-button" id="notificationButton" aria-label="Notificaciones" aria-expanded="false" aria-controls="notificationPanel" title="Notificaciones">
+            <i data-lucide="bell"></i>
+            <span class="notification-count" id="notificationCount" hidden>0</span>
+          </button>
+          <section class="notification-panel" id="notificationPanel" aria-label="Notificaciones" hidden>
+            <div class="notification-panel-header">
+              <h2>Notificaciones</h2>
+              <button type="button" class="notification-mark-read" id="notificationMarkRead">Marcar leídas</button>
+            </div>
+            <div class="notification-list" id="notificationList">
+              <p class="notification-empty">Aún no tienes notificaciones.</p>
+            </div>
+          </section>
+        </div>
+
         <!-- Botón Entrar a Clase --> 
         <button type="button" class="btn btn-primary" id="btnIngresarClase">
           <i data-lucide="video"></i>
@@ -564,6 +597,7 @@
       </div>
     </div>
   </nav>
+  <div class="notification-toast" id="notificationToast" role="status" aria-live="polite" hidden></div>
 
   <!-- CONTENIDO PRINCIPAL -->
   <main class="dashboard-container">
@@ -666,7 +700,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
 
     const firebaseConfig = {
@@ -681,10 +715,82 @@
 
     const announcementWall = document.getElementById('announcementWall');
     const announcementWallStatus = document.getElementById('announcementWallStatus');
+    const notificationButton = document.getElementById('notificationButton');
+    const notificationCount = document.getElementById('notificationCount');
+    const notificationPanel = document.getElementById('notificationPanel');
+    const notificationList = document.getElementById('notificationList');
+    const notificationToast = document.getElementById('notificationToast');
     const classEntryButton = document.getElementById('btnIngresarClase');
     const classMeetingUrl = 'https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1';
     const app = initializeApp(firebaseConfig, 'studentAnnouncementWall');
     const db = getFirestore(app);
+    const notifications = [];
+    let unreadNotificationCount = 0;
+    let notificationToastTimer;
+
+    function renderNotifications() {
+      notificationList.replaceChildren();
+      if (!notifications.length) {
+        addWallText(notificationList, 'p', 'notification-empty', 'Aún no tienes notificaciones.');
+        return;
+      }
+
+      notifications.forEach((announcement) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'notification-item';
+        item.append(
+          addWallText(item, 'strong', '', announcement.titulo || 'Nuevo anuncio'),
+          addWallText(item, 'span', '', `${announcement.aulaNombre} · ${announcement.autor || 'Profesor'}`)
+        );
+        item.addEventListener('click', () => {
+          notificationPanel.hidden = true;
+          notificationButton.setAttribute('aria-expanded', 'false');
+          const card = Array.from(announcementWall.querySelectorAll('.class-announcement'))
+            .find((element) => element.dataset.announcementId === announcement.id && element.dataset.classroomId === announcement.aulaId);
+          card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        notificationList.append(item);
+      });
+    }
+
+    function addNotification(announcement) {
+      notifications.unshift(announcement);
+      notifications.splice(10);
+      unreadNotificationCount += 1;
+      notificationCount.textContent = unreadNotificationCount > 99 ? '99+' : String(unreadNotificationCount);
+      notificationCount.hidden = false;
+      renderNotifications();
+      notificationToast.textContent = `Nuevo anuncio de ${announcement.aulaNombre}: ${announcement.titulo || 'Anuncio'}`;
+      notificationToast.hidden = false;
+      clearTimeout(notificationToastTimer);
+      notificationToastTimer = setTimeout(() => { notificationToast.hidden = true; }, 6000);
+    }
+
+    notificationButton.addEventListener('click', () => {
+      notificationPanel.hidden = !notificationPanel.hidden;
+      notificationButton.setAttribute('aria-expanded', String(!notificationPanel.hidden));
+      if (!notificationPanel.hidden) {
+        unreadNotificationCount = 0;
+        notificationCount.hidden = true;
+      }
+    });
+    document.getElementById('notificationMarkRead').addEventListener('click', () => {
+      unreadNotificationCount = 0;
+      notificationCount.hidden = true;
+    });
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest('.notification-wrapper')) {
+        notificationPanel.hidden = true;
+        notificationButton.setAttribute('aria-expanded', 'false');
+      }
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        notificationPanel.hidden = true;
+        notificationButton.setAttribute('aria-expanded', 'false');
+      }
+    });
 
     function addWallText(parent, tagName, className, text) {
       const element = document.createElement(tagName);
@@ -718,6 +824,21 @@
       return date
         ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
         : 'Publicado recientemente';
+    }
+
+    function createAnnouncementCard(announcement) {
+      const card = document.createElement('article');
+      card.className = 'class-announcement';
+      card.dataset.announcementId = announcement.id;
+      card.dataset.classroomId = announcement.aulaId;
+      addWallText(card, 'p', 'announcement-class', announcement.aulaNombre);
+      addWallText(card, 'h3', '', announcement.titulo || 'Anuncio');
+      addWallText(card, 'p', 'announcement-meta', `${announcement.autor || 'Profesor'} · ${formatAnnouncementDate(announcement.creadoEn)}`);
+      const content = document.createElement('div');
+      content.className = 'announcement-content';
+      content.innerHTML = sanitizeAnnouncement(announcement.contenido || '');
+      card.append(content);
+      return card;
     }
 
     function isStudentInClassroom(classroom, student) {
