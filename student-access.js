@@ -69,14 +69,17 @@ export async function getStudentAbsenceStatus(student) {
   const absences = attendanceResults.reduce((total, result) => total + result.absenceHours, 0);
   const total = attendanceResults.reduce((sum, result) => sum + result.totalHours, 0);
   const percent = total ? (absences / total) * 100 : 0;
+  const maxAbsenceHours = total * ABSENCE_SUSPENSION_PERCENT / 100;
   return {
     absences,
     total,
     percent,
-    isSuspended: total > 0 && percent >= ABSENCE_SUSPENSION_PERCENT
+    maxAbsenceHours,
+    isSuspended: total > 0 && absences >= maxAbsenceHours
   };
 }
 
 export function getSuspensionMessage(status) {
-  return `Tu acceso está suspendido por registrar ${status.percent.toFixed(1)}% de faltas (límite: ${ABSENCE_SUSPENSION_PERCENT}%). Solo puedes consultar el análisis en Mis Cursos. Comunícate con tu profesor asignado o con un asesor.`;
+  const formatHours = (hours) => Number(hours).toLocaleString('es-MX', { maximumFractionDigits: 2 });
+  return `Tu acceso está suspendido por registrar ${formatHours(status.absences)} de ${formatHours(status.maxAbsenceHours)} horas de faltas (${status.percent.toFixed(1)}%; límite: ${ABSENCE_SUSPENSION_PERCENT}%). Solo puedes consultar el análisis en Mis Cursos. Comunícate con tu profesor asignado o con un asesor.`;
 }

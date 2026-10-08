@@ -499,7 +499,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getFirestore, doc, getDoc, collection, query, where, limit, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
+    import { ABSENCE_SUSPENSION_PERCENT, getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -730,7 +730,13 @@
       const totals = { asistencia: 0, falta: 0, retardo: 0 };
       records.forEach(({ estado }) => { totals[estado] += 1; });
       const recordedCount = records.length;
-      const percentage = (count) => recordedCount ? Math.round((count / recordedCount) * 100) : 0;
+      const courseHours = Number(classroom.horasCursoTotal);
+      const classDuration = getClassDurationHours(classroom);
+      const hasHourConfiguration = Number.isFinite(courseHours) && courseHours > 0 && classDuration > 0;
+      const percentage = (count) => hasHourConfiguration
+        ? Math.round((count * classDuration / courseHours) * 100)
+        : null;
+      const formatHours = (hours) => Number(hours).toLocaleString('es-MX', { maximumFractionDigits: 2 });
       const metrics = document.createElement('div');
       metrics.className = 'attendance-metrics';
       [
@@ -740,16 +746,27 @@
       ].forEach(([label, count, className]) => {
         const metric = document.createElement('div');
         metric.className = 'attendance-metric';
-        addAttendanceText(metric, 'strong', className, `${percentage(count)}%`);
-        addAttendanceText(metric, 'span', '', `${label} · ${count} de ${recordedCount} clases`);
+        addAttendanceText(metric, 'strong', className, percentage(count) === null ? '—' : `${percentage(count)}%`);
+        const hoursText = hasHourConfiguration
+          ? `${formatHours(count * classDuration)} de ${formatHours(courseHours)} h del curso · `
+          : '';
+        addAttendanceText(metric, 'span', '', `${label} · ${hoursText}${count} de ${recordedCount} clases`);
         metrics.append(metric);
       });
       card.append(metrics);
 
+      if (hasHourConfiguration) {
+        const absenceLimitHours = courseHours * ABSENCE_SUSPENSION_PERCENT / 100;
+        const attendanceTargetHours = courseHours - absenceLimitHours;
+        addAttendanceText(card, 'p', 'attendance-analysis-status', `Curso de ${formatHours(courseHours)} h · debes cubrir ${formatHours(attendanceTargetHours)} h de asistencia o retardo; límite de faltas: ${formatHours(absenceLimitHours)} h.`);
+      } else {
+        addAttendanceText(card, 'p', 'attendance-analysis-status', 'El administrador debe configurar las horas totales del curso y la duración de cada clase para mostrar porcentajes por horas.');
+      }
+
       const chart = document.createElement('div');
       chart.className = 'attendance-chart';
       chart.setAttribute('role', 'img');
-      chart.setAttribute('aria-label', `Porcentajes de asistencia de ${classroom.nombre || 'aula'}`);
+      chart.setAttribute('aria-label', `Porcentaje de horas del curso registradas por estado para ${classroom.nombre || 'aula'}`);
       [
         ['Asistencia', totals.asistencia, 'attendance-present'],
         ['Falta', totals.falta, 'attendance-absent'],
@@ -762,10 +779,10 @@
         track.className = 'attendance-chart-track';
         const fill = document.createElement('div');
         fill.className = `attendance-chart-fill ${className}`;
-        fill.style.width = `${percentage(count)}%`;
+        fill.style.width = `${percentage(count) ?? 0}%`;
         track.append(fill);
         row.append(track);
-        addAttendanceText(row, 'span', 'attendance-chart-value', `${percentage(count)}%`);
+        addAttendanceText(row, 'span', 'attendance-chart-value', percentage(count) === null ? '—' : `${percentage(count)}%`);
         chart.append(row);
       });
       card.append(chart);
