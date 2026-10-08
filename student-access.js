@@ -48,12 +48,26 @@ export async function getStudentAbsenceStatus(student) {
   const classrooms = classroomSnapshot.docs
     .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
     .filter((classroom) => studentMatchesClassroom(classroom, student));
+  const unconfiguredClassroom = classrooms.find((classroom) => {
+    const totalHours = Number(classroom.horasCursoTotal);
+    const classDuration = getClassDurationHours(classroom);
+    return !Number.isFinite(totalHours) || totalHours <= 0 || !classDuration;
+  });
+  if (unconfiguredClassroom) {
+    console.warn(`No se puede verificar el límite de faltas: faltan horas configuradas en el aula ${unconfiguredClassroom.nombre || unconfiguredClassroom.id}.`);
+    return {
+      absences: 0,
+      total: 0,
+      percent: 0,
+      maxAbsenceHours: 0,
+      isSuspended: false,
+      isVerified: false
+    };
+  }
+
   const attendanceResults = await Promise.all(classrooms.map(async (classroom) => {
     const totalHours = Number(classroom.horasCursoTotal);
     const classDuration = getClassDurationHours(classroom);
-    if (!Number.isFinite(totalHours) || totalHours <= 0 || !classDuration) {
-      throw new Error(`El aula ${classroom.nombre || classroom.id} no tiene configuradas las horas totales o la duración de clase.`);
-    }
     const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'asistencias'));
     const records = snapshot.docs.map((attendanceDoc) => {
       const attendance = attendanceDoc.data();
@@ -75,7 +89,8 @@ export async function getStudentAbsenceStatus(student) {
     total,
     percent,
     maxAbsenceHours,
-    isSuspended: total > 0 && absences >= maxAbsenceHours
+    isSuspended: total > 0 && absences >= maxAbsenceHours,
+    isVerified: true
   };
 }
 

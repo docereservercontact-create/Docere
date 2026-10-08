@@ -903,16 +903,28 @@
       }
 
       let absenceStatus;
+      let absenceVerificationFailed = false;
       try {
         absenceStatus = await getStudentAbsenceStatus(studentSession);
       } catch (error) {
         console.error('No se pudo verificar el estado de asistencia:', error);
-        absenceStatus = { isSuspended: true };
+        absenceStatus = { isSuspended: false };
+        absenceVerificationFailed = true;
       }
       if (absenceStatus.isSuspended) {
-        restrictSuspendedStudentView(absenceStatus.percent === undefined
-          ? 'No se pudo verificar tu asistencia. Solo está disponible el análisis; inténtalo más tarde o comunícate con tu profesor.'
-          : getSuspensionMessage(absenceStatus));
+        restrictSuspendedStudentView(getSuspensionMessage(absenceStatus));
+      } else if (absenceVerificationFailed) {
+        const verificationNotice = document.createElement('p');
+        verificationNotice.className = 'access-restriction';
+        verificationNotice.setAttribute('role', 'status');
+        verificationNotice.textContent = 'No se pudo verificar tu asistencia; por este error no se bloqueará tu acceso. Revisa tu conexión o solicita al administrador confirmar las horas del aula.';
+        document.querySelector('.page-title').after(verificationNotice);
+      } else if (!absenceStatus.isVerified) {
+        const verificationNotice = document.createElement('p');
+        verificationNotice.className = 'access-restriction';
+        verificationNotice.setAttribute('role', 'status');
+        verificationNotice.textContent = 'El administrador debe completar las horas totales y la duración de clase del aula. No se aplicará una suspensión hasta poder verificar el porcentaje de faltas.';
+        document.querySelector('.page-title').after(verificationNotice);
       }
 
       const applicantEmail = user?.email || studentSession.email;

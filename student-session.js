@@ -43,7 +43,6 @@
       })
       .catch((error) => {
         console.error('No se pudo verificar el estado de asistencia:', error);
-        if (hasActiveSession()) window.location.replace('mis-cursos.html');
       });
   }
 
