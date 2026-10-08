@@ -500,6 +500,7 @@
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getFirestore, doc, getDoc, collection, query, where, limit, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { ABSENCE_SUSPENSION_PERCENT, getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
+    import { logSessionEvent } from './session-audit.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -547,6 +548,7 @@
 
     document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
       if (!confirm('¿Deseas cerrar sesión?')) return;
+      await logSessionEvent(session, 'cierre_sesion', 'alumno');
       try {
         await signOut(auth);
       } catch (error) {

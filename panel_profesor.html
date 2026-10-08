@@ -243,6 +243,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, doc, getDoc, query, where, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { logSessionEvent } from './session-audit.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -262,8 +263,12 @@
     const classWorkspace = document.getElementById('classWorkspace');
     const db = getFirestore(initializeApp(firebaseConfig));
     let idleTimer;
+    let endingSession = false;
 
-    function endSession() {
+    async function endSession(reason = 'usuario') {
+      if (endingSession) return;
+      endingSession = true;
+      await logSessionEvent(session, 'cierre_sesion', 'profesor', reason);
       localStorage.removeItem(sessionKey);
       localStorage.removeItem(activityKey);
       window.location.replace('login.html');
@@ -272,18 +277,18 @@
     function recordActivity() {
       const lastActivity = Number(localStorage.getItem(activityKey));
       if (!Number.isFinite(lastActivity) || Date.now() - lastActivity >= 60 * 60 * 1000) {
-        endSession();
+        endSession('inactividad');
         return;
       }
       localStorage.setItem(activityKey, String(Date.now()));
       clearTimeout(idleTimer);
-      idleTimer = setTimeout(endSession, 60 * 60 * 1000);
+      idleTimer = setTimeout(() => endSession('inactividad'), 60 * 60 * 1000);
     }
 
     ['click', 'keydown', 'pointerdown', 'touchstart'].forEach((eventName) => {
       document.addEventListener(eventName, recordActivity, { passive: true });
     });
-    document.getElementById('logoutButton').addEventListener('click', endSession);
+    document.getElementById('logoutButton').addEventListener('click', () => endSession('usuario'));
 
     function addText(parent, tagName, className, text) {
       const element = document.createElement(tagName);

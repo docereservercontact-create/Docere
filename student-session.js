@@ -5,9 +5,23 @@
   let redirecting = false;
   let lastRecordedActivity = Number(localStorage.getItem(activityKey));
 
-  function redirectToLogin() {
+  async function redirectToLogin() {
     if (redirecting) return;
     redirecting = true;
+    let student = null;
+    try {
+      student = JSON.parse(localStorage.getItem(sessionKey) || 'null');
+    } catch {
+      student = null;
+    }
+    if (student) {
+      try {
+        const { logSessionEvent } = await import('./session-audit.js');
+        await logSessionEvent(student, 'cierre_sesion', 'alumno', 'inactividad');
+      } catch (error) {
+        console.error('No se pudo registrar el cierre de sesión del alumno:', error);
+      }
+    }
     localStorage.removeItem(sessionKey);
     localStorage.removeItem(activityKey);
     window.location.replace('login.html');

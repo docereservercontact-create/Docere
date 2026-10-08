@@ -201,6 +201,7 @@
       getDocs,
       limit
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { logSessionEvent } from './session-audit.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -344,6 +345,7 @@
           localStorage.removeItem('adminSessionLastActivity');
           localStorage.setItem('teacherSession', JSON.stringify(profesor));
           localStorage.setItem('teacherSessionLastActivity', String(Date.now()));
+          await logSessionEvent(profesor, 'inicio_sesion', 'profesor');
           localStorage.removeItem('saved_student_email');
           localStorage.removeItem('saved_student_password');
           showMessage('Acceso de profesor correcto. Redirigiendo...');
@@ -371,6 +373,7 @@
           };
           localStorage.setItem("studentSession", JSON.stringify(sessionData));
           localStorage.setItem("studentSessionLastActivity", String(Date.now()));
+          await logSessionEvent(sessionData, 'inicio_sesion', 'alumno');
 
           showMessage("¡Acceso correcto! Redirigiendo...");
 

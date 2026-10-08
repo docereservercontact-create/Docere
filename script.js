@@ -21,6 +21,7 @@ import {
   limit,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { logSessionEvent } from './session-audit.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -111,6 +112,12 @@ async function iniciarSesion(email, password) {
  */
 async function cerrarSesion() {
   try {
+    const student = JSON.parse(localStorage.getItem('studentSession') || 'null') || {
+      id: auth.currentUser?.uid,
+      nombre: auth.currentUser?.displayName || 'Alumno',
+      email: auth.currentUser?.email || ''
+    };
+    await logSessionEvent(student, 'cierre_sesion', 'alumno');
     await signOut(auth);
     localStorage.removeItem('studentSession');
     window.location.href = 'index.html';

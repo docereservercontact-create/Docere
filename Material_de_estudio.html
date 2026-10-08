@@ -697,8 +697,15 @@
       // 4. Cerrar Sesión
       const btnCerrarSesion = document.getElementById('btnCerrarSesion');
       if (btnCerrarSesion) {
-        btnCerrarSesion.addEventListener('click', () => {
+        btnCerrarSesion.addEventListener('click', async () => {
           if (confirm('¿Deseas cerrar sesión?')) {
+            const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+            try {
+              const { logSessionEvent } = await import('./session-audit.js');
+              await logSessionEvent(student, 'cierre_sesion', 'alumno');
+            } catch (error) {
+              console.error('No se pudo registrar el cierre de sesión del alumno:', error);
+            }
             localStorage.removeItem('studentSession');
             localStorage.removeItem('studentSessionLastActivity');
             window.location.href = 'index.html';
