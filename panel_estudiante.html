@@ -205,6 +205,49 @@
       width: 100%;
     }
 
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(210px, 250px) minmax(0, 1fr) minmax(210px, 250px);
+      align-items: start;
+      gap: 20px;
+    }
+
+    .dashboard-main { min-width: 0; }
+    .dashboard-sidebar { display: grid; gap: 20px; min-width: 0; }
+
+    .dashboard-widget {
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg-card);
+      box-shadow: 0 5px 18px rgba(29, 68, 103, .045);
+    }
+
+    .widget-heading { margin-bottom: 14px; font-size: 1rem; }
+    .widget-status { margin: -5px 0 12px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+
+    .calendar-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+    .calendar-month { font-size: 14px; font-weight: 700; text-transform: capitalize; }
+    .calendar-nav { display: flex; gap: 5px; }
+    .calendar-nav button { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid var(--border); border-radius: 7px; background: #fff; color: var(--text-primary); cursor: pointer; }
+    .calendar-nav button:hover { background: #eff6ff; color: var(--accent); }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; text-align: center; }
+    .calendar-weekday { padding: 4px 0; color: var(--text-secondary); font-size: 10px; font-weight: 700; }
+    .calendar-day { display: grid; min-width: 0; aspect-ratio: 1; place-items: center; border-radius: 50%; color: var(--text-primary); font-size: 12px; }
+    .calendar-day-muted { color: #a0aec0; }
+    .calendar-day-today { background: var(--accent); color: #fff; font-weight: 750; }
+
+    .pending-list { display: grid; gap: 10px; }
+    .pending-task { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 11px; border: 1px solid var(--border); border-radius: 9px; background: #f8fafc; }
+    .pending-task-name { grid-column: 1 / -1; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+    .pending-task-due { color: var(--text-secondary); font-size: 11px; line-height: 1.4; }
+    .pending-task-link { display: inline-flex; min-height: 30px; align-items: center; justify-content: center; padding: 0 10px; border-radius: 7px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 650; text-decoration: none; }
+    .pending-task-link:hover { background: var(--accent-hover); }
+    .pending-empty { padding: 14px 10px; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; text-align: center; }
+
+    .events-placeholder { min-height: 250px; display: grid; place-items: center; padding: 18px; border: 1px dashed var(--border); border-radius: 9px; color: var(--text-secondary); font-size: 13px; line-height: 1.5; text-align: center; }
+
     .welcome-header {
       background-color: var(--bg-card);
       border: 1px solid var(--border);
@@ -453,6 +496,10 @@
         margin: 24px auto;
         padding: 0 18px;
       }
+      .dashboard-grid { grid-template-columns: minmax(0, 1fr) minmax(220px, .8fr); }
+      .dashboard-main { grid-column: 1 / -1; grid-row: 1; }
+      .dashboard-sidebar { grid-column: 1; grid-row: 2; }
+      .dashboard-events { grid-column: 2; grid-row: 2; }
       .welcome-header,
       .announcement-wall {
         padding: 20px;
@@ -469,6 +516,9 @@
     }
 
     @media (max-width: 768px) {
+      .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
+      .dashboard-main, .dashboard-sidebar, .dashboard-events { grid-column: 1; grid-row: auto; }
+      .dashboard-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
       .assignment-card { grid-template-columns: 1fr; gap: 16px; }
       .footer-columns {
         grid-template-columns: repeat(2, 1fr);
@@ -486,6 +536,9 @@
         margin-bottom: 18px;
         border-radius: 10px;
       }
+      .dashboard-grid, .dashboard-sidebar { gap: 14px; }
+      .dashboard-sidebar { grid-template-columns: minmax(0, 1fr); }
+      .dashboard-widget { padding: 15px; }
       .welcome-text h1 { font-size: 1.25rem; }
       .welcome-text p,
       .wall-status { font-size: 13px; line-height: 1.5; }
@@ -601,24 +654,52 @@
 
   <!-- CONTENIDO PRINCIPAL -->
   <main class="dashboard-container">
-    <section class="welcome-header">
-      <div class="welcome-text">
-        <h1 id="welcomeTitle">¡Bienvenido a tu panel de alumno! 👋</h1>
-        <p>Presiona el botón "Entrar a clase" en el menú para conectarte a tu clase en vivo.</p>
-      </div>
-    </section>
+    <div class="dashboard-grid">
+      <aside class="dashboard-sidebar" aria-label="Resumen académico">
+        <section class="dashboard-widget" aria-labelledby="calendarTitle">
+          <h2 class="widget-heading" id="calendarTitle">Calendario</h2>
+          <div class="calendar-header">
+            <span class="calendar-month" id="calendarMonth"></span>
+            <div class="calendar-nav">
+              <button type="button" id="calendarPrevious" aria-label="Mes anterior"><i data-lucide="chevron-left"></i></button>
+              <button type="button" id="calendarNext" aria-label="Mes siguiente"><i data-lucide="chevron-right"></i></button>
+            </div>
+          </div>
+          <div class="calendar-grid" id="calendarGrid" role="grid" aria-label="Calendario mensual"></div>
+        </section>
 
-    <section class="announcement-wall" aria-labelledby="announcementWallTitle">
-      <div class="wall-header">
-        <div class="wall-title">
-          <i data-lucide="messages-square" style="color: var(--accent);"></i>
-          <h2 id="announcementWallTitle">Muro de anuncios</h2>
-        </div>
-      </div>
-      <p class="wall-status" id="announcementWallStatus" role="status">Cargando anuncios de tus clases...</p>
-      <div class="announcement-wall-list" id="announcementWall"></div>
-    </section>
+        <section class="dashboard-widget" aria-labelledby="pendingTasksTitle">
+          <h2 class="widget-heading" id="pendingTasksTitle">Actividades pendientes</h2>
+          <p class="widget-status" id="pendingTasksStatus" role="status" aria-live="polite">Cargando tareas pendientes...</p>
+          <div class="pending-list" id="pendingTasksList"></div>
+        </section>
+      </aside>
 
+      <div class="dashboard-main">
+        <section class="welcome-header">
+          <div class="welcome-text">
+            <h1 id="welcomeTitle">¡Bienvenido a tu panel de alumno! 👋</h1>
+            <p>Presiona el botón "Entrar a clase" en el menú para conectarte a tu clase en vivo.</p>
+          </div>
+        </section>
+
+        <section class="announcement-wall" aria-labelledby="announcementWallTitle">
+          <div class="wall-header">
+            <div class="wall-title">
+              <i data-lucide="messages-square" style="color: var(--accent);"></i>
+              <h2 id="announcementWallTitle">Muro de anuncios</h2>
+            </div>
+          </div>
+          <p class="wall-status" id="announcementWallStatus" role="status">Cargando anuncios de tus clases...</p>
+          <div class="announcement-wall-list" id="announcementWall"></div>
+        </section>
+      </div>
+
+      <aside class="dashboard-widget dashboard-events" aria-labelledby="upcomingEventsTitle">
+        <h2 class="widget-heading" id="upcomingEventsTitle">Próximos eventos</h2>
+        <div class="events-placeholder">Aquí aparecerán los próximos eventos programados.</div>
+      </aside>
+    </div>
   </main>
 
   <!-- FOOTER SINCRO INDEX -->
@@ -691,7 +772,10 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getMetadata, getStorage, listAll, ref } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
+    import { auth, authApp } from './portal-auth.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -705,6 +789,10 @@
 
     const announcementWall = document.getElementById('announcementWall');
     const announcementWallStatus = document.getElementById('announcementWallStatus');
+    const calendarMonth = document.getElementById('calendarMonth');
+    const calendarGrid = document.getElementById('calendarGrid');
+    const pendingTasksStatus = document.getElementById('pendingTasksStatus');
+    const pendingTasksList = document.getElementById('pendingTasksList');
     const notificationButton = document.getElementById('notificationButton');
     const notificationCount = document.getElementById('notificationCount');
     const notificationPanel = document.getElementById('notificationPanel');
@@ -714,9 +802,59 @@
     const classMeetingUrl = 'https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1';
     const app = initializeApp(firebaseConfig, 'studentAnnouncementWall');
     const db = getFirestore(app);
+    const storage = getStorage(authApp);
     const notifications = [];
     let unreadNotificationCount = 0;
     let notificationToastTimer;
+    let calendarDate = new Date();
+
+    function renderCalendar() {
+      const year = calendarDate.getFullYear();
+      const month = calendarDate.getMonth();
+      const today = new Date();
+      calendarMonth.textContent = new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' })
+        .format(new Date(year, month, 1));
+      calendarGrid.replaceChildren();
+      ['D', 'L', 'M', 'M', 'J', 'V', 'S'].forEach((weekday) => {
+        const label = addWallText(calendarGrid, 'span', 'calendar-weekday', weekday);
+        label.setAttribute('role', 'columnheader');
+      });
+
+      const firstWeekday = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const previousMonthDays = new Date(year, month, 0).getDate();
+      const cellCount = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+      for (let index = 0; index < cellCount; index += 1) {
+        let day;
+        let muted = false;
+        if (index < firstWeekday) {
+          day = previousMonthDays - firstWeekday + index + 1;
+          muted = true;
+        } else if (index >= firstWeekday + daysInMonth) {
+          day = index - firstWeekday - daysInMonth + 1;
+          muted = true;
+        } else {
+          day = index - firstWeekday + 1;
+        }
+        const cell = addWallText(calendarGrid, 'span', 'calendar-day', String(day));
+        cell.setAttribute('role', 'gridcell');
+        if (muted) cell.classList.add('calendar-day-muted');
+        if (!muted && day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+          cell.classList.add('calendar-day-today');
+          cell.setAttribute('aria-current', 'date');
+        }
+      }
+    }
+
+    document.getElementById('calendarPrevious').addEventListener('click', () => {
+      calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1);
+      renderCalendar();
+    });
+    document.getElementById('calendarNext').addEventListener('click', () => {
+      calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1);
+      renderCalendar();
+    });
+    renderCalendar();
 
     function renderNotifications() {
       notificationList.replaceChildren();
@@ -838,6 +976,142 @@
         && assignedStudent.coleccion === student.coleccion)
         || student.email && assignedStudent.email === student.email
       );
+    }
+
+    function isTaskAssignedToStudent(task, student) {
+      if (!Array.isArray(task.alumnosAsignados)) return true;
+      return task.alumnosAsignados.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && String(assignedStudent.email || assignedStudent.correo || '').toLowerCase() === student.email.toLowerCase())
+      );
+    }
+
+    function getTaskDeadline(value) {
+      if (!value) return null;
+      const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function formatTaskDeadline(value) {
+      const date = getTaskDeadline(value);
+      return date
+        ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+        : 'Sin fecha de entrega';
+    }
+
+    function getAuthenticatedStudent() {
+      return new Promise((resolve, reject) => {
+        let unsubscribe = () => {};
+        unsubscribe = onAuthStateChanged(auth, (user) => {
+          unsubscribe();
+          const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+          const sessionEmail = String(session?.email || '').trim().toLowerCase();
+          if (!user || user.email?.toLowerCase() !== sessionEmail) {
+            reject(new Error('No se encontró una sesión segura de Firebase para consultar entregas.'));
+            return;
+          }
+          resolve(user);
+        }, (error) => {
+          unsubscribe();
+          reject(error);
+        });
+      });
+    }
+
+    async function hasTaskSubmission(task, user) {
+      const folder = ref(storage, `entregas/${task.aulaId}/${task.id}/${user.uid}`);
+      let listingError = null;
+      try {
+        const result = await listAll(folder);
+        if (result.items.length) return true;
+      } catch (error) {
+        listingError = error;
+      }
+
+      const legacyFile = ref(storage, `entregas/${task.aulaId}/${task.id}/${user.uid}.pdf`);
+      try {
+        await getMetadata(legacyFile);
+        return true;
+      } catch (error) {
+        if (error.code !== 'storage/object-not-found' && !listingError) throw error;
+      }
+
+      if (listingError) throw listingError;
+      return false;
+    }
+
+    async function loadPendingTasks() {
+      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!student?.id || !student?.coleccion) {
+        pendingTasksStatus.textContent = 'Inicia sesión para consultar tus actividades pendientes.';
+        pendingTasksList.replaceChildren();
+        return;
+      }
+
+      try {
+        const [classroomsSnapshot, user] = await Promise.all([
+          getDocs(collection(db, 'Aulas')),
+          getAuthenticatedStudent()
+        ]);
+        const classrooms = classroomsSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => isStudentInClassroom(classroom, student));
+        const classroomTasks = await Promise.all(classrooms.map(async (classroom) => {
+          const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'tareas'));
+          return snapshot.docs
+            .map((taskDoc) => ({
+              id: taskDoc.id,
+              aulaId: classroom.id,
+              aulaNombre: classroom.nombre || 'Aula',
+              ...taskDoc.data()
+            }))
+            .filter((task) => isTaskAssignedToStudent(task, student));
+        }));
+        const tasks = classroomTasks.flat();
+        const results = await Promise.all(tasks.map(async (task) => {
+          try {
+            return { task, submitted: await hasTaskSubmission(task, user) };
+          } catch (error) {
+            console.error(`No se pudo verificar la entrega de la tarea ${task.id}:`, error);
+            return { task, error };
+          }
+        }));
+        const pendingTasks = results
+          .filter((result) => !result.submitted && !result.error)
+          .map((result) => result.task)
+          .sort((left, right) => {
+            const leftDate = getTaskDeadline(left.fechaEntrega)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            const rightDate = getTaskDeadline(right.fechaEntrega)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            return leftDate - rightDate;
+          });
+        const failedChecks = results.filter((result) => result.error).length;
+
+        pendingTasksList.replaceChildren();
+        if (!pendingTasks.length) {
+          addWallText(pendingTasksList, 'p', 'pending-empty', failedChecks
+            ? 'No se pudieron verificar algunas entregas. Recarga cuando Storage esté disponible.'
+            : '¡Muy bien! No tienes tareas pendientes de entrega.');
+        } else {
+          pendingTasks.forEach((task) => {
+            const item = document.createElement('article');
+            item.className = 'pending-task';
+            addWallText(item, 'strong', 'pending-task-name', task.titulo || 'Tarea sin título');
+            addWallText(item, 'span', 'pending-task-due', `Entrega: ${formatTaskDeadline(task.fechaEntrega)}`);
+            const link = addWallText(item, 'a', 'pending-task-link', 'Ver');
+            link.href = `asignaciones.html#assignment-${encodeURIComponent(task.id)}`;
+            link.setAttribute('aria-label', `Ver la tarea ${task.titulo || 'sin título'}`);
+            pendingTasksList.append(item);
+          });
+        }
+
+        pendingTasksStatus.textContent = failedChecks
+          ? `No se pudo comprobar el estado de ${failedChecks} tarea(s) por permisos o conexión con Firebase Storage.`
+          : `${pendingTasks.length} tarea(s) pendiente(s) por entregar.`;
+      } catch (error) {
+        console.error('No se pudieron cargar las actividades pendientes:', error);
+        pendingTasksStatus.textContent = 'No se pudieron cargar las tareas pendientes. Revisa la conexión y los permisos.';
+        pendingTasksList.replaceChildren();
+      }
     }
 
     function getClassDurationHours(classroom) {
@@ -1026,6 +1300,7 @@
     }
 
     loadStudentAnnouncements();
+    loadPendingTasks();
   </script>
 
   <!-- JAVASCRIPT -->

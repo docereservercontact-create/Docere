@@ -367,6 +367,7 @@
     function renderAssignment(task) {
       const card = document.createElement('article');
       card.className = 'assignment-card';
+      card.id = `assignment-${task.id}`;
       const content = document.createElement('div');
       addText(content, 'h2', '', task.titulo || 'Asignación sin título');
       addText(content, 'p', 'assignment-context', task.tema || task.curso || 'Materia');
@@ -607,6 +608,15 @@
             .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
           assignmentsList.replaceChildren();
           assignments.forEach((task) => assignmentsList.append(renderAssignment(task)));
+          const targetId = decodeURIComponent(window.location.hash.slice(1));
+          const targetAssignment = targetId.startsWith('assignment-')
+            ? document.getElementById(targetId)
+            : null;
+          if (targetAssignment) {
+            targetAssignment.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            targetAssignment.querySelector('.assignment-submit')?.click();
+            window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+          }
 
           const failedCount = Array.from(assignmentsByClassroom.values()).filter((result) => result === null).length;
           if (loadedClassrooms.size < classrooms.length) {
