@@ -252,8 +252,14 @@
 
     async function getStudentSubmissionFiles(task, user) {
       const folder = getSubmissionReference(task, user);
-      const result = await listAll(folder);
-      const files = result.items.slice();
+      let files = [];
+      let listError = null;
+      try {
+        const result = await listAll(folder);
+        files = result.items.slice();
+      } catch (error) {
+        listError = error;
+      }
 
       // Keep access to deliveries created before submissions moved into per-student folders.
       const legacyFile = ref(storage, `entregas/${task.aulaId}/${task.id}/${user.uid}.pdf`);
@@ -261,9 +267,12 @@
         await getMetadata(legacyFile);
         files.push(legacyFile);
       } catch (error) {
-        if (error.code !== 'storage/object-not-found') throw error;
+        if (error.code !== 'storage/object-not-found') {
+          if (!listError) throw error;
+        }
       }
 
+      if (!files.length && listError) throw listError;
       return Promise.all(files.map(async (fileReference) => ({
         reference: fileReference,
         metadata: await getMetadata(fileReference),
@@ -386,6 +395,7 @@
         deliverButton.disabled = submissionClosed;
         manageButton.hidden = !hasSubmission;
         manageButton.disabled = false;
+        manageButton.textContent = 'Ver / agregar archivos';
         deliverButton.dataset.hasSubmission = String(hasSubmission);
       }
 
@@ -423,7 +433,9 @@
           updateControls(files.length > 0, closed);
         } catch (error) {
           console.error(`No se pudo consultar la entrega de la tarea ${task.id}:`, error);
-          submissionStatus.textContent = error.message || 'No se pudo consultar tu entrega.';
+          submissionStatus.textContent = error.code === 'storage/unauthorized'
+            ? 'Firebase Storage no permite consultar tu entrega. Publica las reglas actualizadas de storage.rules; mientras tanto no se puede confirmar si el archivo está entregado.'
+            : error.message || 'No se pudo consultar tu entrega.';
         }
       }
 
@@ -443,7 +455,13 @@
         .then((files) => updateControls(files.length > 0, closed))
         .catch((error) => {
           console.error(`No se pudo consultar la entrega de la tarea ${task.id}:`, error);
-          updateControls(false, closed);
+          submissionState.hidden = false;
+          submissionState.textContent = 'No se pudo verificar';
+          deliverButton.textContent = 'Consultar entrega';
+          deliverButton.disabled = closed;
+          deliverButton.dataset.hasSubmission = 'false';
+          manageButton.hidden = false;
+          manageButton.textContent = 'Ver estado';
         });
 
       card.append(content, details);

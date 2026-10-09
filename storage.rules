@@ -52,6 +52,12 @@ service firebase.storage {
         && submissionsOpen(aulaId, taskId);
     }
 
+    match /entregas/{aulaId}/{taskId}/{studentUid}/{nestedPath=**} {
+      allow list: if signedInWithEmail()
+        && ((studentUid == request.auth.uid && assignedToTask(aulaId, taskId))
+          || isTaskTeacher(aulaId, taskId));
+    }
+
     match /entregas/{aulaId}/{taskId}/{fileName} {
       allow get: if signedInWithEmail()
         && ((fileName == request.auth.uid + '.pdf' && assignedToTask(aulaId, taskId))
