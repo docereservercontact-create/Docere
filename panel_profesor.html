@@ -1255,11 +1255,17 @@
       return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     }
 
+    async function listTaskSubmissionFiles(folder) {
+      const result = await listAll(folder);
+      const nestedFiles = await Promise.all(result.prefixes.map((prefix) => listTaskSubmissionFiles(prefix)));
+      return [...result.items, ...nestedFiles.flat()];
+    }
+
     async function loadTaskSubmissions(task, container, statusText) {
       try {
         const taskFolder = ref(storage, `entregas/${task.aulaId}/${task.id}`);
-        const files = await listAll(taskFolder);
-        const submissions = await Promise.all(files.items.map(async (fileReference) => ({
+        const files = await listTaskSubmissionFiles(taskFolder);
+        const submissions = await Promise.all(files.map(async (fileReference) => ({
           metadata: await getMetadata(fileReference),
           url: await getDownloadURL(fileReference)
         })));

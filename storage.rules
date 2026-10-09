@@ -31,9 +31,9 @@ service firebase.storage {
         || request.time <= task.fechaEntrega;
     }
 
-    match /entregas/{aulaId}/{taskId}/{fileName} {
+    match /entregas/{aulaId}/{taskId}/{studentUid}/{fileName} {
       allow create, update: if signedInWithEmail()
-        && fileName == request.auth.uid + '.pdf'
+        && studentUid == request.auth.uid
         && assignedToTask(aulaId, taskId)
         && submissionsOpen(aulaId, taskId)
         && request.resource.contentType == 'application/pdf'
@@ -41,10 +41,30 @@ service firebase.storage {
         && request.resource.size <= 10 * 1024 * 1024;
 
       allow get: if signedInWithEmail()
+        && ((studentUid == request.auth.uid && assignedToTask(aulaId, taskId))
+          || isTaskTeacher(aulaId, taskId));
+      allow list: if signedInWithEmail()
+        && ((studentUid == request.auth.uid && assignedToTask(aulaId, taskId))
+          || isTaskTeacher(aulaId, taskId));
+      allow delete: if signedInWithEmail()
+        && studentUid == request.auth.uid
+        && assignedToTask(aulaId, taskId)
+        && submissionsOpen(aulaId, taskId);
+    }
+
+    match /entregas/{aulaId}/{taskId}/{fileName} {
+      allow get: if signedInWithEmail()
         && ((fileName == request.auth.uid + '.pdf' && assignedToTask(aulaId, taskId))
           || isTaskTeacher(aulaId, taskId));
       allow list: if isTaskTeacher(aulaId, taskId);
-      allow delete: if false;
+      allow delete: if signedInWithEmail()
+        && fileName == request.auth.uid + '.pdf'
+        && assignedToTask(aulaId, taskId)
+        && submissionsOpen(aulaId, taskId);
+    }
+
+    match /entregas/{aulaId}/{taskId}/{nestedPath=**} {
+      allow list: if isTaskTeacher(aulaId, taskId);
     }
 
     match /{allPaths=**} {
