@@ -360,7 +360,7 @@
       } catch (error) {
         console.error(`No se pudo subir la entrega de la tarea ${selectedTask.id}:`, error);
         submissionStatus.textContent = error.code === 'storage/unauthorized'
-          ? 'Firebase Storage rechazó la subida. Verifica que estén publicadas las reglas de storage.rules.'
+          ? 'Firebase Storage rechazó la subida (storage/unauthorized). Comprueba que las reglas estén publicadas en el bucket correcto, que la tarea tenga el correo de este alumno en alumnosEmails y que la fecha de entrega siga abierta. En el simulador de reglas prueba create (o update al reemplazar), activa Autenticado y usa entregas/{aulaId}/{taskId}/{uid}.pdf.'
           : error.code === 'storage/bucket-not-found'
             ? 'No se encontró el bucket de Firebase Storage. Revisa la configuración storageBucket del proyecto.'
             : error.message || 'No se pudo subir el archivo. Inténtalo de nuevo.';

@@ -1299,10 +1299,11 @@
 
     async function migrateTaskSubmissionAccess(aula, task) {
       const updates = {};
-      if (!Array.isArray(task.alumnosEmails)) {
-        task.alumnosEmails = (Array.isArray(task.alumnosAsignados) ? task.alumnosAsignados : [])
-          .map((student) => String(student.email || student.correo || '').trim().toLowerCase())
-          .filter(Boolean);
+      const alumnosEmails = (Array.isArray(task.alumnosAsignados) ? task.alumnosAsignados : [])
+        .map((student) => String(student.email || student.correo || '').trim().toLowerCase())
+        .filter(Boolean);
+      if (JSON.stringify(task.alumnosEmails || []) !== JSON.stringify(alumnosEmails)) {
+        task.alumnosEmails = alumnosEmails;
         updates.alumnosEmails = task.alumnosEmails;
       }
       if (!task.profesorEmail && session.email) {
@@ -1658,7 +1659,7 @@
                 id: student.id,
                 coleccion: student.coleccion,
                 nombre: student.nombre || '',
-                email: student.email || ''
+                email: String(student.email || student.correo || '').trim().toLowerCase()
               }));
             const taskData = {
               titulo: titleInput.value.trim(),
