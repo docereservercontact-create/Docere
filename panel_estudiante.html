@@ -802,6 +802,7 @@
     const classMeetingUrl = 'https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1';
     const app = initializeApp(firebaseConfig, 'studentAnnouncementWall');
     const db = getFirestore(app);
+    const authenticatedDb = getFirestore(authApp);
     const storage = getStorage(authApp);
     const notifications = [];
     let unreadNotificationCount = 0;
@@ -863,39 +864,70 @@
         return;
       }
 
-      notifications.forEach((announcement) => {
+      notifications.forEach((notification) => {
         const item = document.createElement('button');
         item.type = 'button';
         item.className = 'notification-item';
         item.append(
-          addWallText(item, 'strong', '', announcement.titulo || 'Nuevo anuncio'),
-          addWallText(item, 'span', '', `${announcement.aulaNombre} · ${announcement.autor || 'Profesor'}`)
+          addWallText(item, 'strong', '', notification.titulo || 'Nueva actividad'),
+          addWallText(item, 'span', '', `${notification.tipoTexto} · ${notification.aulaNombre}`)
         );
         item.addEventListener('click', () => {
           notificationPanel.hidden = true;
           notificationButton.setAttribute('aria-expanded', 'false');
-          const card = Array.from(announcementWall.querySelectorAll('.class-announcement'))
-            .find((element) => element.dataset.announcementId === announcement.id && element.dataset.classroomId === announcement.aulaId);
-          card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (notification.tipo === 'tarea') {
+            window.location.href = `asignaciones.html#assignment-${encodeURIComponent(notification.id)}`;
+          } else if (notification.tipo === 'pizarra') {
+            window.location.href = 'Apuntes_admision.html';
+          } else {
+            const card = Array.from(announcementWall.querySelectorAll('.class-announcement'))
+              .find((element) => element.dataset.announcementId === notification.id && element.dataset.classroomId === notification.aulaId);
+            card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
         });
         notificationList.append(item);
       });
     }
 
-    function addNotification(announcement) {
-      notifications.unshift(announcement);
+    function addNotification(notification) {
+      notifications.unshift(notification);
       notifications.splice(10);
       unreadNotificationCount += 1;
       notificationCount.textContent = unreadNotificationCount > 99 ? '99+' : String(unreadNotificationCount);
       notificationCount.hidden = false;
       renderNotifications();
-      notificationToast.textContent = `Nuevo anuncio de ${announcement.aulaNombre}: ${announcement.titulo || 'Anuncio'}`;
+      notificationToast.textContent = `${notification.tipoTexto} en ${notification.aulaNombre}: ${notification.titulo || 'Actividad'}`;
       notificationToast.hidden = false;
       clearTimeout(notificationToastTimer);
       notificationToastTimer = setTimeout(() => { notificationToast.hidden = true; }, 6000);
+      if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          const browserNotification = new Notification(notification.tipoTexto, {
+            body: `${notification.titulo || 'Actividad'} · ${notification.aulaNombre}`,
+            tag: `${notification.tipo}-${notification.aulaId}-${notification.id}`
+          });
+          browserNotification.onclick = () => {
+            window.focus();
+            if (notification.tipo === 'tarea') {
+              window.location.href = `asignaciones.html#assignment-${encodeURIComponent(notification.id)}`;
+            } else if (notification.tipo === 'pizarra') {
+              window.location.href = 'Apuntes_admision.html';
+            } else {
+              window.location.href = 'panel_estudiante.html';
+            }
+          };
+        } catch (error) {
+          console.error('No se pudo mostrar la notificación del navegador:', error);
+        }
+      }
     }
 
     notificationButton.addEventListener('click', () => {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().catch((error) => {
+          console.error('No se pudo solicitar permiso para notificaciones del navegador:', error);
+        });
+      }
       notificationPanel.hidden = !notificationPanel.hidden;
       notificationButton.setAttribute('aria-expanded', String(!notificationPanel.hidden));
       if (!notificationPanel.hidden) {
@@ -997,6 +1029,68 @@
       return date
         ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
         : 'Sin fecha de entrega';
+    }
+
+    function subscribeStudentClassNotifications(classrooms, student) {
+      const unsubscribeAll = [];
+      const notificationSources = [
+        {
+          collectionName: 'anuncios',
+          tipo: 'anuncio',
+          tipoTexto: 'Nuevo anuncio',
+          isVisible: () => true
+        },
+        {
+          collectionName: 'tareas',
+          tipo: 'tarea',
+          tipoTexto: 'Nueva tarea',
+          isVisible: (task) => isTaskAssignedToStudent(task, student)
+        },
+        {
+          collectionName: 'pizarras',
+          tipo: 'pizarra',
+          tipoTexto: 'Nueva pizarra',
+          isVisible: (pizarra) => pizarra.publicado === true
+        }
+      ];
+
+      classrooms.forEach((classroom) => {
+        notificationSources.forEach((source) => {
+          let initialSnapshot = true;
+          const knownVisibility = new Map();
+          const unsubscribe = onSnapshot(
+            collection(authenticatedDb, 'Aulas', classroom.id, source.collectionName),
+            (snapshot) => {
+              if (initialSnapshot) {
+                snapshot.docs.forEach((entry) => knownVisibility.set(entry.id, source.isVisible(entry.data())));
+                initialSnapshot = false;
+                return;
+              }
+              snapshot.docChanges().forEach((change) => {
+                const data = change.doc.data();
+                const visible = change.type !== 'removed' && source.isVisible(data);
+                const wasVisible = knownVisibility.get(change.doc.id) === true;
+                knownVisibility.set(change.doc.id, visible);
+                if (!visible || wasVisible || !['added', 'modified'].includes(change.type)) return;
+                addNotification({
+                  id: change.doc.id,
+                  aulaId: classroom.id,
+                  aulaNombre: classroom.nombre || 'Aula',
+                  titulo: data.titulo || data.nombre || (source.tipo === 'pizarra' ? 'Pizarra nueva' : ''),
+                  tipo: source.tipo,
+                  tipoTexto: source.tipoTexto
+                });
+              });
+            },
+            (error) => {
+              console.error(`No se pudieron escuchar ${source.collectionName} del aula ${classroom.id}:`, error);
+            }
+          );
+          unsubscribeAll.push(unsubscribe);
+        });
+      });
+
+      window.addEventListener('pagehide', () => unsubscribeAll.forEach((unsubscribe) => unsubscribe()), { once: true });
     }
 
     function getAuthenticatedStudent() {
@@ -1248,6 +1342,8 @@
           announcementWall.replaceChildren();
           return;
         }
+
+        subscribeStudentClassNotifications(classrooms, session);
 
         const classroomResults = await Promise.all(classrooms.map(async (classroom) => {
           try {

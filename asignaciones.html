@@ -140,7 +140,7 @@
 
   <script type="module">
     import { getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-    import { collection, getDocs, getFirestore, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { addDoc, collection, getDocs, getFirestore, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
     import { deleteObject, getDownloadURL, getMetadata, getStorage, listAll, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
@@ -150,6 +150,7 @@
     const app = getApps().find((firebaseApp) => firebaseApp.name === appName)
       || initializeApp(firebaseConfig, appName);
     const db = getFirestore(app);
+    const authenticatedDb = getFirestore(authApp);
     const storage = getStorage(authApp);
     const assignmentsStatus = document.getElementById('assignmentsStatus');
     const assignmentsList = document.getElementById('assignmentsList');
@@ -526,8 +527,28 @@
             }
           });
         }
+        let teacherAlertSent = true;
+        try {
+          await addDoc(collection(authenticatedDb, 'Aulas', selectedTask.aulaId, 'notificacionesProfesor'), {
+            tipo: 'entrega',
+            tareaId: selectedTask.id,
+            titulo: String(selectedTask.titulo || 'Tarea'),
+            estudianteId: String(studentSession.id),
+            estudianteColeccion: String(studentSession.coleccion),
+            estudianteUid: user.uid,
+            estudianteNombre: String(studentSession.nombre || 'Alumno'),
+            estudianteEmail: user.email || '',
+            archivos: files.map((file) => file.name.slice(0, 200)).join(', ').slice(0, 500),
+            creadoEn: serverTimestamp()
+          });
+        } catch (notificationError) {
+          teacherAlertSent = false;
+          console.error(`Los archivos de la tarea ${selectedTask.id} se subieron, pero no se pudo avisar al profesor:`, notificationError);
+        }
         submissionFile.value = '';
-        submissionStatus.textContent = `${files.length} archivo(s) agregado(s) correctamente.`;
+        submissionStatus.textContent = teacherAlertSent
+          ? `${files.length} archivo(s) agregado(s) correctamente. Se notificó al profesor.`
+          : `${files.length} archivo(s) agregado(s), pero no se pudo notificar al profesor. Revisa los permisos de escritura de Firestore.`;
         const uploadedFiles = await refreshSubmissionList(selectedTask);
         setSubmissionControls(uploadedFiles.length > 0, isSubmissionClosed(selectedTask));
       } catch (error) {

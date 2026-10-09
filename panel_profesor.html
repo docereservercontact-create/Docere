@@ -26,6 +26,20 @@
     .brand { display: flex; align-items: center; gap: 10px; font-weight: 750; }
     .brand-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 7px; background: #eaf1ff; color: var(--blue); }
     .identity { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 14px; }
+    .teacher-notifications { position: relative; }
+    .teacher-notification-button { position: relative; display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); cursor: pointer; }
+    .teacher-notification-button:hover, .teacher-notification-button[aria-expanded="true"] { background: #edf3fb; color: var(--blue); }
+    .teacher-notification-count { position: absolute; top: -5px; right: -5px; display: grid; min-width: 18px; height: 18px; place-items: center; padding: 0 4px; border: 2px solid #fff; border-radius: 999px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; }
+    .teacher-notification-count[hidden], .teacher-notification-panel[hidden], .teacher-notification-toast[hidden] { display: none; }
+    .teacher-notification-panel { position: absolute; z-index: 120; top: calc(100% + 10px); right: 0; display: grid; width: min(340px, calc(100vw - 28px)); max-height: min(420px, 70vh); overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: 0 12px 30px rgba(15, 23, 42, .18); }
+    .teacher-notification-panel h2 { padding: 13px 14px; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .teacher-notification-list { display: grid; }
+    .teacher-notification-item, .teacher-notification-empty { padding: 12px 14px; border: 0; border-bottom: 1px solid var(--line); background: #fff; color: var(--ink); text-align: left; }
+    .teacher-notification-item { display: grid; gap: 4px; cursor: pointer; }
+    .teacher-notification-item:hover { background: #f8fafc; }
+    .teacher-notification-item strong { font-size: 13px; }
+    .teacher-notification-item span, .teacher-notification-empty { color: var(--muted); font-size: 12px; }
+    .teacher-notification-toast { position: fixed; z-index: 130; top: 75px; right: 20px; max-width: min(360px, calc(100vw - 32px)); padding: 12px 16px; border: 1px solid #bfdbfe; border-left: 4px solid var(--blue); border-radius: 7px; background: #fff; color: var(--ink); box-shadow: 0 8px 24px rgba(15, 23, 42, .18); font-size: 13px; }
     .logout { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 11px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); cursor: pointer; }
     .panel-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: calc(100vh - 63px); }
     .class-sidebar { padding: 20px 10px; background: #f7f9fc; border-right: 1px solid var(--line); }
@@ -242,12 +256,25 @@
     <a class="brand brand-logo" href="index.html" aria-label="Docére, inicio">
       <img src="logon.png" alt="Docére">
     </a>
+    <div class="teacher-notifications">
+      <button class="teacher-notification-button" id="teacherNotificationButton" type="button" aria-label="Notificaciones" aria-expanded="false" aria-controls="teacherNotificationPanel">
+        <i data-lucide="bell"></i>
+        <span class="teacher-notification-count" id="teacherNotificationCount" hidden>0</span>
+      </button>
+      <section class="teacher-notification-panel" id="teacherNotificationPanel" aria-label="Notificaciones" hidden>
+        <h2>Notificaciones</h2>
+        <div class="teacher-notification-list" id="teacherNotificationList">
+          <p class="teacher-notification-empty">Aún no hay notificaciones.</p>
+        </div>
+      </section>
+    </div>
     <div class="identity">
       <span id="teacherName">Profesor</span>
       <span class="teacher-email" id="teacherEmail"></span>
       <button class="logout" id="logoutButton" type="button"><i data-lucide="log-out"></i><span>Cerrar sesión</span></button>
     </div>
   </header>
+  <div class="teacher-notification-toast" id="teacherNotificationToast" role="status" aria-live="polite" hidden></div>
 
   <main>
     <div class="panel-layout">
@@ -262,7 +289,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDoc, query, where, getDocs, setDoc, updateDoc, deleteDoc, deleteField, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, query, where, getDocs, onSnapshot, setDoc, updateDoc, deleteDoc, deleteField, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getDownloadURL, getMetadata, getStorage, listAll, ref } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
     import { logSessionEvent } from './session-audit.js';
     import { authApp, signOutPortalUser } from './portal-auth.js';
@@ -283,10 +310,120 @@
     const status = document.getElementById('status');
     const classList = document.getElementById('classList');
     const classWorkspace = document.getElementById('classWorkspace');
+    const teacherNotificationButton = document.getElementById('teacherNotificationButton');
+    const teacherNotificationCount = document.getElementById('teacherNotificationCount');
+    const teacherNotificationPanel = document.getElementById('teacherNotificationPanel');
+    const teacherNotificationList = document.getElementById('teacherNotificationList');
+    const teacherNotificationToast = document.getElementById('teacherNotificationToast');
     const db = getFirestore(initializeApp(firebaseConfig));
+    const authenticatedDb = getFirestore(authApp);
     const storage = getStorage(authApp);
+    const teacherNotifications = [];
+    let unreadTeacherNotifications = 0;
+    let teacherNotificationToastTimer;
     let idleTimer;
     let endingSession = false;
+
+    function renderTeacherNotifications() {
+      teacherNotificationList.replaceChildren();
+      if (!teacherNotifications.length) {
+        addText(teacherNotificationList, 'p', 'teacher-notification-empty', 'Aún no hay notificaciones.');
+        return;
+      }
+      teacherNotifications.forEach((notification) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'teacher-notification-item';
+        addText(item, 'strong', '', notification.titulo || 'Nueva entrega');
+        addText(item, 'span', '', `${notification.estudianteNombre || notification.estudianteEmail || 'Alumno'} · ${notification.aulaNombre || 'Aula'}`);
+        addText(item, 'span', '', notification.archivos || 'El alumno subió archivos a una tarea.');
+        item.addEventListener('click', () => {
+          teacherNotificationPanel.hidden = true;
+          teacherNotificationButton.setAttribute('aria-expanded', 'false');
+          const classroomButton = Array.from(classList.querySelectorAll('.class-nav-button'))
+            .find((button) => button.dataset.classroomId === notification.aulaId);
+          classroomButton?.click();
+        });
+        teacherNotificationList.append(item);
+      });
+    }
+
+    function addTeacherNotification(notification) {
+      teacherNotifications.unshift(notification);
+      teacherNotifications.splice(0, Math.max(0, teacherNotifications.length - 10));
+      unreadTeacherNotifications += 1;
+      teacherNotificationCount.textContent = unreadTeacherNotifications > 99 ? '99+' : String(unreadTeacherNotifications);
+      teacherNotificationCount.hidden = false;
+      renderTeacherNotifications();
+      teacherNotificationToast.textContent = `Nueva entrega: ${notification.estudianteNombre || notification.estudianteEmail || 'Un alumno'} entregó ${notification.titulo || 'una tarea'}.`;
+      teacherNotificationToast.hidden = false;
+      clearTimeout(teacherNotificationToastTimer);
+      teacherNotificationToastTimer = setTimeout(() => { teacherNotificationToast.hidden = true; }, 7000);
+      if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          const browserNotification = new Notification('Nueva entrega de tarea', {
+            body: `${notification.estudianteNombre || notification.estudianteEmail || 'Un alumno'} · ${notification.titulo || 'Tarea'}`,
+            tag: `entrega-${notification.id}`
+          });
+          browserNotification.onclick = () => {
+            window.focus();
+            classList.querySelector(`[data-classroom-id="${CSS.escape(notification.aulaId)}"]`)?.click();
+          };
+        } catch (error) {
+          console.error('No se pudo mostrar la notificación del navegador:', error);
+        }
+      }
+    }
+
+    teacherNotificationButton.addEventListener('click', () => {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().catch((error) => {
+          console.error('No se pudo solicitar permiso para notificaciones del navegador:', error);
+        });
+      }
+      teacherNotificationPanel.hidden = !teacherNotificationPanel.hidden;
+      teacherNotificationButton.setAttribute('aria-expanded', String(!teacherNotificationPanel.hidden));
+      if (!teacherNotificationPanel.hidden) {
+        unreadTeacherNotifications = 0;
+        teacherNotificationCount.hidden = true;
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest('.teacher-notifications')) {
+        teacherNotificationPanel.hidden = true;
+        teacherNotificationButton.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    function subscribeTeacherSubmissionNotifications(aulas) {
+      const unsubscribeAll = aulas.map((aula) => {
+        let initialSnapshot = true;
+        return onSnapshot(
+          collection(authenticatedDb, 'Aulas', aula.id, 'notificacionesProfesor'),
+          (snapshot) => {
+            if (initialSnapshot) {
+              initialSnapshot = false;
+              return;
+            }
+            snapshot.docChanges().forEach((change) => {
+              if (change.type === 'added') {
+                addTeacherNotification({
+                  id: change.doc.id,
+                  aulaId: aula.id,
+                  aulaNombre: aula.nombre || 'Aula',
+                  ...change.doc.data()
+                });
+              }
+            });
+          },
+          (error) => {
+            console.error(`No se pudieron escuchar las notificaciones del aula ${aula.id}:`, error);
+          }
+        );
+      });
+      window.addEventListener('pagehide', () => unsubscribeAll.forEach((unsubscribe) => unsubscribe()), { once: true });
+    }
 
     async function endSession(reason = 'usuario') {
       if (endingSession) return;
@@ -1812,6 +1949,7 @@
         const button = document.createElement('button');
         button.className = 'class-nav-button';
         button.type = 'button';
+        button.dataset.classroomId = aula.id;
         button.setAttribute('aria-current', 'false');
         const initial = addText(button, 'span', 'class-initial', (aula.nombre || 'A').trim().charAt(0).toLocaleUpperCase('es'));
         const text = document.createElement('span');
@@ -1878,6 +2016,7 @@
             ? `${aulas.length} aula${aulas.length === 1 ? '' : 's'} asignada${aulas.length === 1 ? '' : 's'}`
             : 'No se encontraron aulas asignadas. Verifica la asignación desde el panel administrativo.';
           renderClasses(aulas);
+          subscribeTeacherSubmissionNotifications(aulas);
           aulas.forEach((aula) => migrateClassTaskSubmissionAccess(aula));
           if (typeof lucide !== 'undefined') lucide.createIcons();
         } catch (error) {
