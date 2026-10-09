@@ -28,28 +28,6 @@
     .page-banner h1 { position: relative; z-index: 1; margin: 0; color: #fff; font-size: clamp(32px, 5vw, 56px); font-weight: 500; }
     .assignment-surface { padding: 24px 27px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.78); box-shadow: 0 10px 30px rgba(38, 78, 115, .06); }
     .status { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
-    .due-calendar { margin-bottom: 24px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
-    .due-calendar-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-    .due-calendar-header h2 { margin: 0; font-size: 18px; }
-    .due-calendar-month-nav { display: flex; align-items: center; gap: 10px; }
-    .due-calendar-month { min-width: 132px; color: var(--muted); font-size: 14px; font-weight: 650; text-align: center; text-transform: capitalize; }
-    .due-calendar-nav { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); cursor: pointer; }
-    .due-calendar-nav:hover { background: #edf7f8; }
-    .due-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
-    .due-calendar-weekday { padding: 7px 2px; color: var(--muted); font-size: 11px; font-weight: 700; text-align: center; }
-    .due-calendar-cell { position: relative; min-width: 0; }
-    .due-calendar-day { position: relative; display: flex; width: 100%; min-height: 54px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
-    .due-calendar-day:hover, .due-calendar-day:focus-visible { border-color: #99d9d8; outline: none; background: #edfafa; }
-    .due-calendar-day--outside { color: #9aa9b9; }
-    .due-calendar-day--today { border-color: var(--blue); font-weight: 750; }
-    .due-calendar-day--has-tasks { background: #e9f6f5; font-weight: 700; }
-    .due-calendar-day--has-tasks::after { position: absolute; bottom: 6px; width: 5px; height: 5px; border-radius: 50%; background: var(--teal); content: ""; }
-    .due-calendar-day--today.due-calendar-day--has-tasks { box-shadow: inset 0 0 0 1px var(--blue); }
-    .due-calendar-day-count { position: absolute; top: 2px; right: 4px; color: #087f7d; font-size: 10px; font-weight: 750; }
-    .due-calendar-details { min-height: 52px; margin-top: 12px; padding: 12px 14px; border-left: 3px solid var(--teal); border-radius: 0 7px 7px 0; background: #f3f9fa; }
-    .due-calendar-details p { margin: 0; color: var(--muted); font-size: 13px; }
-    .due-calendar-task-list { display: grid; gap: 6px; margin-top: 8px; }
-    .due-calendar-task { width: fit-content; max-width: 100%; padding: 0; border: 0; background: transparent; color: var(--blue); font: inherit; font-size: 13px; text-align: left; text-decoration: underline; overflow-wrap: anywhere; cursor: pointer; }
     .assignment-list { display: grid; gap: 14px; }
     .assignment-card { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; padding: 16px 22px; border: 1px solid #dbe5ee; border-left: 4px solid var(--teal); border-radius: 12px; background: linear-gradient(115deg, #fff, #f9fcfd); box-shadow: 0 4px 12px rgba(29, 68, 103, .035); }
     .assignment-card h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; overflow-wrap: anywhere; }
@@ -97,10 +75,6 @@
       .page { width: min(100% - 28px, 1200px); padding: 20px 0 36px; }
       .page-banner { min-height: 140px; margin-bottom: 16px; padding: 24px; border-radius: 16px; }
       .assignment-surface { padding: 14px; border-radius: 12px; }
-      .due-calendar { padding: 12px; }
-      .due-calendar-header { align-items: flex-start; flex-direction: column; }
-      .due-calendar-month-nav { width: 100%; justify-content: space-between; }
-      .due-calendar-day { min-height: 44px; }
       .assignment-card { grid-template-columns: 1fr; gap: 14px; padding: 16px; }
       .assignment-details { grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; }
       .assignment-due-label, .assignment-due { text-align: left; }
@@ -108,6 +82,7 @@
     }
   </style>
   <link rel="stylesheet" href="student-panel-navigation.css">
+  <link rel="stylesheet" href="student-due-calendar.css">
   <link rel="stylesheet" href="panel-visual-theme.css">
   <script src="student-panel-navigation.js" defer></script>
 </head>
@@ -140,20 +115,7 @@
     <header class="page-banner"><h1>Asignaciones</h1></header>
     <section class="assignment-surface" aria-label="Asignaciones del alumno">
       <p class="status" id="assignmentsStatus" role="status" aria-live="polite">Cargando asignaciones...</p>
-      <section class="due-calendar" aria-labelledby="dueCalendarTitle">
-        <header class="due-calendar-header">
-          <h2 id="dueCalendarTitle">Calendario de entregas</h2>
-          <div class="due-calendar-month-nav">
-            <button class="due-calendar-nav" id="previousCalendarMonth" type="button" aria-label="Mes anterior">‹</button>
-            <span class="due-calendar-month" id="dueCalendarMonth"></span>
-            <button class="due-calendar-nav" id="nextCalendarMonth" type="button" aria-label="Mes siguiente">›</button>
-          </div>
-        </header>
-        <div class="due-calendar-grid" id="dueCalendarGrid" role="grid" aria-label="Fechas de entrega"></div>
-        <div class="due-calendar-details" id="dueCalendarDetails" role="status" aria-live="polite">
-          <p>Pasa el cursor, enfoca o toca una fecha para consultar sus asignaciones.</p>
-        </div>
-      </section>
+      <div id="studentDueCalendar"></div>
       <div class="assignment-list" id="assignmentsList"></div>
     </section>
   </main>
@@ -185,6 +147,7 @@
     import { deleteObject, getDownloadURL, getMetadata, getStorage, listAll, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
     import { auth, authApp, firebaseConfig, signOutPortalUser } from './portal-auth.js';
+    import { createStudentDueCalendar } from './student-due-calendar.js';
 
     const appName = 'studentAssignments';
     const app = getApps().find((firebaseApp) => firebaseApp.name === appName)
@@ -194,9 +157,11 @@
     const storage = getStorage(authApp);
     const assignmentsStatus = document.getElementById('assignmentsStatus');
     const assignmentsList = document.getElementById('assignmentsList');
-    const dueCalendarMonth = document.getElementById('dueCalendarMonth');
-    const dueCalendarGrid = document.getElementById('dueCalendarGrid');
-    const dueCalendarDetails = document.getElementById('dueCalendarDetails');
+    const dueCalendar = createStudentDueCalendar(document.getElementById('studentDueCalendar'), (task) => {
+      const assignmentCard = document.getElementById(`assignment-${task.id}`);
+      assignmentCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      assignmentCard?.querySelector('.assignment-submit')?.focus();
+    });
     const assignmentDialog = document.getElementById('assignmentDialog');
     const assignmentDialogTitle = document.getElementById('assignmentDialogTitle');
     const assignmentDialogContext = document.getElementById('assignmentDialogContext');
@@ -210,8 +175,6 @@
     const submissionCancelButton = document.getElementById('submissionCancelButton');
     let selectedTask = null;
     let refreshSelectedTaskControls = null;
-    let currentCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    let currentAssignments = [];
 
     function addText(parent, tagName, className, text) {
       const element = document.createElement(tagName);
@@ -268,92 +231,6 @@
       const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
       return Number.isNaN(date.getTime()) ? null : date;
     }
-
-    function getLocalDateKey(date) {
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    }
-
-    function formatCalendarDate(date) {
-      return new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
-    }
-
-    function showCalendarDay(date, dayAssignments) {
-      dueCalendarDetails.replaceChildren();
-      addText(dueCalendarDetails, 'p', '', formatCalendarDate(date));
-      if (!dayAssignments.length) {
-        addText(dueCalendarDetails, 'p', '', 'No tienes asignaciones con entrega este día.');
-        return;
-      }
-
-      const taskList = document.createElement('div');
-      taskList.className = 'due-calendar-task-list';
-      dayAssignments.forEach((task) => {
-        const taskButton = addText(taskList, 'button', 'due-calendar-task', `${task.titulo || 'Asignación'} · ${task.tema || task.curso || 'Materia'}`);
-        taskButton.type = 'button';
-        taskButton.addEventListener('click', () => {
-          const assignmentCard = document.getElementById(`assignment-${task.id}`);
-          assignmentCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          assignmentCard?.querySelector('.assignment-submit')?.focus();
-        });
-      });
-      dueCalendarDetails.append(taskList);
-    }
-
-    function renderDueCalendar(assignments) {
-      const year = currentCalendarMonth.getFullYear();
-      const month = currentCalendarMonth.getMonth();
-      dueCalendarMonth.textContent = new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' }).format(currentCalendarMonth);
-      dueCalendarGrid.replaceChildren();
-
-      ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].forEach((weekday) => {
-        const label = addText(dueCalendarGrid, 'span', 'due-calendar-weekday', weekday);
-        label.setAttribute('role', 'columnheader');
-      });
-
-      const tasksByDate = new Map();
-      assignments.forEach((task) => {
-        const deadline = getDeadlineDate(task.fechaEntrega);
-        if (!deadline) return;
-        const key = getLocalDateKey(deadline);
-        if (!tasksByDate.has(key)) tasksByDate.set(key, []);
-        tasksByDate.get(key).push(task);
-      });
-
-      const firstOfMonth = new Date(year, month, 1);
-      const mondayOffset = (firstOfMonth.getDay() + 6) % 7;
-      const todayKey = getLocalDateKey(new Date());
-      for (let index = 0; index < 42; index += 1) {
-        const date = new Date(year, month, 1 - mondayOffset + index);
-        const dateKey = getLocalDateKey(date);
-        const dayAssignments = tasksByDate.get(dateKey) || [];
-        const cell = document.createElement('div');
-        cell.className = 'due-calendar-cell';
-        cell.setAttribute('role', 'gridcell');
-        const dayButton = addText(cell, 'button', 'due-calendar-day', String(date.getDate()));
-        dayButton.type = 'button';
-        dayButton.setAttribute('aria-label', `${formatCalendarDate(date)}${dayAssignments.length ? `, ${dayAssignments.length} asignación(es)` : ''}`);
-        if (date.getMonth() !== month) dayButton.classList.add('due-calendar-day--outside');
-        if (dateKey === todayKey) dayButton.classList.add('due-calendar-day--today');
-        if (dayAssignments.length) {
-          dayButton.classList.add('due-calendar-day--has-tasks');
-          addText(dayButton, 'span', 'due-calendar-day-count', String(dayAssignments.length));
-        }
-        dayButton.addEventListener('pointerenter', () => showCalendarDay(date, dayAssignments));
-        dayButton.addEventListener('focus', () => showCalendarDay(date, dayAssignments));
-        dayButton.addEventListener('click', () => showCalendarDay(date, dayAssignments));
-        cell.append(dayButton);
-        dueCalendarGrid.append(cell);
-      }
-    }
-
-    document.getElementById('previousCalendarMonth').addEventListener('click', () => {
-      currentCalendarMonth = new Date(currentCalendarMonth.getFullYear(), currentCalendarMonth.getMonth() - 1, 1);
-      renderDueCalendar(currentAssignments);
-    });
-    document.getElementById('nextCalendarMonth').addEventListener('click', () => {
-      currentCalendarMonth = new Date(currentCalendarMonth.getFullYear(), currentCalendarMonth.getMonth() + 1, 1);
-      renderDueCalendar(currentAssignments);
-    });
 
     function isSubmissionClosed(task) {
       if (task.cerrarEntregas !== true) return false;
@@ -760,8 +637,7 @@
             .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
           assignmentsList.replaceChildren();
           assignments.forEach((task) => assignmentsList.append(renderAssignment(task)));
-          currentAssignments = assignments;
-          renderDueCalendar(assignments);
+          dueCalendar.setTasks(assignments);
           const targetId = decodeURIComponent(window.location.hash.slice(1));
           const targetAssignment = targetId.startsWith('assignment-')
             ? document.getElementById(targetId)
@@ -818,7 +694,6 @@
       }
     }
 
-    renderDueCalendar([]);
     loadAssignments();
   </script>
 </body>

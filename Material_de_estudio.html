@@ -452,6 +452,7 @@
     }
   </style>
   <link rel="stylesheet" href="student-panel-navigation.css">
+  <link rel="stylesheet" href="student-due-calendar.css">
   <script src="student-panel-navigation.js" defer></script>
 </head>
 <body>
@@ -507,8 +508,7 @@
   </nav>
 
   <!-- CONTENIDO PRINCIPAL -->
-  <p id="accessMessage" role="status" aria-live="polite">Verificando tu estado de asistencia...</p>
-  <main class="dashboard-container" id="studentContent" hidden>
+  <main class="dashboard-container" id="studentContent">
     <section class="welcome-header">
       <div class="welcome-text">
         <h1 id="welcomeTitle">¡Bienvenido a tu panel de alumno! 👋</h1>
@@ -553,6 +553,9 @@
             <span>Descargar PDF</span>
           </button>
         </div>
+
+        <p class="wall-status" id="dueCalendarStatus" role="status" aria-live="polite">Cargando las fechas de entrega...</p>
+        <div id="materialDueCalendar"></div>
 
         <!-- Iframe Google Calendar configurado exclusivamente en MODO SEMANAL -->
         <div class="calendar-wrapper">
@@ -637,7 +640,103 @@
   </footer>
 
   <script type="module">
+    import { getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { collection, getDocs, getFirestore, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
+    import { createStudentDueCalendar } from './student-due-calendar.js';
+    import { firebaseConfig } from './portal-auth.js';
+
+    const dueCalendarAppName = 'studentStudyDueCalendar';
+    const dueCalendarApp = getApps().find((firebaseApp) => firebaseApp.name === dueCalendarAppName)
+      || initializeApp(firebaseConfig, dueCalendarAppName);
+    const db = getFirestore(dueCalendarApp);
+    const dueCalendarStatus = document.getElementById('dueCalendarStatus');
+    const dueCalendar = createStudentDueCalendar(document.getElementById('materialDueCalendar'));
+
+    function isStudentInClassroom(classroom, student) {
+      return Array.isArray(classroom.alumnos) && classroom.alumnos.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && assignedStudent.email === student.email)
+      );
+    }
+
+    function isTaskAssignedToStudent(task, student) {
+      if (!Array.isArray(task.alumnosAsignados)) return true;
+      return task.alumnosAsignados.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && assignedStudent.email === student.email)
+      );
+    }
+
+    async function loadStudentDueDates() {
+      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!student?.id || !student?.coleccion) {
+        dueCalendarStatus.textContent = 'Inicia sesión para consultar tus fechas de entrega.';
+        dueCalendar.setTasks([]);
+        return;
+      }
+
+      try {
+        const absenceStatus = await getStudentAbsenceStatus(student);
+        if (absenceStatus.isSuspended) {
+          dueCalendarStatus.textContent = getSuspensionMessage(absenceStatus);
+          dueCalendar.setTasks([]);
+          return;
+        }
+
+        const classroomsSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomsSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => isStudentInClassroom(classroom, student));
+        if (!classrooms.length) {
+          dueCalendarStatus.textContent = 'Todavía no estás asignado a un aula.';
+          dueCalendar.setTasks([]);
+          return;
+        }
+
+        const tasksByClassroom = new Map();
+        const loadedClassrooms = new Set();
+        const unsubscribeTasks = [];
+        const renderTasks = () => {
+          const tasks = Array.from(tasksByClassroom.values()).filter(Boolean).flat();
+          dueCalendar.setTasks(tasks);
+          const failedCount = Array.from(tasksByClassroom.values()).filter((result) => result === null).length;
+          dueCalendarStatus.textContent = loadedClassrooms.size < classrooms.length
+            ? 'Actualizando fechas de entrega...'
+            : failedCount
+              ? `Se muestran las fechas disponibles. No se pudieron consultar ${failedCount} aula(s).`
+              : `${tasks.length} asignación(es) con fecha de entrega.`;
+        };
+
+        classrooms.forEach((classroom) => {
+          const unsubscribe = onSnapshot(collection(db, 'Aulas', classroom.id, 'tareas'), (snapshot) => {
+            tasksByClassroom.set(classroom.id, snapshot.docs
+              .map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }))
+              .filter((task) => isTaskAssignedToStudent(task, student))
+              .map((task) => ({
+                ...task,
+                aulaId: classroom.id,
+                aulaNombre: classroom.nombre || task.aulaNombre || 'Aula',
+                curso: classroom.curso || task.curso || ''
+              })));
+            loadedClassrooms.add(classroom.id);
+            renderTasks();
+          }, (error) => {
+            console.error(`No se pudieron escuchar las tareas del aula ${classroom.id}:`, error);
+            tasksByClassroom.set(classroom.id, null);
+            loadedClassrooms.add(classroom.id);
+            renderTasks();
+          });
+          unsubscribeTasks.push(unsubscribe);
+        });
+        window.addEventListener('pagehide', () => unsubscribeTasks.forEach((unsubscribe) => unsubscribe()), { once: true });
+      } catch (error) {
+        console.error('No se pudieron cargar las fechas de entrega:', error);
+        dueCalendarStatus.textContent = 'No se pudieron cargar las fechas. Revisa la conexión y permisos de Firestore.';
+      }
+    }
+
+    loadStudentDueDates();
 
     const classEntryButton = document.getElementById('btnIngresarClase');
     const classMeetingUrl = 'https://us05web.zoom.us/j/3748692842?pwd=w3a0SbHHfhjyhOa3kc7uJWQ19B9EQd.1';
