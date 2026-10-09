@@ -169,6 +169,7 @@
     .roster-message { min-height: 18px; margin: 0; color: var(--muted); font-size: 13px; }
     .record-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
     .record-actions button { min-height: 38px; padding: 0 13px; border: 0; border-radius: 5px; background: var(--red); color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
+    .record-actions button.approve-access-button { background: var(--green); }
     .record-actions button:disabled { opacity: 0.6; cursor: wait; }
     .classroom-form button {
       display: inline-flex;
@@ -641,7 +642,12 @@
         title.textContent = getValue(data, config.titleKeys) || 'Registro sin nombre';
         const secondary = document.createElement('span');
         secondary.className = 'record-meta';
-        secondary.textContent = getValue(data, config.secondaryKeys) || `Documento: ${id}`;
+        const approvalLabel = ['aspirantes_admision', 'Cursos'].includes(activeCollection)
+          ? data.accesoAprobado === false
+            ? ' · Acceso pendiente de aprobación'
+            : data.accesoAprobado === true ? ' · Acceso aprobado' : ' · Registro anterior'
+          : '';
+        secondary.textContent = `${getValue(data, config.secondaryKeys) || `Documento: ${id}`}${approvalLabel}`;
         summaryContent.append(title, document.createElement('br'), secondary);
         summary.append(summaryContent);
 
@@ -684,6 +690,37 @@
           deleteMessage.className = 'roster-message';
           deleteMessage.setAttribute('role', 'status');
           actions.append(deleteRecordButton);
+          if (!isTeacher && data.accesoAprobado === false) {
+            const approveAccessButton = document.createElement('button');
+            approveAccessButton.type = 'button';
+            approveAccessButton.className = 'approve-access-button';
+            approveAccessButton.textContent = 'Aprobar acceso';
+            approveAccessButton.addEventListener('click', async () => {
+              approveAccessButton.disabled = true;
+              approveAccessButton.textContent = 'Aprobando...';
+              deleteMessage.textContent = '';
+              try {
+                const approvedBy = session.email || session.id;
+                const approvedAt = new Date();
+                await updateDoc(doc(db, recordCollection, id), {
+                  accesoAprobado: true,
+                  accesoAprobadoPor: approvedBy,
+                  accesoAprobadoEn: serverTimestamp()
+                });
+                data.accesoAprobado = true;
+                data.accesoAprobadoPor = approvedBy;
+                data.accesoAprobadoEn = approvedAt;
+                statusLine.textContent = `Acceso aprobado para ${displayStudentName(data)}.`;
+                renderRecords();
+              } catch (error) {
+                console.error(`No se pudo aprobar el acceso ${recordCollection}/${id}:`, error);
+                deleteMessage.textContent = 'No se pudo aprobar el acceso. Revisa los permisos de Firestore.';
+                approveAccessButton.disabled = false;
+                approveAccessButton.textContent = 'Aprobar acceso';
+              }
+            });
+            actions.prepend(approveAccessButton);
+          }
           detailContainer.append(actions, deleteMessage);
           deleteRecordButton.addEventListener('click', async () => {
             const recordName = displayStudentName(data);

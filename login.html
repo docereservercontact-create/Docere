@@ -250,6 +250,7 @@
 
     async function buscarEstudiante(email, password) {
       const colecciones = ["Cursos", "aspirantes_admision"];
+      const matchingStudents = [];
 
       for (const nombreColeccion of colecciones) {
         const q = query(
@@ -260,16 +261,18 @@
 
         const querySnapshot = await getDocs(q);
 
-        if (!querySnapshot.empty) {
-          const docData = querySnapshot.docs[0].data();
-          return {
-            id: querySnapshot.docs[0].id,
+        querySnapshot.docs.forEach((studentDoc) => {
+          matchingStudents.push({
+            id: studentDoc.id,
             coleccion: nombreColeccion,
-            ...docData
-          };
-        }
+            ...studentDoc.data()
+          });
+        });
       }
-      return null;
+
+      return matchingStudents.find((student) => student.accesoAprobado !== false)
+        || matchingStudents[0]
+        || null;
     }
 
     async function buscarAdministrador(email, password) {
@@ -363,6 +366,11 @@
         const estudiante = await buscarEstudiante(email, password);
 
         if (estudiante) {
+          if (estudiante.accesoAprobado === false) {
+            showMessage('Tu registro fue recibido. El administrador debe aprobar tu acceso antes de iniciar sesión.');
+            return;
+          }
+
           await authenticatePortalUser(email, password);
           if (rememberMeCheckbox.checked) {
             localStorage.setItem("saved_student_email", email);

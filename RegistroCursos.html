@@ -325,6 +325,7 @@
       try {
         await addDoc(collection(db, "Cursos"), {
           ...obj,
+          accesoAprobado: false,
           fechaRegistro: serverTimestamp()
         });
 
