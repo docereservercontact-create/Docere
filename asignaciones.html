@@ -36,6 +36,8 @@
     .assignment-details { display: grid; align-content: start; justify-items: stretch; gap: 10px; }
     .assignment-due-label { color: var(--ink); font-size: 17px; text-align: right; }
     .assignment-due { color: var(--muted); font-size: 14px; text-align: right; }
+    .assignment-submission-state { justify-self: end; padding: 5px 10px; border-radius: 999px; background: #e8f7ef; color: #087f5b; font-size: 12px; font-weight: 700; }
+    .assignment-submission-state[hidden] { display: none; }
     .assignment-submit { min-height: 46px; margin-top: 4px; padding: 0 16px; border: 0; border-radius: 9px; background: linear-gradient(110deg, #2479df, #118f9a); box-shadow: 0 5px 12px rgba(28, 120, 168, .17); color: #fff; font-size: 15px; font-weight: 650; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
     .assignment-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(28, 120, 168, .22); }
     .assignment-submit:disabled { opacity: .65; cursor: wait; }
@@ -366,6 +368,8 @@
       addText(details, 'span', 'assignment-due-label', 'Fecha de entrega');
       addText(details, 'span', 'assignment-due', formatDeadline(task.fechaEntrega));
       const closed = isSubmissionClosed(task);
+      const submissionState = addText(details, 'span', 'assignment-submission-state', '');
+      submissionState.hidden = true;
       const deliverButton = addText(details, 'button', 'assignment-submit', closed ? 'Entrega cerrada' : 'Cargando entrega...');
       deliverButton.type = 'button';
       deliverButton.disabled = true;
@@ -374,9 +378,11 @@
       manageButton.hidden = true;
 
       function updateControls(hasSubmission, submissionClosed) {
-        deliverButton.textContent = submissionClosed
-          ? 'Entrega cerrada'
-          : hasSubmission ? 'Cancelar entregar' : 'Entregar tarea';
+        submissionState.hidden = !hasSubmission;
+        submissionState.textContent = 'Entregada';
+        deliverButton.textContent = hasSubmission
+          ? 'Cancelar entregar'
+          : submissionClosed ? 'Entrega cerrada' : 'Entregar tarea';
         deliverButton.disabled = submissionClosed;
         manageButton.hidden = !hasSubmission;
         manageButton.disabled = false;
