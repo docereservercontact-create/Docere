@@ -153,6 +153,12 @@
     .task-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
     .task-card h4 { margin: 0 0 6px; font-size: 16px; }
     .task-card p { margin: 5px 0; color: var(--muted); font-size: 13px; }
+    .task-submissions { display: grid; gap: 7px; margin-top: 13px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #f8fbfd; }
+    .task-submissions h5 { margin: 0; color: var(--ink); font-size: 13px; }
+    .task-submissions-status { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .task-submission-list { display: grid; gap: 6px; }
+    .task-submission-link { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 12px; color: var(--blue); font-size: 12px; overflow-wrap: anywhere; }
+    .task-submission-link span:last-child { color: var(--muted); }
     .task-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .task-card-actions button { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; }
     .task-card-actions .task-delete-button { border-color: #f3b4b0; color: var(--red); }
@@ -257,7 +263,9 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, doc, getDoc, query, where, getDocs, setDoc, updateDoc, deleteDoc, deleteField, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getDownloadURL, getMetadata, getStorage, listAll, ref } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
     import { logSessionEvent } from './session-audit.js';
+    import { authApp, signOutPortalUser } from './portal-auth.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -276,6 +284,7 @@
     const classList = document.getElementById('classList');
     const classWorkspace = document.getElementById('classWorkspace');
     const db = getFirestore(initializeApp(firebaseConfig));
+    const storage = getStorage(authApp);
     let idleTimer;
     let endingSession = false;
 
@@ -283,6 +292,11 @@
       if (endingSession) return;
       endingSession = true;
       await logSessionEvent(session, 'cierre_sesion', 'profesor', reason);
+      try {
+        await signOutPortalUser();
+      } catch (error) {
+        console.error('No se pudo cerrar la sesión segura de Firebase:', error);
+      }
       localStorage.removeItem(sessionKey);
       localStorage.removeItem(activityKey);
       window.location.replace('login.html');
@@ -1241,6 +1255,81 @@
       return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     }
 
+    async function loadTaskSubmissions(task, container, statusText) {
+      try {
+        const taskFolder = ref(storage, `entregas/${task.aulaId}/${task.id}`);
+        const files = await listAll(taskFolder);
+        const submissions = await Promise.all(files.items.map(async (fileReference) => ({
+          metadata: await getMetadata(fileReference),
+          url: await getDownloadURL(fileReference)
+        })));
+
+        container.replaceChildren();
+        if (!submissions.length) {
+          statusText.textContent = 'Aún no hay entregas.';
+          return;
+        }
+
+        submissions.sort((left, right) =>
+          new Date(right.metadata.updated || 0).getTime() - new Date(left.metadata.updated || 0).getTime()
+        );
+        submissions.forEach(({ metadata, url }) => {
+          const link = document.createElement('a');
+          link.className = 'task-submission-link';
+          link.href = url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          const originalName = metadata.customMetadata?.originalName || 'entrega.pdf';
+          const studentName = metadata.customMetadata?.studentName || metadata.customMetadata?.studentEmail || 'Alumno';
+          const updatedAt = metadata.updated
+            ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(metadata.updated))
+            : '';
+          addText(link, 'span', '', `${studentName} · ${originalName}`);
+          addText(link, 'span', '', updatedAt ? `Actualizada ${updatedAt}` : '');
+          container.append(link);
+        });
+        statusText.textContent = `${submissions.length} entrega(s) recibida(s).`;
+      } catch (error) {
+        console.error(`No se pudieron cargar las entregas de la tarea ${task.id}:`, error);
+        statusText.textContent = error.code === 'storage/unauthorized'
+          ? 'No se pudo consultar Storage. Verifica las reglas de storage.rules y que el alumno esté autenticado.'
+          : 'No se pudieron consultar las entregas.';
+      }
+    }
+
+    async function migrateTaskSubmissionAccess(aula, task) {
+      const updates = {};
+      if (!Array.isArray(task.alumnosEmails)) {
+        task.alumnosEmails = (Array.isArray(task.alumnosAsignados) ? task.alumnosAsignados : [])
+          .map((student) => String(student.email || student.correo || '').trim().toLowerCase())
+          .filter(Boolean);
+        updates.alumnosEmails = task.alumnosEmails;
+      }
+      if (!task.profesorEmail && session.email) {
+        task.profesorEmail = String(session.email).trim().toLowerCase();
+        updates.profesorEmail = task.profesorEmail;
+      }
+      if (Object.keys(updates).length) {
+        await updateDoc(doc(db, 'Aulas', aula.id, 'tareas', task.id), updates);
+      }
+    }
+
+    async function migrateClassTaskSubmissionAccess(aula) {
+      try {
+        const snapshot = await getDocs(collection(db, 'Aulas', aula.id, 'tareas'));
+        await Promise.all(snapshot.docs.map(async (taskDoc) => {
+          const task = { id: taskDoc.id, ...taskDoc.data() };
+          try {
+            await migrateTaskSubmissionAccess(aula, task);
+          } catch (error) {
+            console.error(`No se pudieron preparar las entregas de la tarea ${task.id} del aula ${aula.id}:`, error);
+          }
+        }));
+      } catch (error) {
+        console.error(`No se pudieron preparar las entregas de las tareas del aula ${aula.id}:`, error);
+      }
+    }
+
     async function renderTasks(aula) {
       const tasksPage = document.createElement('section');
       tasksPage.className = 'tasks-page';
@@ -1261,6 +1350,13 @@
         assignedTasks = snapshot.docs
           .map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }))
           .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+        await Promise.all(assignedTasks.map(async (task) => {
+          try {
+            await migrateTaskSubmissionAccess(aula, task);
+          } catch (error) {
+            console.error(`No se pudieron actualizar los permisos de entrega de la tarea ${task.id}:`, error);
+          }
+        }));
         listStatus.textContent = assignedTasks.length
           ? `${assignedTasks.length} tarea(s) asignada(s).`
           : 'Aún no hay tareas para esta aula.';
@@ -1273,6 +1369,15 @@
           if (Array.isArray(task.alumnosAsignados)) {
             addText(card, 'p', '', `Asignada a ${task.alumnosAsignados.length} alumno(s).`);
           }
+          const submissions = document.createElement('section');
+          submissions.className = 'task-submissions';
+          addText(submissions, 'h5', '', 'Entregas de alumnos');
+          const submissionStatus = addText(submissions, 'p', 'task-submissions-status', 'Consultando entregas...');
+          const submissionList = document.createElement('div');
+          submissionList.className = 'task-submission-list';
+          submissions.append(submissionList);
+          card.append(submissions);
+          loadTaskSubmissions({ ...task, aulaId: aula.id }, submissionList, submissionStatus);
           const actions = document.createElement('div');
           actions.className = 'task-card-actions';
           const editButton = addText(actions, 'button', '', 'Editar');
@@ -1564,10 +1669,14 @@
               tema: topicInput.value.trim(),
               adjuntos: attachmentItems,
               alumnosAsignados,
+              alumnosEmails: alumnosAsignados
+                .map((student) => String(student.email || student.correo || '').trim().toLowerCase())
+                .filter(Boolean),
               aulaId: aula.id,
               aulaNombre: aula.nombre || '',
               curso: aula.curso || '',
               profesorDocId: session.teacherDocId,
+              profesorEmail: String(session.email || '').trim().toLowerCase(),
               profesorNombre: session.nombre || 'Profesor'
             };
             if (editingTask) {
@@ -1762,6 +1871,7 @@
             ? `${aulas.length} aula${aulas.length === 1 ? '' : 's'} asignada${aulas.length === 1 ? '' : 's'}`
             : 'No se encontraron aulas asignadas. Verifica la asignación desde el panel administrativo.';
           renderClasses(aulas);
+          aulas.forEach((aula) => migrateClassTaskSubmissionAccess(aula));
           if (typeof lucide !== 'undefined') lucide.createIcons();
         } catch (error) {
           console.error('No se pudieron cargar las aulas del profesor:', error);

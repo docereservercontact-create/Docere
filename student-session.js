@@ -22,6 +22,12 @@
         console.error('No se pudo registrar el cierre de sesión del alumno:', error);
       }
     }
+    try {
+      const { signOutPortalUser } = await import('./portal-auth.js');
+      await signOutPortalUser();
+    } catch (error) {
+      console.error('No se pudo cerrar la sesión segura de Firebase:', error);
+    }
     localStorage.removeItem(sessionKey);
     localStorage.removeItem(activityKey);
     window.location.replace('login.html');

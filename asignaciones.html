@@ -36,9 +36,10 @@
     .assignment-details { display: grid; align-content: start; justify-items: stretch; gap: 10px; }
     .assignment-due-label { color: var(--ink); font-size: 17px; text-align: right; }
     .assignment-due { color: var(--muted); font-size: 14px; text-align: right; }
-    .assignment-submit { min-height: 48px; margin-top: 4px; border: 2px solid #121820; border-radius: 0; background: #fff; color: var(--ink); font-size: 16px; cursor: pointer; }
-    .assignment-submit:hover { background: #eef7f7; }
-    .assignment-submit:focus-visible, .assignment-dialog-close:focus-visible { outline: 3px solid #41c9c4; outline-offset: 2px; }
+    .assignment-submit { min-height: 46px; margin-top: 4px; padding: 0 16px; border: 0; border-radius: 9px; background: linear-gradient(110deg, #2479df, #118f9a); box-shadow: 0 5px 12px rgba(28, 120, 168, .17); color: #fff; font-size: 15px; font-weight: 650; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
+    .assignment-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(28, 120, 168, .22); }
+    .assignment-submit:disabled { opacity: .65; cursor: wait; }
+    .assignment-submit:focus-visible, .assignment-dialog-close:focus-visible, .submission-upload:focus-visible { outline: 3px solid #41c9c4; outline-offset: 2px; }
     .empty { padding: 28px 18px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); text-align: center; }
     dialog.assignment-dialog { width: min(620px, calc(100% - 28px)); max-height: min(82vh, 700px); padding: 0; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); box-shadow: 0 24px 70px rgba(15, 35, 58, .28); }
     dialog.assignment-dialog::backdrop { background: rgba(13, 31, 51, .52); }
@@ -51,6 +52,14 @@
     .assignment-instructions > :last-child { margin-bottom: 0; }
     .assignment-attachments { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
     .assignment-attachments a { color: var(--blue); overflow-wrap: anywhere; }
+    .submission-form { display: grid; gap: 12px; margin-top: 22px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #f6fafc; }
+    .submission-form label { display: grid; gap: 8px; color: var(--ink); font-size: 14px; font-weight: 650; }
+    .submission-form input[type="file"] { width: 100%; padding: 10px; border: 1px dashed #9bb6ca; border-radius: 8px; background: #fff; color: var(--muted); }
+    .submission-help, .submission-status { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .submission-status:empty { display: none; }
+    .submission-upload { min-height: 42px; padding: 0 15px; border: 0; border-radius: 9px; background: linear-gradient(110deg, #2479df, #118f9a); color: #fff; font-weight: 650; cursor: pointer; }
+    .submission-upload:disabled { opacity: .65; cursor: wait; }
+    .submission-file-link { color: var(--blue); font-weight: 650; overflow-wrap: anywhere; }
     @media (max-width: 700px) {
       .page { width: min(100% - 28px, 1200px); padding: 20px 0 36px; }
       .page-banner { min-height: 140px; margin-bottom: 16px; padding: 24px; border-radius: 16px; }
@@ -106,26 +115,29 @@
     <div class="assignment-dialog-body">
       <div class="assignment-instructions" id="assignmentDialogInstructions"></div>
       <div class="assignment-attachments" id="assignmentDialogAttachments"></div>
+      <form class="submission-form" id="submissionForm">
+        <label for="submissionFile">Entrega tu trabajo en PDF</label>
+        <input id="submissionFile" name="submissionFile" type="file" accept=".pdf,application/pdf" required>
+        <p class="submission-help">Solo archivos PDF de hasta 10 MB. Puedes reemplazar tu entrega antes del cierre.</p>
+        <p class="submission-status" id="submissionStatus" role="status" aria-live="polite"></p>
+        <button class="submission-upload" id="submissionUploadButton" type="submit">Subir PDF</button>
+      </form>
     </div>
   </dialog>
 
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { collection, getDocs, getFirestore, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { getDownloadURL, getMetadata, getStorage, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
+    import { auth, authApp, firebaseConfig, signOutPortalUser } from './portal-auth.js';
 
-    const firebaseConfig = {
-      apiKey: 'AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag',
-      authDomain: 'docere-931ec.firebaseapp.com',
-      projectId: 'docere-931ec',
-      storageBucket: 'docere-931ec.firebasestorage.app',
-      messagingSenderId: '1005663843239',
-      appId: '1:1005663843239:web:d8f6c7524a5d10bf797c82',
-      measurementId: 'G-B6TDT4VE7S'
-    };
-
-    const app = initializeApp(firebaseConfig, 'studentAssignments');
+    const appName = 'studentAssignments';
+    const app = getApps().find((firebaseApp) => firebaseApp.name === appName)
+      || initializeApp(firebaseConfig, appName);
     const db = getFirestore(app);
+    const storage = getStorage(authApp);
     const assignmentsStatus = document.getElementById('assignmentsStatus');
     const assignmentsList = document.getElementById('assignmentsList');
     const assignmentDialog = document.getElementById('assignmentDialog');
@@ -133,6 +145,11 @@
     const assignmentDialogContext = document.getElementById('assignmentDialogContext');
     const assignmentDialogInstructions = document.getElementById('assignmentDialogInstructions');
     const assignmentDialogAttachments = document.getElementById('assignmentDialogAttachments');
+    const submissionForm = document.getElementById('submissionForm');
+    const submissionFile = document.getElementById('submissionFile');
+    const submissionStatus = document.getElementById('submissionStatus');
+    const submissionUploadButton = document.getElementById('submissionUploadButton');
+    let selectedTask = null;
 
     function addText(parent, tagName, className, text) {
       const element = document.createElement(tagName);
@@ -184,6 +201,62 @@
         : new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
     }
 
+    function getDeadlineDate(value) {
+      if (!value) return null;
+      const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function isSubmissionClosed(task) {
+      if (task.cerrarEntregas !== true) return false;
+      const deadline = getDeadlineDate(task.fechaEntrega);
+      return Boolean(deadline && Date.now() > deadline.getTime());
+    }
+
+    function getAuthenticatedStudent() {
+      return new Promise((resolve, reject) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          unsubscribe();
+          const sessionEmail = String(studentSession?.email || '').trim().toLowerCase();
+          if (!user || user.email?.toLowerCase() !== sessionEmail) {
+            reject(new Error('No hay una sesión segura de Firebase para este alumno. Cierra sesión y vuelve a ingresar.'));
+            return;
+          }
+          resolve(user);
+        }, (error) => {
+          unsubscribe();
+          reject(error);
+        });
+      });
+    }
+
+    function getSubmissionReference(task, user) {
+      return ref(storage, `entregas/${task.aulaId}/${task.id}/${user.uid}.pdf`);
+    }
+
+    async function showExistingSubmission(task) {
+      try {
+        const user = await getAuthenticatedStudent();
+        const fileReference = getSubmissionReference(task, user);
+        const metadata = await getMetadata(fileReference);
+        const link = addText(submissionStatus, 'a', 'submission-file-link', `Ya entregaste: ${metadata.customMetadata?.originalName || 'entrega.pdf'}. Abrir archivo`);
+        link.href = await getDownloadURL(fileReference);
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        if (isSubmissionClosed(task)) {
+          submissionFile.disabled = true;
+          submissionUploadButton.disabled = true;
+          submissionStatus.append(document.createTextNode(' · La fecha límite ya pasó.'));
+        } else {
+          submissionStatus.append(document.createTextNode(' · Al subir otro PDF, reemplazarás esta entrega.'));
+        }
+      } catch (error) {
+        if (error.code === 'storage/object-not-found') return;
+        console.error(`No se pudo consultar la entrega de la tarea ${task.id}:`, error);
+        submissionStatus.textContent = error.message || 'No se pudo consultar tu entrega.';
+      }
+    }
+
     function renderAssignment(task) {
       const card = document.createElement('article');
       card.className = 'assignment-card';
@@ -196,9 +269,12 @@
       details.className = 'assignment-details';
       addText(details, 'span', 'assignment-due-label', 'Fecha de entrega');
       addText(details, 'span', 'assignment-due', formatDeadline(task.fechaEntrega));
-      const deliverButton = addText(details, 'button', 'assignment-submit', 'Entregar');
+      const closed = isSubmissionClosed(task);
+      const deliverButton = addText(details, 'button', 'assignment-submit', closed ? 'Entrega cerrada' : 'Entregar tarea');
       deliverButton.type = 'button';
+      deliverButton.disabled = closed;
       deliverButton.addEventListener('click', () => {
+        selectedTask = task;
         assignmentDialogTitle.textContent = task.titulo || 'Asignación';
         assignmentDialogContext.textContent = `${task.tema || 'Materia'} · ${task.puntos ?? 100} puntos · ${formatDeadline(task.fechaEntrega)}`;
         assignmentDialogInstructions.innerHTML = sanitizeRichHtml(task.instrucciones || 'El profesor no agregó instrucciones.');
@@ -215,7 +291,14 @@
             return;
           }
         });
+        submissionForm.reset();
+        submissionStatus.replaceChildren();
+        submissionFile.disabled = closed;
+        submissionUploadButton.disabled = closed;
+        submissionUploadButton.textContent = closed ? 'Entrega cerrada' : 'Subir PDF';
+        if (closed) submissionStatus.textContent = 'La fecha límite para entregar esta tarea ya pasó.';
         assignmentDialog.showModal();
+        if (!closed) showExistingSubmission(task);
       });
       card.append(content, details);
       return card;
@@ -224,6 +307,68 @@
     document.getElementById('assignmentDialogClose').addEventListener('click', () => assignmentDialog.close());
     assignmentDialog.addEventListener('click', (event) => {
       if (event.target === assignmentDialog) assignmentDialog.close();
+    });
+
+    submissionForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!selectedTask || isSubmissionClosed(selectedTask)) {
+        submissionStatus.textContent = 'La fecha límite para entregar esta tarea ya pasó.';
+        return;
+      }
+
+      const file = submissionFile.files?.[0];
+      if (!file) {
+        submissionStatus.textContent = 'Selecciona un archivo PDF antes de subirlo.';
+        return;
+      }
+      if (!file.name.toLowerCase().endsWith('.pdf') || (file.type && file.type !== 'application/pdf')) {
+        submissionStatus.textContent = 'El archivo debe ser un PDF.';
+        return;
+      }
+      if (!file.size || file.size > 10 * 1024 * 1024) {
+        submissionStatus.textContent = 'El archivo debe pesar menos de 10 MB.';
+        return;
+      }
+      const signature = new TextDecoder().decode(await file.slice(0, 5).arrayBuffer());
+      if (signature !== '%PDF-') {
+        submissionStatus.textContent = 'El archivo seleccionado no contiene un documento PDF válido.';
+        return;
+      }
+
+      submissionUploadButton.disabled = true;
+      submissionFile.disabled = true;
+      submissionStatus.textContent = 'Subiendo tu entrega...';
+      try {
+        const user = await getAuthenticatedStudent();
+        const fileReference = getSubmissionReference(selectedTask, user);
+        await uploadBytes(fileReference, file, {
+          contentType: 'application/pdf',
+          customMetadata: {
+            originalName: file.name.slice(0, 200),
+            studentId: String(studentSession.id),
+            studentCollection: String(studentSession.coleccion),
+            studentName: String(studentSession.nombre || 'Alumno'),
+            studentEmail: user.email || '',
+            taskTitle: String(selectedTask.titulo || 'Asignación')
+          }
+        });
+        const link = addText(submissionStatus, 'a', 'submission-file-link', 'Entrega subida correctamente. Abrir PDF');
+        link.href = await getDownloadURL(fileReference);
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        submissionStatus.append(document.createTextNode(' · Si vuelves a subir un archivo, reemplazará este PDF.'));
+      } catch (error) {
+        console.error(`No se pudo subir la entrega de la tarea ${selectedTask.id}:`, error);
+        submissionStatus.textContent = error.code === 'storage/unauthorized'
+          ? 'Firebase Storage rechazó la subida. Verifica que estén publicadas las reglas de storage.rules.'
+          : error.code === 'storage/bucket-not-found'
+            ? 'No se encontró el bucket de Firebase Storage. Revisa la configuración storageBucket del proyecto.'
+            : error.message || 'No se pudo subir el archivo. Inténtalo de nuevo.';
+      } finally {
+        submissionUploadButton.disabled = isSubmissionClosed(selectedTask);
+        submissionFile.disabled = isSubmissionClosed(selectedTask);
+        if (!isSubmissionClosed(selectedTask)) submissionUploadButton.textContent = 'Subir PDF';
+      }
     });
 
     const studentSession = JSON.parse(localStorage.getItem('studentSession') || 'null');
@@ -236,6 +381,11 @@
         await logSessionEvent(studentSession, 'cierre_sesion', 'alumno');
       } catch (error) {
         console.error('No se pudo registrar el cierre de sesión del alumno:', error);
+      }
+      try {
+        await signOutPortalUser();
+      } catch (error) {
+        console.error('No se pudo cerrar la sesión segura de Firebase:', error);
       }
       localStorage.removeItem('studentSession');
       localStorage.removeItem('studentSessionLastActivity');

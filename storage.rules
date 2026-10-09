@@ -1,0 +1,54 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function taskData(aulaId, taskId) {
+      return firestore.get(
+        /databases/(default)/documents/Aulas/$(aulaId)/tareas/$(taskId)
+      ).data;
+    }
+
+    function signedInWithEmail() {
+      return request.auth != null && request.auth.token.email is string;
+    }
+
+    function assignedToTask(aulaId, taskId) {
+      let task = taskData(aulaId, taskId);
+      return signedInWithEmail()
+        && task.alumnosEmails is list
+        && request.auth.token.email in task.alumnosEmails;
+    }
+
+    function isTaskTeacher(aulaId, taskId) {
+      return signedInWithEmail()
+        && taskData(aulaId, taskId).profesorEmail == request.auth.token.email;
+    }
+
+    function submissionsOpen(aulaId, taskId) {
+      let task = taskData(aulaId, taskId);
+      return task.cerrarEntregas != true
+        || task.fechaEntrega == null
+        || request.time <= task.fechaEntrega;
+    }
+
+    match /entregas/{aulaId}/{taskId}/{fileName} {
+      allow create, update: if signedInWithEmail()
+        && fileName == request.auth.uid + '.pdf'
+        && assignedToTask(aulaId, taskId)
+        && submissionsOpen(aulaId, taskId)
+        && request.resource.contentType == 'application/pdf'
+        && request.resource.size > 0
+        && request.resource.size <= 10 * 1024 * 1024;
+
+      allow get: if signedInWithEmail()
+        && ((fileName == request.auth.uid + '.pdf' && assignedToTask(aulaId, taskId))
+          || isTaskTeacher(aulaId, taskId));
+      allow list: if isTaskTeacher(aulaId, taskId);
+      allow delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

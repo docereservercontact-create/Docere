@@ -202,6 +202,7 @@
       limit
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { logSessionEvent } from './session-audit.js';
+    import { authenticatePortalUser, signOutPortalUser } from './portal-auth.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -320,6 +321,11 @@
         const administrador = await buscarAdministrador(email, password);
 
         if (administrador) {
+          try {
+            await signOutPortalUser();
+          } catch (error) {
+            console.error('No se pudo cerrar la sesión anterior de Firebase:', error);
+          }
           localStorage.removeItem('studentSession');
           localStorage.removeItem('studentSessionLastActivity');
           localStorage.removeItem('teacherSession');
@@ -339,6 +345,7 @@
 
         const profesor = await autenticarProfesor(email, password);
         if (profesor) {
+          await authenticatePortalUser(email, password);
           localStorage.removeItem('studentSession');
           localStorage.removeItem('studentSessionLastActivity');
           localStorage.removeItem('adminSession');
@@ -356,6 +363,7 @@
         const estudiante = await buscarEstudiante(email, password);
 
         if (estudiante) {
+          await authenticatePortalUser(email, password);
           if (rememberMeCheckbox.checked) {
             localStorage.setItem("saved_student_email", email);
             localStorage.setItem("saved_student_password", password);
@@ -386,7 +394,14 @@
         }
       } catch (error) {
         console.error("Error al autenticar:", error);
-        showMessage("Ocurrió un error al intentar iniciar sesión.", true);
+        const authMessages = {
+          'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres para activar las entregas de archivos.',
+          'auth/operation-not-allowed': 'El inicio de sesión por correo y contraseña no está habilitado en Firebase Authentication.',
+          'auth/invalid-credential': 'La contraseña de Firebase no coincide con la cuenta. Contacta a soporte para habilitar las entregas.',
+          'auth/wrong-password': 'La contraseña de Firebase no coincide con la cuenta. Contacta a soporte para habilitar las entregas.',
+          'auth/network-request-failed': 'No se pudo conectar con Firebase Authentication. Revisa tu conexión e inténtalo de nuevo.'
+        };
+        showMessage(authMessages[error.code] || "Ocurrió un error al intentar iniciar sesión.", true);
       } finally {
         btnLogin.disabled = false;
         btnLogin.textContent = "Ingresar";
