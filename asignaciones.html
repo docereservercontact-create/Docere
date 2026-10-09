@@ -82,7 +82,6 @@
     }
   </style>
   <link rel="stylesheet" href="student-panel-navigation.css">
-  <link rel="stylesheet" href="student-due-calendar.css">
   <link rel="stylesheet" href="panel-visual-theme.css">
   <script src="student-panel-navigation.js" defer></script>
 </head>
@@ -115,7 +114,6 @@
     <header class="page-banner"><h1>Asignaciones</h1></header>
     <section class="assignment-surface" aria-label="Asignaciones del alumno">
       <p class="status" id="assignmentsStatus" role="status" aria-live="polite">Cargando asignaciones...</p>
-      <div id="studentDueCalendar"></div>
       <div class="assignment-list" id="assignmentsList"></div>
     </section>
   </main>
@@ -147,7 +145,6 @@
     import { deleteObject, getDownloadURL, getMetadata, getStorage, listAll, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
     import { auth, authApp, firebaseConfig, signOutPortalUser } from './portal-auth.js';
-    import { createStudentDueCalendar } from './student-due-calendar.js';
 
     const appName = 'studentAssignments';
     const app = getApps().find((firebaseApp) => firebaseApp.name === appName)
@@ -157,11 +154,6 @@
     const storage = getStorage(authApp);
     const assignmentsStatus = document.getElementById('assignmentsStatus');
     const assignmentsList = document.getElementById('assignmentsList');
-    const dueCalendar = createStudentDueCalendar(document.getElementById('studentDueCalendar'), (task) => {
-      const assignmentCard = document.getElementById(`assignment-${task.id}`);
-      assignmentCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      assignmentCard?.querySelector('.assignment-submit')?.focus();
-    });
     const assignmentDialog = document.getElementById('assignmentDialog');
     const assignmentDialogTitle = document.getElementById('assignmentDialogTitle');
     const assignmentDialogContext = document.getElementById('assignmentDialogContext');

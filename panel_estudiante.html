@@ -234,9 +234,15 @@
     .calendar-nav button:hover { background: #eff6ff; color: var(--accent); }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; text-align: center; }
     .calendar-weekday { padding: 4px 0; color: var(--text-secondary); font-size: 10px; font-weight: 700; }
-    .calendar-day { display: grid; min-width: 0; aspect-ratio: 1; place-items: center; border-radius: 50%; color: var(--text-primary); font-size: 12px; }
+    .calendar-day { position: relative; display: grid; width: 100%; min-width: 0; aspect-ratio: 1; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 50%; background: transparent; color: var(--text-primary); font: inherit; font-size: 12px; cursor: pointer; }
+    .calendar-day:hover, .calendar-day:focus-visible { border-color: #99d9d8; outline: none; background: #edfafa; }
     .calendar-day-muted { color: #a0aec0; }
     .calendar-day-today { background: var(--accent); color: #fff; font-weight: 750; }
+    .calendar-day-has-tasks:not(.calendar-day-today) { background: #e4f5f3; font-weight: 700; }
+    .calendar-day-has-tasks::after { position: absolute; bottom: 2px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); content: ""; }
+    .calendar-day-count { position: absolute; top: -2px; right: -2px; display: grid; min-width: 14px; height: 14px; place-items: center; border-radius: 999px; background: #0d8f8a; color: #fff; font-size: 9px; font-weight: 750; }
+    .calendar-day-assignments { min-height: 42px; margin: 12px 0 0; padding: 10px; border-left: 3px solid #10a6a1; border-radius: 0 7px 7px 0; background: #f3f9fa; color: var(--text-secondary); font-size: 11px; line-height: 1.45; }
+    .calendar-day-assignment-link { display: block; margin-top: 4px; color: var(--accent); font-weight: 650; overflow-wrap: anywhere; }
 
     .pending-list { display: grid; gap: 10px; }
     .pending-task { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 11px; border: 1px solid var(--border); border-radius: 9px; background: #f8fafc; }
@@ -666,6 +672,7 @@
             </div>
           </div>
           <div class="calendar-grid" id="calendarGrid" role="grid" aria-label="Calendario mensual"></div>
+          <div class="calendar-day-assignments" id="calendarDayAssignments" role="status" aria-live="polite">Pasa el cursor o selecciona una fecha para ver sus asignaciones.</div>
         </section>
 
         <section class="dashboard-widget" aria-labelledby="pendingTasksTitle">
@@ -791,6 +798,7 @@
     const announcementWallStatus = document.getElementById('announcementWallStatus');
     const calendarMonth = document.getElementById('calendarMonth');
     const calendarGrid = document.getElementById('calendarGrid');
+    const calendarDayAssignments = document.getElementById('calendarDayAssignments');
     const pendingTasksStatus = document.getElementById('pendingTasksStatus');
     const pendingTasksList = document.getElementById('pendingTasksList');
     const notificationButton = document.getElementById('notificationButton');
@@ -808,6 +816,28 @@
     let unreadNotificationCount = 0;
     let notificationToastTimer;
     let calendarDate = new Date();
+    let calendarAssignments = [];
+
+    function getCalendarDateKey(date) {
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    function showCalendarAssignments(date, tasks) {
+      calendarDayAssignments.replaceChildren();
+      const heading = addWallText(calendarDayAssignments, 'span', '', new Intl.DateTimeFormat('es-MX', {
+        weekday: 'long', day: 'numeric', month: 'long'
+      }).format(date));
+      heading.style.fontWeight = '700';
+      if (!tasks.length) {
+        addWallText(calendarDayAssignments, 'span', '', ' · Sin asignaciones para este día.');
+        return;
+      }
+      tasks.forEach((task) => {
+        const link = addWallText(calendarDayAssignments, 'a', 'calendar-day-assignment-link', task.titulo || 'Asignación');
+        link.href = `asignaciones.html#assignment-${encodeURIComponent(task.id)}`;
+        link.setAttribute('aria-label', `Ver la asignación ${task.titulo || 'sin título'}`);
+      });
+    }
 
     function renderCalendar() {
       const year = calendarDate.getFullYear();
@@ -825,25 +855,46 @@
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const previousMonthDays = new Date(year, month, 0).getDate();
       const cellCount = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+      const tasksByDate = new Map();
+      calendarAssignments.forEach((task) => {
+        const deadline = getTaskDeadline(task.fechaEntrega);
+        if (!deadline) return;
+        const dateKey = getCalendarDateKey(deadline);
+        if (!tasksByDate.has(dateKey)) tasksByDate.set(dateKey, []);
+        tasksByDate.get(dateKey).push(task);
+      });
       for (let index = 0; index < cellCount; index += 1) {
         let day;
         let muted = false;
+        let cellDate;
         if (index < firstWeekday) {
           day = previousMonthDays - firstWeekday + index + 1;
           muted = true;
+          cellDate = new Date(year, month - 1, day);
         } else if (index >= firstWeekday + daysInMonth) {
           day = index - firstWeekday - daysInMonth + 1;
           muted = true;
+          cellDate = new Date(year, month + 1, day);
         } else {
           day = index - firstWeekday + 1;
+          cellDate = new Date(year, month, day);
         }
-        const cell = addWallText(calendarGrid, 'span', 'calendar-day', String(day));
-        cell.setAttribute('role', 'gridcell');
+        const dayTasks = tasksByDate.get(getCalendarDateKey(cellDate)) || [];
+        const cell = addWallText(calendarGrid, 'button', 'calendar-day', String(day));
+        cell.type = 'button';
+        cell.setAttribute('aria-label', `${new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(cellDate)}${dayTasks.length ? `, ${dayTasks.length} asignación(es)` : ''}`);
         if (muted) cell.classList.add('calendar-day-muted');
+        if (dayTasks.length) {
+          cell.classList.add('calendar-day-has-tasks');
+          addWallText(cell, 'span', 'calendar-day-count', String(dayTasks.length));
+        }
         if (!muted && day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
           cell.classList.add('calendar-day-today');
           cell.setAttribute('aria-current', 'date');
         }
+        cell.addEventListener('pointerenter', () => showCalendarAssignments(cellDate, dayTasks));
+        cell.addEventListener('focus', () => showCalendarAssignments(cellDate, dayTasks));
+        cell.addEventListener('click', () => showCalendarAssignments(cellDate, dayTasks));
       }
     }
 
@@ -1162,6 +1213,8 @@
             .filter((task) => isTaskAssignedToStudent(task, student));
         }));
         const tasks = classroomTasks.flat();
+        calendarAssignments = tasks;
+        renderCalendar();
         const results = await Promise.all(tasks.map(async (task) => {
           try {
             return { task, submitted: await hasTaskSubmission(task, user) };
