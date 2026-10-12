@@ -567,6 +567,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -600,6 +601,7 @@
     const paymentResetButton = document.getElementById('paymentResetButton');
     const app = initializeApp(firebaseConfig, 'adminPanel');
     const db = getFirestore(app);
+    const auth = getAuth(app);
     const collections = {
       aspirantes_admision: { countId: 'countAspirantes', titleKeys: ['asp_nombre', 'nombre'], secondaryKeys: ['asp_apellido1', 'email'] },
       Cursos: { countId: 'countCursos', titleKeys: ['asp_nombre', 'nombre'], secondaryKeys: ['curso', 'email'] },
@@ -1553,6 +1555,16 @@
     searchInput.addEventListener('input', renderRecords);
 
     try {
+      const currentUser = auth.currentUser;
+      const currentEmail = (currentUser?.email || '').trim().toLowerCase();
+      const sessionEmail = (session?.email || '').trim().toLowerCase();
+
+      if (!currentUser || currentEmail !== sessionEmail) {
+        statusLine.textContent = 'La sesión del administrador no está activa en Firebase. Inicia sesión de nuevo.';
+        closeAdminSession();
+        return;
+      }
+
       const adminRecord = await getDoc(doc(db, 'admins', session.id));
       if (!adminRecord.exists() || adminRecord.data().correo !== session.email) {
         closeAdminSession();
