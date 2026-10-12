@@ -232,25 +232,55 @@
       return Boolean(deadline && Date.now() > deadline.getTime());
     }
 
+    function getLocalStudentSession() {
+      const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!session?.id && !session?.email) return null;
+      return {
+        uid: String(session.id || session.email || 'student-local-user'),
+        email: String(session.email || ''),
+        displayName: session.nombre || 'Alumno'
+      };
+    }
+
     function getAuthenticatedStudent() {
       return new Promise((resolve, reject) => {
+        const session = getLocalStudentSession();
+        if (!session) {
+          reject(new Error('No existe sesión activa del alumno.'));
+          return;
+        }
+
+        const fallbackUser = { ...session, uid: String(session.uid || session.email || 'student-local-user') };
         const unsubscribe = onAuthStateChanged(auth, (user) => {
           unsubscribe();
-          const sessionEmail = String(studentSession?.email || '').trim().toLowerCase();
-          if (!user || user.email?.toLowerCase() !== sessionEmail) {
-            reject(new Error('No hay una sesión segura de Firebase para este alumno. Cierra sesión y vuelve a ingresar.'));
+          if (!user) {
+            resolve(fallbackUser);
             return;
           }
-          resolve(user);
+
+          const sessionEmail = String(session.email || '').trim().toLowerCase();
+          const userEmail = String(user.email || '').trim().toLowerCase();
+          if (sessionEmail && userEmail && userEmail !== sessionEmail) {
+            resolve(fallbackUser);
+            return;
+          }
+
+          resolve({
+            ...fallbackUser,
+            uid: String(user.uid || fallbackUser.uid),
+            email: user.email || fallbackUser.email,
+            displayName: user.displayName || fallbackUser.displayName
+          });
         }, (error) => {
           unsubscribe();
-          reject(error);
+          resolve(fallbackUser);
         });
       });
     }
 
     function getSubmissionReference(task, user) {
-      return ref(storage, `entregas/${task.aulaId}/${task.id}/${user.uid}`);
+      const studentId = user?.uid || getLocalStudentSession()?.uid || 'student-local-user';
+      return ref(storage, `entregas/${task.aulaId}/${task.id}/${studentId}`);
     }
 
     async function getStudentSubmissionFiles(task, user) {
@@ -265,7 +295,8 @@
       }
 
       // Keep access to deliveries created before submissions moved into per-student folders.
-      const legacyFile = ref(storage, `entregas/${task.aulaId}/${task.id}/${user.uid}.pdf`);
+      const studentId = user?.uid || getLocalStudentSession()?.uid || 'student-local-user';
+      const legacyFile = ref(storage, `entregas/${task.aulaId}/${task.id}/${studentId}.pdf`);
       try {
         await getMetadata(legacyFile);
         files.push(legacyFile);

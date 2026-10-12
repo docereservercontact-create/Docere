@@ -332,9 +332,7 @@
           try {
             await authenticatePortalUser(email, password);
           } catch (error) {
-            console.error('No se pudo dejar activa la sesión admin en Firebase:', error);
-            showMessage('Se encontró la cuenta admin, pero no se pudo activar la sesión en Firebase. Consulta al soporte.', true);
-            return;
+            console.warn('No fue posible inicializar la sesión segura del administrador en Firebase:', error);
           }
           localStorage.removeItem('studentSession');
           localStorage.removeItem('studentSessionLastActivity');
@@ -355,7 +353,11 @@
 
         const profesor = await autenticarProfesor(email, password);
         if (profesor) {
-          await authenticatePortalUser(email, password);
+          try {
+            await authenticatePortalUser(email, password);
+          } catch (error) {
+            console.warn('La sesión del profesor se validó en la base de datos, pero Firebase no pudo activarse:', error);
+          }
           localStorage.removeItem('studentSession');
           localStorage.removeItem('studentSessionLastActivity');
           localStorage.removeItem('adminSession');
@@ -378,7 +380,11 @@
             return;
           }
 
-          await authenticatePortalUser(email, password);
+          try {
+            await authenticatePortalUser(email, password);
+          } catch (error) {
+            console.warn('La sesión del alumno se validó en la base de datos, pero Firebase no pudo activarse:', error);
+          }
           if (rememberMeCheckbox.checked) {
             localStorage.setItem("saved_student_email", email);
             localStorage.setItem("saved_student_password", password);

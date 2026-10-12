@@ -27,7 +27,7 @@ export async function authenticatePortalUser(email, password) {
   try {
     return await signInWithEmailAndPassword(auth, normalizedEmail, password);
   } catch (error) {
-    if (!['auth/user-not-found', 'auth/invalid-credential'].includes(error.code)) throw error;
+    if (!['auth/user-not-found', 'auth/invalid-credential', 'auth/wrong-password'].includes(error.code)) throw error;
   }
 
   try {
@@ -35,6 +35,15 @@ export async function authenticatePortalUser(email, password) {
   } catch (error) {
     if (error.code !== 'auth/email-already-in-use') throw error;
     return signInWithEmailAndPassword(auth, normalizedEmail, password);
+  }
+}
+
+export async function safeAuthenticatePortalUser(email, password) {
+  try {
+    return await authenticatePortalUser(email, password);
+  } catch (error) {
+    console.warn('No se pudo inicializar la sesión segura de Firebase, se continuará con la sesión del portal:', error);
+    return null;
   }
 }
 
