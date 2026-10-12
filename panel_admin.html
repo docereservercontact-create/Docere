@@ -200,6 +200,158 @@
       font-size: 12px;
     }
 
+    .payment-form {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 18px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+    }
+    .payment-form[hidden] { display: none; }
+    .payment-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .payment-form label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+    }
+    .payment-form input,
+    .payment-form select {
+      width: 100%;
+      min-height: 40px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+    .payment-form .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 0 2px;
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .payment-form .checkbox-field input {
+      width: 16px;
+      min-height: 16px;
+      margin: 0;
+    }
+    .payment-summary {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f8fafc;
+    }
+    .payment-summary h3 {
+      margin: 0 0 10px;
+      font-size: 14px;
+    }
+    .payment-breakdown {
+      display: grid;
+      gap: 7px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .payment-breakdown li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .payment-breakdown strong { color: var(--ink); }
+    .payment-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .payment-actions button {
+      min-height: 40px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 5px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    .payment-actions .secondary-button {
+      background: #fff;
+      border: 1px solid var(--line);
+      color: var(--ink);
+    }
+    .payment-card {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .payment-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .payment-card-title {
+      margin: 0;
+      font-size: 16px;
+    }
+    .payment-card-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .payment-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px 14px;
+    }
+    .payment-card-item {
+      display: grid;
+      gap: 2px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f8fafc;
+    }
+    .payment-card-item span:first-child {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .payment-card-item strong {
+      font-size: 13px;
+      color: var(--ink);
+      overflow-wrap: anywhere;
+    }
+    .payment-card-breakdown {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
     .search-wrap { position: relative; width: min(320px, 40vw); }
     .search-wrap svg { position: absolute; top: 11px; left: 11px; color: var(--muted); }
     .search-input {
@@ -304,6 +456,7 @@
           <button class="tab" id="tabCursos" type="button" role="tab" aria-selected="false" data-collection="Cursos">Otros cursos <span class="count" id="countCursos">—</span></button>
           <button class="tab" id="tabProfesores" type="button" role="tab" aria-selected="false" data-collection="Profesores">Profesores <span class="count" id="countProfesores">—</span></button>
           <button class="tab" id="tabAulas" type="button" role="tab" aria-selected="false" data-collection="Aulas">Aulas <span class="count" id="countAulas">—</span></button>
+          <button class="tab" id="tabPagos" type="button" role="tab" aria-selected="false" data-collection="Pagos">Pagos <span class="count" id="countPagos">—</span></button>
         </div>
         <a class="teacher-create" id="teacherCreateLink" href="Registro_profesorado.html" hidden>
           <i data-lucide="user-plus" aria-hidden="true"></i>
@@ -338,6 +491,75 @@
         <p class="classroom-form-message" id="classroomFormMessage" role="status"></p>
         <button id="createClassroomButton" type="submit"><i data-lucide="plus"></i> Crear aula y asignar</button>
       </form>
+
+      <form class="payment-form" id="paymentForm" hidden>
+        <div class="payment-grid">
+          <label>Alumno *
+            <select id="paymentStudentSelect" name="alumno" required>
+              <option value="">Selecciona un alumno</option>
+            </select>
+          </label>
+          <label>Curso *
+            <input name="curso" type="text" maxlength="120" placeholder="Ej. Admisión UNAM" required>
+          </label>
+          <label>Monto del curso *
+            <input name="montoCurso" type="number" min="0" step="0.01" placeholder="Ej. 4200" required>
+          </label>
+          <label>Forma de pago *
+            <select name="formaPago" required>
+              <option value="">Selecciona</option>
+              <option value="Transferencia">Transferencia</option>
+              <option value="Tarjeta">Tarjeta</option>
+              <option value="Efectivo">Efectivo</option>
+              <option value="Depósito">Depósito</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </label>
+          <label>Persona que sale la forma de pago *
+            <input name="personaPago" type="text" maxlength="120" placeholder="Ej. José García" required>
+          </label>
+          <label>Método de pago *
+            <select name="metodoPago" required>
+              <option value="">Selecciona</option>
+              <option value="Bancario">Bancario</option>
+              <option value="Tarjeta">Tarjeta</option>
+              <option value="Transferencia">Transferencia</option>
+              <option value="Efectivo">Efectivo</option>
+              <option value="Crédito">Crédito</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </label>
+          <label class="checkbox-field">
+            <input type="checkbox" name="esPorMeses">
+            <span>¿Se va a pagar a meses?</span>
+          </label>
+          <label>Frecuencia de pago *
+            <select name="frecuencia" required>
+              <option value="mensual">Mensual</option>
+              <option value="semanal">Semanal</option>
+              <option value="quincenal">Quincenal</option>
+            </select>
+          </label>
+          <label>Fecha de inicio de pago *
+            <input name="fechaInicio" type="date" required>
+          </label>
+          <label>Número de cuotas / periodos *
+            <input name="numeroCuotas" type="number" min="1" step="1" placeholder="Ej. 6" required>
+          </label>
+          <label>Día de cobro *
+            <input name="diaCobro" type="number" min="1" max="31" placeholder="Ej. 15" required>
+          </label>
+        </div>
+        <div class="payment-summary" id="paymentSchedulePreview">
+          <h3>Previsualización del desglose</h3>
+          <p class="classroom-form-message">Completa los datos para generar las fechas y monto por pago.</p>
+        </div>
+        <div class="payment-actions">
+          <button type="submit"><i data-lucide="save"></i> Guardar esquema</button>
+          <button type="button" class="secondary-button" id="paymentResetButton">Limpiar</button>
+        </div>
+        <p class="classroom-form-message" id="paymentFormMessage" role="status"></p>
+      </form>
       <p class="status-line" id="statusLine" role="status">Verificando acceso administrativo...</p>
       <div class="records" id="recordsList"></div>
     </section>
@@ -371,13 +593,19 @@
     const teacherSelect = document.getElementById('teacherSelect');
     const studentSelect = document.getElementById('studentSelect');
     const classroomSubmit = document.getElementById('createClassroomButton');
+    const paymentForm = document.getElementById('paymentForm');
+    const paymentFormMessage = document.getElementById('paymentFormMessage');
+    const paymentSchedulePreview = document.getElementById('paymentSchedulePreview');
+    const paymentStudentSelect = document.getElementById('paymentStudentSelect');
+    const paymentResetButton = document.getElementById('paymentResetButton');
     const app = initializeApp(firebaseConfig, 'adminPanel');
     const db = getFirestore(app);
     const collections = {
       aspirantes_admision: { countId: 'countAspirantes', titleKeys: ['asp_nombre', 'nombre'], secondaryKeys: ['asp_apellido1', 'email'] },
       Cursos: { countId: 'countCursos', titleKeys: ['asp_nombre', 'nombre'], secondaryKeys: ['curso', 'email'] },
       Profesores: { countId: 'countProfesores', titleKeys: ['nombre'], secondaryKeys: ['apellidoPaterno', 'email'] },
-      Aulas: { countId: 'countAulas', titleKeys: ['nombre'], secondaryKeys: ['curso'] }
+      Aulas: { countId: 'countAulas', titleKeys: ['nombre'], secondaryKeys: ['curso'] },
+      Pagos: { countId: 'countPagos', titleKeys: ['curso'], secondaryKeys: ['alumno', 'frecuencia'] }
     };
     const cache = new Map();
     let activeCollection = 'aspirantes_admision';
@@ -545,6 +773,103 @@
       };
     }
 
+    function formatCurrency(value) {
+      const numericValue = Number(value || 0);
+      return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 }).format(numericValue);
+    }
+
+    function formatShortDate(dateValue) {
+      if (!dateValue) return '—';
+      const date = new Date(`${dateValue}T12:00:00`);
+      if (Number.isNaN(date.getTime())) return dateValue;
+      return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+    }
+
+    function buildPaymentSchedule({ totalAmount, frequency, startDate, periods, chargeDay }) {
+      const numericTotal = Number(totalAmount || 0);
+      const numericPeriods = Math.max(1, Number(periods || 1));
+      const formattedFrequency = (frequency || 'mensual').toLowerCase();
+      const baseDate = startDate ? new Date(`${startDate}T12:00:00`) : new Date();
+      const paymentDay = Math.min(Math.max(Number(chargeDay || baseDate.getDate()), 1), 31);
+      const schedule = [];
+      let remaining = numericTotal;
+
+      for (let index = 0; index < numericPeriods; index += 1) {
+        let currentDate = new Date(baseDate);
+
+        if (formattedFrequency === 'mensual') {
+          currentDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + index, 1);
+          const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+          currentDate.setDate(Math.min(paymentDay, daysInMonth));
+        } else if (formattedFrequency === 'semanal') {
+          currentDate.setDate(baseDate.getDate() + (index * 7));
+        } else {
+          currentDate.setDate(baseDate.getDate() + (index * 14));
+        }
+
+        let quota = Number((numericTotal / numericPeriods).toFixed(2));
+        if (index === numericPeriods - 1) {
+          quota = Number((remaining).toFixed(2));
+        }
+        remaining = Number((remaining - quota).toFixed(2));
+
+        schedule.push({
+          index: index + 1,
+          label: `Pago ${index + 1}`,
+          fecha: currentDate.toISOString().slice(0, 10),
+          monto: quota,
+          estado: 'pendiente',
+          status: 'pendiente'
+        });
+      }
+
+      return schedule;
+    }
+
+    function renderPaymentPreview() {
+      const amount = Number(paymentForm.elements.montoCurso.value || 0);
+      const frequency = paymentForm.elements.frecuencia.value || 'mensual';
+      const startDate = paymentForm.elements.fechaInicio.value;
+      const periods = Number(paymentForm.elements.numeroCuotas.value || 1);
+      const chargeDay = Number(paymentForm.elements.diaCobro.value || 1);
+      const isValid = amount > 0 && startDate && periods > 0 && chargeDay >= 1;
+
+      if (!isValid) {
+        paymentSchedulePreview.innerHTML = `
+          <h3>Previsualización del desglose</h3>
+          <p class="classroom-form-message">Completa los datos para generar las fechas y monto por pago.</p>
+        `;
+        return;
+      }
+
+      const schedule = buildPaymentSchedule({ totalAmount: amount, frequency, startDate, periods, chargeDay });
+      const firstQuota = schedule[0]?.monto || 0;
+      const total = schedule.reduce((sum, item) => sum + item.monto, 0);
+
+      paymentSchedulePreview.innerHTML = `
+        <h3>Previsualización del desglose</h3>
+        <p class="classroom-form-message">Total del curso: <strong>${formatCurrency(total)}</strong> · Frecuencia: ${frequency} · Cuota estimada: <strong>${formatCurrency(firstQuota)}</strong></p>
+        <ul class="payment-breakdown">
+          ${schedule.slice(0, 8).map((item) => `
+            <li>
+              <span>${formatShortDate(item.fecha)} · ${item.label}</span>
+              <strong>${formatCurrency(item.monto)}</strong>
+            </li>
+          `).join('')}
+        </ul>
+        ${schedule.length > 8 ? '<p class="classroom-form-message">Y el resto del esquema continúa según la frecuencia seleccionada.</p>' : ''}
+      `;
+    }
+
+    function populatePaymentOptions() {
+      const students = getAssignableStudents();
+      paymentStudentSelect.replaceChildren(new Option('Selecciona un alumno', ''));
+      students.forEach(({ id, data, collectionName, courseLabel }) => {
+        const label = `${displayStudentName(data)} · ${courseLabel}`;
+        paymentStudentSelect.add(new Option(label, `${collectionName}/${id}`));
+      });
+    }
+
     function getAssignableStudents() {
       return [
         ...(cache.get('aspirantes_admision') || []).map((record) => ({ ...record, collectionName: 'aspirantes_admision', courseLabel: record.data.curso || 'Admisión UNAM' })),
@@ -680,6 +1005,121 @@
         idItem.append(idLabel, idValue);
         grid.append(idItem);
         detailContainer.append(grid);
+
+        if (recordCollection === 'Pagos') {
+          const paymentCard = document.createElement('article');
+          paymentCard.className = 'payment-card';
+          const paymentTitle = document.createElement('div');
+          paymentTitle.className = 'payment-card-header';
+          const paymentHeading = document.createElement('h3');
+          paymentHeading.className = 'payment-card-title';
+          paymentHeading.textContent = data.curso || 'Pago sin curso';
+          const paymentMeta = document.createElement('span');
+          paymentMeta.className = 'payment-card-meta';
+          paymentMeta.textContent = data.alumno || 'Alumno sin nombre';
+          paymentTitle.append(paymentHeading, paymentMeta);
+
+          const paymentGrid = document.createElement('div');
+          paymentGrid.className = 'payment-card-grid';
+          [
+            ['Alumno', data.alumno || '—'],
+            ['Monto total', formatCurrency(data.montoCurso || 0)],
+            ['Forma de pago', data.formaPago || '—'],
+            ['Persona', data.personaPago || '—'],
+            ['Método', data.metodoPago || '—'],
+            ['Frecuencia', data.frecuencia || '—'],
+            ['Inicio', formatShortDate(data.fechaInicio)],
+            ['Cuotas', `${Number(data.numeroCuotas || 0)} periodos`],
+            ['Cobro', `${Number(data.diaCobro || 0)} del mes`] 
+          ].forEach(([label, value]) => {
+            const item = document.createElement('div');
+            item.className = 'payment-card-item';
+            const itemLabel = document.createElement('span');
+            itemLabel.textContent = label;
+            const itemValue = document.createElement('strong');
+            itemValue.textContent = value;
+            item.append(itemLabel, itemValue);
+            paymentGrid.append(item);
+          });
+
+          const breakdown = document.createElement('ul');
+          breakdown.className = 'payment-card-breakdown';
+          const items = Array.isArray(data.desglose) ? data.desglose : [];
+          if (!items.length) {
+            const emptyItem = document.createElement('li');
+            emptyItem.textContent = 'Sin desglose disponible.';
+            breakdown.append(emptyItem);
+          } else {
+            items.forEach((item, index) => {
+              const listItem = document.createElement('li');
+              const itemStatus = item.estado || item.status || 'pendiente';
+              const statusLabel = itemStatus === 'pagado' ? 'Pagado' : 'Pendiente';
+              const button = document.createElement('button');
+              button.type = 'button';
+              button.style.marginLeft = '8px';
+              button.style.padding = '4px 8px';
+              button.style.border = '1px solid var(--line)';
+              button.style.borderRadius = '5px';
+              button.style.background = itemStatus === 'pagado' ? '#e6f9f0' : '#fff5e5';
+              button.style.color = itemStatus === 'pagado' ? '#0a7a4f' : '#a16207';
+              button.style.cursor = 'pointer';
+              button.textContent = itemStatus === 'pagado' ? 'Marcar pendiente' : 'Marcar pagado';
+              button.addEventListener('click', async () => {
+                const updatedDesglose = items.map((entry, entryIndex) => {
+                  if (entryIndex !== index) return { ...entry, estado: entry.estado || entry.status || 'pendiente', status: entry.status || entry.estado || 'pendiente' };
+                  const nextState = entry.estado === 'pagado' || entry.status === 'pagado' ? 'pendiente' : 'pagado';
+                  return { ...entry, estado: nextState, status: nextState };
+                });
+                try {
+                  await updateDoc(doc(db, 'Pagos', id), { desglose: updatedDesglose, actualizadoEn: serverTimestamp() });
+                  data.desglose = updatedDesglose;
+                  renderRecords();
+                } catch (error) {
+                  console.error(`No se pudo actualizar el estado del pago ${id}/${index}:`, error);
+                  button.textContent = 'Error';
+                  setTimeout(() => {
+                    button.textContent = itemStatus === 'pagado' ? 'Marcar pendiente' : 'Marcar pagado';
+                  }, 1200);
+                }
+              });
+              listItem.innerHTML = `${formatShortDate(item.fecha)} — ${formatCurrency(item.monto)} <strong>(${statusLabel})</strong>`;
+              listItem.append(button);
+              breakdown.append(listItem);
+            });
+          }
+
+          const actions = document.createElement('div');
+          actions.className = 'record-actions';
+          const deletePaymentButton = document.createElement('button');
+          deletePaymentButton.type = 'button';
+          deletePaymentButton.textContent = 'Eliminar esquema';
+          const deletePaymentMessage = document.createElement('p');
+          deletePaymentMessage.className = 'roster-message';
+          deletePaymentMessage.setAttribute('role', 'status');
+          actions.append(deletePaymentButton);
+
+          deletePaymentButton.addEventListener('click', async () => {
+            if (!window.confirm(`¿Eliminar este esquema de pagos para "${data.curso || data.alumno || 'el alumno'}"?`)) return;
+            deletePaymentButton.disabled = true;
+            deletePaymentButton.textContent = 'Eliminando...';
+            try {
+              await deleteDoc(doc(db, 'Pagos', id));
+              cache.set('Pagos', (cache.get('Pagos') || []).filter((record) => record.id !== id));
+              document.getElementById('countPagos').textContent = String(cache.get('Pagos').length);
+              statusLine.textContent = 'Esquema de pagos eliminado.';
+              renderRecords();
+            } catch (error) {
+              console.error(`No se pudo eliminar el esquema de pagos ${id}:`, error);
+              deletePaymentMessage.textContent = 'No se pudo eliminar el esquema.';
+              deletePaymentButton.disabled = false;
+              deletePaymentButton.textContent = 'Eliminar esquema';
+            }
+          });
+
+          paymentCard.append(paymentTitle, paymentGrid, breakdown, actions, deletePaymentMessage);
+          detailContainer.append(paymentCard);
+        }
+
         if (['Profesores', 'aspirantes_admision', 'Cursos'].includes(recordCollection)) {
           const actions = document.createElement('div');
           actions.className = 'record-actions';
@@ -979,6 +1419,13 @@
         document.querySelectorAll('.tab').forEach((button) => button.setAttribute('aria-selected', String(button === tab)));
         teacherCreateLink.hidden = activeCollection !== 'Profesores';
         classroomForm.hidden = activeCollection !== 'Aulas';
+        paymentForm.hidden = activeCollection !== 'Pagos';
+        if (activeCollection !== 'Pagos') {
+          paymentFormMessage.textContent = '';
+        }
+        if (activeCollection === 'Pagos') {
+          renderPaymentPreview();
+        }
         searchInput.value = '';
         loadCollection(activeCollection);
       });
@@ -1038,6 +1485,71 @@
       }
     });
 
+    paymentForm.addEventListener('input', renderPaymentPreview);
+    paymentForm.addEventListener('change', renderPaymentPreview);
+    paymentResetButton.addEventListener('click', () => {
+      paymentForm.reset();
+      paymentFormMessage.textContent = '';
+      renderPaymentPreview();
+    });
+
+    paymentForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!paymentForm.reportValidity()) return;
+
+      const studentKey = paymentStudentSelect.value;
+      const student = getAssignableStudents().find((candidate) => `${candidate.collectionName}/${candidate.id}` === studentKey);
+      if (!student) {
+        paymentFormMessage.textContent = 'Selecciona un alumno válido para asignar el esquema de pagos.';
+        return;
+      }
+
+      const totalAmount = Number(paymentForm.elements.montoCurso.value || 0);
+      const frequency = paymentForm.elements.frecuencia.value;
+      const startDate = paymentForm.elements.fechaInicio.value;
+      const periods = Number(paymentForm.elements.numeroCuotas.value || 1);
+      const chargeDay = Number(paymentForm.elements.diaCobro.value || 1);
+      const schedule = buildPaymentSchedule({ totalAmount, frequency, startDate, periods, chargeDay });
+      const payload = {
+        alumno: displayStudentName(student.data),
+        alumnoColeccion: student.collectionName,
+        alumnoId: student.id,
+        curso: paymentForm.elements.curso.value.trim(),
+        montoCurso: totalAmount,
+        formaPago: paymentForm.elements.formaPago.value,
+        personaPago: paymentForm.elements.personaPago.value.trim(),
+        metodoPago: paymentForm.elements.metodoPago.value,
+        esPorMeses: paymentForm.elements.esPorMeses.checked,
+        frecuencia,
+        fechaInicio: startDate,
+        numeroCuotas: periods,
+        diaCobro: chargeDay,
+        desglose: schedule,
+        montoPorPago: schedule[0]?.monto || 0,
+        totalPagado: schedule.reduce((sum, item) => sum + item.monto, 0),
+        fechaRegistro: serverTimestamp()
+      };
+
+      paymentFormMessage.textContent = 'Guardando esquema de pagos...';
+      try {
+        const paymentRef = await addDoc(collection(db, 'Pagos'), payload);
+        const record = { id: paymentRef.id, data: { ...payload, fechaRegistro: new Date() } };
+        const current = cache.get('Pagos') || [];
+        cache.set('Pagos', [record, ...current]);
+        document.getElementById('countPagos').textContent = String(cache.get('Pagos').length);
+        paymentForm.reset();
+        paymentFormMessage.textContent = 'Esquema de pagos guardado correctamente.';
+        statusLine.textContent = `${cache.get('Pagos').length} pagos registrados`;
+        renderPaymentPreview();
+        if (activeCollection === 'Pagos') {
+          renderRecords();
+        }
+      } catch (error) {
+        console.error('No se pudo guardar el esquema de pagos:', error);
+        paymentFormMessage.textContent = 'No se pudo guardar el esquema. Revisa permisos y conexión de Firestore.';
+      }
+    });
+
     searchInput.addEventListener('input', renderRecords);
 
     try {
@@ -1059,6 +1571,8 @@
           }
         }));
         populateAssignmentOptions();
+        populatePaymentOptions();
+        renderPaymentPreview();
         statusLine.textContent = `${cache.get(activeCollection)?.length || 0} registros`;
         renderRecords();
       }

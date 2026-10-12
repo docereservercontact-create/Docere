@@ -85,6 +85,122 @@
       color: var(--accent);
     }
 
+    .payment-panel {
+      margin: 0 0 24px;
+      padding: 22px 20px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg-card);
+      box-shadow: 0 5px 18px rgba(29, 68, 103, .045);
+    }
+    .payment-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .payment-panel-header h2 {
+      font-size: 1.15rem;
+    }
+    .payment-list {
+      display: grid;
+      gap: 12px;
+    }
+    .payment-card-item {
+      display: grid;
+      gap: 8px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+    .payment-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .payment-course {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .payment-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .payment-status.pending {
+      background: #fff7ed;
+      color: #b45309;
+    }
+    .payment-status.paid {
+      background: #ecfdf5;
+      color: #047857;
+    }
+    .payment-meta {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+    .payment-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px 12px;
+      margin-top: 6px;
+    }
+    .payment-detail {
+      display: grid;
+      gap: 3px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--border);
+    }
+    .payment-detail span:first-child {
+      color: var(--text-secondary);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .payment-detail strong {
+      font-size: 13px;
+    }
+    .payment-installments {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .payment-installment {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .payment-installment small {
+      color: var(--text-secondary);
+    }
+    .payment-empty {
+      padding: 24px 18px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      background: #f8fafc;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
     .nav-actions {
       display: flex;
       align-items: center;
@@ -621,6 +737,7 @@
         <li><a href="panel_estudiante.html" class="current" aria-current="page">Mi panel</a></li>
         <li><a href="asignaciones.html">Asignaciones</a></li>
         <li><a href="mis-cursos.html">Mis Cursos</a></li>
+        <li><a href="#pagos">Pagos</a></li>
         <li><a href="Apuntes_admision.html">Apuntes</a></li>
         <li><a href="Material_de_estudio.html">Material de Estudio</a></li>
         <li><a href="https://www.bidi.unam.mx/" target="_blank" rel="noopener noreferrer">Libreria</a></li>
@@ -702,6 +819,15 @@
           <div class="welcome-text">
             <h1 id="welcomeTitle">¡Bienvenido a tu panel de alumno! 👋</h1>
             <p>Presiona el botón "Entrar a clase" en el menú para conectarte a tu clase en vivo.</p>
+          </div>
+        </section>
+
+        <section class="payment-panel" id="pagos" aria-labelledby="paymentSectionTitle">
+          <div class="payment-panel-header">
+            <h2 id="paymentSectionTitle">Pagos</h2>
+          </div>
+          <div id="studentPaymentsList" class="payment-list">
+            <div class="payment-empty">Cargando pagos...</div>
           </div>
         </section>
 
@@ -811,6 +937,7 @@
 
     const announcementWall = document.getElementById('announcementWall');
     const announcementWallStatus = document.getElementById('announcementWallStatus');
+    const studentPaymentsList = document.getElementById('studentPaymentsList');
     const upcomingEventsContainer = document.querySelector('.dashboard-events');
     const calendarMonth = document.getElementById('calendarMonth');
     const calendarGrid = document.getElementById('calendarGrid');
@@ -1196,6 +1323,118 @@
         placeholder.className = 'events-placeholder';
         placeholder.textContent = 'No se pudieron cargar los eventos del momento.';
         upcomingEventsContainer.append(placeholder);
+      }
+    }
+
+    function formatMoney(value) {
+      const numeric = Number(value || 0);
+      return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(numeric);
+    }
+
+    function formatPaymentDate(dateValue) {
+      if (!dateValue) return 'Sin fecha';
+      const date = new Date(`${dateValue}T12:00:00`);
+      if (Number.isNaN(date.getTime())) return String(dateValue);
+      return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+    }
+
+    async function loadStudentPayments() {
+      if (!studentPaymentsList) return;
+      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      studentPaymentsList.replaceChildren();
+
+      if (!student?.id || !student?.coleccion) {
+        studentPaymentsList.innerHTML = '<div class="payment-empty">Inicia sesión para ver tus pagos.</div>';
+        return;
+      }
+
+      try {
+        const snapshot = await getDocs(collection(db, 'Pagos'));
+        const payments = snapshot.docs
+          .map((docItem) => ({ id: docItem.id, ...docItem.data() }))
+          .filter((item) => {
+            const matchesAlumno = item.alumnoId === student.id || item.alumno === student.nombre || item.alumno === student.email;
+            const matchesCollection = !item.alumnoColeccion || item.alumnoColeccion === student.coleccion;
+            return matchesAlumno && matchesCollection;
+          })
+          .sort((left, right) => (new Date(right.fechaInicio || 0).getTime() || 0) - (new Date(left.fechaInicio || 0).getTime() || 0));
+
+        if (!payments.length) {
+          studentPaymentsList.innerHTML = '<div class="payment-empty">Todavía no hay pagos registrados para este alumno.</div>';
+          return;
+        }
+
+        payments.forEach((payment) => {
+          const installments = Array.isArray(payment.desglose) ? payment.desglose : [];
+          const paidCount = installments.filter((entry) => (entry.estado || entry.status || 'pendiente') === 'pagado').length;
+          const status = paidCount === installments.length && installments.length ? 'Pagado' : 'Pendiente';
+          const card = document.createElement('article');
+          card.className = 'payment-card-item';
+
+          const top = document.createElement('div');
+          top.className = 'payment-card-top';
+          const course = document.createElement('span');
+          course.className = 'payment-course';
+          course.textContent = payment.curso || 'Curso';
+          const badge = document.createElement('span');
+          badge.className = `payment-status ${status === 'Pagado' ? 'paid' : 'pending'}`;
+          badge.textContent = status;
+          top.append(course, badge);
+
+          const meta = document.createElement('div');
+          meta.className = 'payment-meta';
+          meta.textContent = `Inicio: ${formatPaymentDate(payment.fechaInicio)} · Frecuencia: ${payment.frecuencia || 'Mensual'}`;
+
+          const details = document.createElement('div');
+          details.className = 'payment-details';
+          const detailEntries = [
+            ['Monto total', formatMoney(payment.montoCurso || 0)],
+            ['Forma de pago', payment.formaPago || '—'],
+            ['Método', payment.metodoPago || '—'],
+            ['Persona', payment.personaPago || '—']
+          ];
+          detailEntries.forEach(([label, value]) => {
+            const box = document.createElement('div');
+            box.className = 'payment-detail';
+            const labelNode = document.createElement('span');
+            labelNode.textContent = label;
+            const valueNode = document.createElement('strong');
+            valueNode.textContent = value;
+            box.append(labelNode, valueNode);
+            details.append(box);
+          });
+
+          const installmentsWrap = document.createElement('div');
+          installmentsWrap.className = 'payment-installments';
+          if (!installments.length) {
+            const empty = document.createElement('div');
+            empty.className = 'payment-empty';
+            empty.textContent = 'Sin fechas de pago registradas.';
+            installmentsWrap.append(empty);
+          } else {
+            installments.forEach((installment) => {
+              const item = document.createElement('div');
+              item.className = 'payment-installment';
+              const info = document.createElement('div');
+              const title = document.createElement('strong');
+              title.textContent = `${installment.label || 'Pago'} · ${formatMoney(installment.monto || 0)}`;
+              const date = document.createElement('small');
+              date.textContent = formatPaymentDate(installment.fecha);
+              info.append(title, date);
+              const state = document.createElement('span');
+              state.className = `payment-status ${((installment.estado || installment.status || 'pendiente') === 'pagado') ? 'paid' : 'pending'}`;
+              state.textContent = (installment.estado || installment.status || 'pendiente') === 'pagado' ? 'Pagado' : 'Pendiente';
+              item.append(info, state);
+              installmentsWrap.append(item);
+            });
+          }
+
+          card.append(top, meta, details, installmentsWrap);
+          studentPaymentsList.append(card);
+        });
+      } catch (error) {
+        console.error('No se pudieron cargar los pagos del alumno:', error);
+        studentPaymentsList.innerHTML = '<div class="payment-empty">No se pudieron cargar los pagos en este momento.</div>';
       }
     }
 
@@ -1597,6 +1836,7 @@
 
     loadStudentAnnouncements();
     loadUpcomingEvents();
+    loadStudentPayments();
     loadPendingTasks();
   </script>
 
