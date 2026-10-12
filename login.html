@@ -329,6 +329,13 @@
           } catch (error) {
             console.error('No se pudo cerrar la sesión anterior de Firebase:', error);
           }
+          try {
+            await authenticatePortalUser(email, password);
+          } catch (error) {
+            console.error('No se pudo dejar activa la sesión admin en Firebase:', error);
+            showMessage('Se encontró la cuenta admin, pero no se pudo activar la sesión en Firebase. Consulta al soporte.', true);
+            return;
+          }
           localStorage.removeItem('studentSession');
           localStorage.removeItem('studentSessionLastActivity');
           localStorage.removeItem('teacherSession');
