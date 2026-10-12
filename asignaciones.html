@@ -28,6 +28,13 @@
     .page-banner h1 { position: relative; z-index: 1; margin: 0; color: #fff; font-size: clamp(32px, 5vw, 56px); font-weight: 500; }
     .assignment-surface { padding: 24px 27px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.78); box-shadow: 0 10px 30px rgba(38, 78, 115, .06); }
     .status { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+    .assignment-analysis { margin-bottom: 22px; padding: 18px; border: 1px solid #d8e8ed; border-radius: 12px; background: linear-gradient(120deg, #f4fbfc, #f8fbff); }
+    .assignment-analysis h2 { margin: 0 0 12px; font-size: 18px; font-weight: 650; }
+    .assignment-analysis-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .assignment-analysis-metric { min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+    .assignment-analysis-metric strong { display: block; color: #174879; font-size: 22px; line-height: 1.2; }
+    .assignment-analysis-metric span { color: var(--muted); font-size: 12px; }
+    .assignment-analysis-status { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
     .assignment-list { display: grid; gap: 14px; }
     .assignment-card { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; padding: 16px 22px; border: 1px solid #dbe5ee; border-left: 4px solid var(--teal); border-radius: 12px; background: linear-gradient(115deg, #fff, #f9fcfd); box-shadow: 0 4px 12px rgba(29, 68, 103, .035); }
     .assignment-card h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; overflow-wrap: anywhere; }
@@ -86,6 +93,10 @@
       .assignment-details { grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; }
       .assignment-due-label, .assignment-due { text-align: left; }
       .assignment-submit, .assignment-manage { grid-column: 1 / -1; }
+      .assignment-analysis { padding: 14px; }
+      .assignment-analysis-metrics { grid-template-columns: 1fr; gap: 8px; }
+      .assignment-analysis-metric { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+      .assignment-analysis-metric strong { font-size: 19px; }
     }
   </style>
   <link rel="stylesheet" href="student-panel-navigation.css">
@@ -121,6 +132,11 @@
     <header class="page-banner"><h1>Asignaciones</h1></header>
     <section class="assignment-surface" aria-label="Asignaciones del alumno">
       <p class="status" id="assignmentsStatus" role="status" aria-live="polite">Cargando asignaciones...</p>
+      <section class="assignment-analysis" aria-labelledby="assignmentAnalysisTitle">
+        <h2 id="assignmentAnalysisTitle">Resumen de tu desempeño</h2>
+        <div class="assignment-analysis-metrics" id="assignmentAnalysisMetrics"></div>
+        <p class="assignment-analysis-status" id="assignmentAnalysisStatus" role="status" aria-live="polite">Calculando tu resumen...</p>
+      </section>
       <div class="assignment-list" id="assignmentsList"></div>
     </section>
   </main>
@@ -161,6 +177,8 @@
     const storage = getStorage(authApp);
     const assignmentsStatus = document.getElementById('assignmentsStatus');
     const assignmentsList = document.getElementById('assignmentsList');
+    const assignmentAnalysisMetrics = document.getElementById('assignmentAnalysisMetrics');
+    const assignmentAnalysisStatus = document.getElementById('assignmentAnalysisStatus');
     const assignmentDialog = document.getElementById('assignmentDialog');
     const assignmentDialogTitle = document.getElementById('assignmentDialogTitle');
     const assignmentDialogContext = document.getElementById('assignmentDialogContext');
@@ -174,6 +192,8 @@
     const submissionCancelButton = document.getElementById('submissionCancelButton');
     let selectedTask = null;
     let refreshSelectedTaskControls = null;
+    let assignmentAnalysisRequest = 0;
+    const assignmentFeedbackCache = new Map();
 
     function addText(parent, tagName, className, text) {
       const element = document.createElement(tagName);
@@ -291,12 +311,11 @@
       return `${student.coleccion}_${student.id}`;
     }
 
-    async function loadAssignmentFeedback(task, container) {
-      const student = getLocalStudentSession();
-      const studentData = JSON.parse(localStorage.getItem('studentSession') || 'null');
-      if (!student?.uid || !studentData?.coleccion || !studentData?.id) return;
-      try {
-        const feedbackSnapshot = await getDoc(doc(
+    function getAssignmentFeedback(task, studentData) {
+      if (!studentData?.coleccion || !studentData?.id) return Promise.resolve(null);
+      const cacheKey = `${task.aulaId}/${task.id}`;
+      if (!assignmentFeedbackCache.has(cacheKey)) {
+        const feedbackPromise = getDoc(doc(
           db,
           'Aulas',
           task.aulaId,
@@ -304,9 +323,22 @@
           task.id,
           'calificaciones',
           getStudentGradeDocumentId(studentData)
-        ));
-        if (!feedbackSnapshot.exists()) return;
-        const feedback = feedbackSnapshot.data();
+        )).then((feedbackSnapshot) => feedbackSnapshot.exists() ? feedbackSnapshot.data() : null)
+          .catch((error) => {
+            assignmentFeedbackCache.delete(cacheKey);
+            throw error;
+          });
+        assignmentFeedbackCache.set(cacheKey, feedbackPromise);
+      }
+      return assignmentFeedbackCache.get(cacheKey);
+    }
+
+    async function loadAssignmentFeedback(task, container) {
+      const studentData = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!studentData?.coleccion || !studentData?.id) return;
+      try {
+        const feedback = await getAssignmentFeedback(task, studentData);
+        if (!feedback) return;
         container.hidden = false;
         addText(container, 'span', 'assignment-feedback-title', 'Calificación y retroalimentación');
         addText(container, 'span', 'assignment-feedback-grade', `Calificación: ${feedback.calificacion} / ${feedback.puntosMaximos ?? task.puntos ?? 100}`);
@@ -316,6 +348,95 @@
         container.hidden = false;
         addText(container, 'span', 'assignment-feedback-title', 'No se pudo cargar la retroalimentación.');
       }
+    }
+
+    async function renderAssignmentAnalysis(assignments, studentData) {
+      const requestId = ++assignmentAnalysisRequest;
+      assignmentAnalysisMetrics.replaceChildren();
+      if (!assignments.length) {
+        assignmentAnalysisStatus.textContent = 'Cuando tengas asignaciones calificadas, aquí verás un resumen de tu desempeño.';
+        return;
+      }
+      if (!studentData?.coleccion || !studentData?.id) {
+        assignmentAnalysisStatus.textContent = 'No se pudo identificar tu inscripción para consultar las calificaciones.';
+        return;
+      }
+
+      assignmentAnalysisStatus.textContent = 'Calculando tu resumen de calificaciones...';
+      const feedbackResults = await Promise.allSettled(assignments.map(async (task) => {
+        const feedback = await getAssignmentFeedback(task, studentData);
+        if (!feedback) return null;
+        const score = Number(feedback.calificacion);
+        const maxScore = Number(feedback.puntosMaximos ?? task.puntos ?? 100);
+        if (feedback.calificacion == null || !Number.isFinite(score)
+            || !Number.isFinite(maxScore) || maxScore <= 0 || score < 0 || score > maxScore) {
+          console.error(`Se omitió una calificación con datos inválidos para la tarea ${task.id}.`);
+          return { invalid: true };
+        }
+        return {
+          score,
+          includedInAverage: task.considerarEnPromedio !== false
+        };
+      }));
+      if (requestId !== assignmentAnalysisRequest) return;
+
+      const failedCount = feedbackResults.filter((result) => result.status === 'rejected').length;
+      feedbackResults.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(`No se pudo consultar el análisis de la tarea ${assignments[index].id}:`, result.reason);
+        }
+      });
+      const grades = feedbackResults
+        .filter((result) => result.status === 'fulfilled' && result.value)
+        .map((result) => result.value)
+        .filter((grade) => Number.isFinite(grade.score));
+      const invalidCount = feedbackResults.filter((result) =>
+        result.status === 'fulfilled' && result.value?.invalid
+      ).length;
+      const includedGrades = grades.filter((grade) => grade.includedInAverage);
+      const average = includedGrades.length
+        ? includedGrades.reduce((total, grade) => total + grade.score, 0) / includedGrades.length
+        : null;
+      const pendingCount = assignments.length - grades.length - failedCount - invalidCount;
+      const formattedAverage = average === null
+        ? '—'
+        : new Intl.NumberFormat('es-MX', {
+          minimumFractionDigits: 3,
+          maximumFractionDigits: 3
+        }).format(average);
+      const formatMetric = (value) => {
+        const metric = document.createElement('div');
+        metric.className = 'assignment-analysis-metric';
+        const valueElement = document.createElement('strong');
+        valueElement.textContent = value.value;
+        const labelElement = document.createElement('span');
+        labelElement.textContent = value.label;
+        metric.append(valueElement, labelElement);
+        assignmentAnalysisMetrics.append(metric);
+      };
+      formatMetric({
+      formatMetric({
+        label: `Promedio · ${includedGrades.length} evaluada(s)`
+      });
+      formatMetric({ value: `${grades.length}/${assignments.length}`, label: 'Asignaciones calificadas' });
+      formatMetric({ value: String(Math.max(0, pendingCount)), label: 'Sin calificar' });
+      formatMetric({ value: String(Math.max(0, pendingCount)), label: 'Sin calificar' });
+
+      const averageMessage = average === null
+        ? grades.length
+          ? 'Tus calificaciones actuales no se consideran para el promedio del curso.'
+          : 'Aún no tienes asignaciones calificadas. Aquí aparecerá tu promedio cuando el profesor registre tus calificaciones.'
+        : `Tu promedio de calificaciones es ${formattedAverage} (${includedGrades.length} de ${assignments.length} asignación(es) cuentan para el promedio).`;
+      const pendingMessage = pendingCount
+        ? ` ${pendingCount} asignación(es) aún sin calificar.`
+        : '';
+      const errorMessage = failedCount
+        ? ` No se pudieron consultar ${failedCount} calificación(es); el resumen puede estar incompleto.`
+        : '';
+      const invalidMessage = invalidCount
+        ? ` Se omitieron ${invalidCount} calificación(es) porque sus datos no son válidos.`
+        : '';
+      assignmentAnalysisStatus.textContent = `${averageMessage}${pendingMessage}${errorMessage}${invalidMessage}`;
     }
 
     async function getStudentSubmissionFiles(task, user) {
@@ -697,6 +818,7 @@
 
         if (!classrooms.length) {
           assignmentsStatus.textContent = 'Aún no estás asignado a un aula.';
+          await renderAssignmentAnalysis([], student);
           assignmentsList.append(addText(document.createElement('div'), 'p', 'empty', 'Cuando se te asigne un aula, aquí aparecerán tus tareas.'));
           return;
         }
@@ -712,6 +834,7 @@
             .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
           assignmentsList.replaceChildren();
           assignments.forEach((task) => assignmentsList.append(renderAssignment(task)));
+          renderAssignmentAnalysis(assignments, student);
           dueCalendar.setTasks(assignments);
           const targetId = decodeURIComponent(window.location.hash.slice(1));
           const targetAssignment = targetId.startsWith('assignment-')
@@ -766,6 +889,7 @@
       } catch (error) {
         console.error('No se pudieron cargar las asignaciones del alumno:', error);
         assignmentsStatus.textContent = 'No se pudieron cargar tus asignaciones. Revisa la conexión y los permisos de Firestore.';
+        assignmentAnalysisStatus.textContent = 'No se pudo calcular tu resumen porque no se pudieron cargar las asignaciones.';
       }
     }
 
