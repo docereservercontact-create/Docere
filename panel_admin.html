@@ -567,8 +567,8 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { auth as portalAuth } from './portal-auth.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -601,7 +601,7 @@
     const paymentResetButton = document.getElementById('paymentResetButton');
     const app = initializeApp(firebaseConfig, 'adminPanel');
     const db = getFirestore(app);
-    const auth = getAuth(app);
+    const auth = portalAuth;
     const collections = {
       aspirantes_admision: { countId: 'countAspirantes', titleKeys: ['asp_nombre', 'nombre'], secondaryKeys: ['asp_apellido1', 'email'] },
       Cursos: { countId: 'countCursos', titleKeys: ['asp_nombre', 'nombre'], secondaryKeys: ['curso', 'email'] },
