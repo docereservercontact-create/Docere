@@ -471,6 +471,29 @@
       return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
     }
 
+    function getStudentNotificationKey(student) {
+      return `${encodeURIComponent(student.coleccion || 'users')}_${encodeURIComponent(student.id || student.email || 'student')}`;
+    }
+
+    async function notifyStudents(students, notification) {
+      const recipients = (Array.isArray(students) ? students : [])
+        .filter((student) => student?.id && student?.coleccion);
+      for (let offset = 0; offset < recipients.length; offset += 450) {
+        const batch = writeBatch(db);
+        recipients.slice(offset, offset + 450).forEach((student) => {
+          const notificationId = `${notification.tipo}_${notification.aulaId}_${notification.id}`;
+          batch.set(doc(db, 'Notificaciones', getStudentNotificationKey(student), 'items', notificationId), {
+            ...notification,
+            estudianteId: student.id,
+            estudianteColeccion: student.coleccion,
+            leida: false,
+            creadoEn: serverTimestamp()
+          });
+        });
+        await batch.commit();
+      }
+    }
+
     function sanitizeRichHtml(html) {
       const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'H2', 'H3', 'UL', 'OL', 'LI', 'BLOCKQUOTE']);
       const blockedTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'SVG', 'MATH']);
@@ -634,12 +657,29 @@
             resetAnnouncementEditor();
             editorStatus.textContent = 'Anuncio actualizado correctamente.';
           } else {
-            await setDoc(doc(collection(db, 'Aulas', aula.id, 'anuncios')), {
+            const announcementRef = doc(collection(db, 'Aulas', aula.id, 'anuncios'));
+            await setDoc(announcementRef, {
               ...announcementData,
               creadoEn: serverTimestamp()
             });
+            try {
+              await notifyStudents(aula.alumnos, {
+                id: announcementRef.id,
+                aulaId: aula.id,
+                aulaNombre: aula.nombre || 'Aula',
+                titulo: announcementData.titulo,
+                tipo: 'anuncio',
+                tipoTexto: 'Nuevo anuncio'
+              });
+            } catch (notificationError) {
+              console.error(`El anuncio ${announcementRef.id} se guardó, pero no se pudieron guardar todas las notificaciones:`, notificationError);
+              resetAnnouncementEditor();
+              await loadAnnouncements();
+              editorStatus.textContent = 'El anuncio se publicó, pero no se pudieron guardar todas las notificaciones.';
+              return;
+            }
             resetAnnouncementEditor();
-            editorStatus.textContent = 'Anuncio publicado para los alumnos de esta aula.';
+            editorStatus.textContent = 'Anuncio publicado y notificaciones enviadas a los alumnos.';
           }
           await loadAnnouncements();
         } catch (error) {
@@ -1223,19 +1263,41 @@
         }
 
         publishButton.disabled = true;
+        const wasEditingPublication = Boolean(editingPublicationId);
         formStatus.textContent = editingPublicationId ? 'Guardando cambios...' : 'Guardando publicación...';
         try {
+          let notificationSaved = true;
           if (editingPublicationId) {
             await updateDoc(doc(db, 'Aulas', aula.id, 'publicaciones', editingPublicationId), publicationData);
-            formStatus.textContent = 'Cambios guardados correctamente.';
           } else {
-            await setDoc(doc(collection(db, 'Aulas', aula.id, 'publicaciones')), {
+            const publicationRef = doc(collection(db, 'Aulas', aula.id, 'publicaciones'));
+            await setDoc(publicationRef, {
               ...publicationData,
               creadoEn: serverTimestamp()
             });
-            formStatus.textContent = 'Publicación guardada y lista para aparecer en “Próximos eventos”.';
+            try {
+              await notifyStudents(aula.alumnos, {
+                id: publicationRef.id,
+                aulaId: aula.id,
+                aulaNombre: aula.nombre || 'Aula',
+                titulo: publicationData.titulo,
+                tipo: 'evento',
+                tipoTexto: 'Nuevo evento',
+                fecha: publicationData.fecha,
+                lugar: publicationData.lugar,
+                descripcion: publicationData.descripcion
+              });
+            } catch (notificationError) {
+              console.error(`La publicación ${publicationRef.id} se guardó, pero no se pudieron guardar todas las notificaciones:`, notificationError);
+              notificationSaved = false;
+            }
           }
           resetPublicationForm();
+          formStatus.textContent = wasEditingPublication
+            ? 'Cambios guardados correctamente.'
+            : notificationSaved
+              ? 'Publicación guardada y notificaciones enviadas a los alumnos.'
+              : 'La publicación se guardó, pero no se pudieron guardar todas las notificaciones.';
           await loadPublications();
         } catch (error) {
           console.error(`No se pudo guardar la publicación del aula ${aula.id}:`, error);
@@ -2013,18 +2075,36 @@
               profesorEmail: String(session.email || '').trim().toLowerCase(),
               profesorNombre: session.nombre || 'Profesor'
             };
+            let notificationsFailed = false;
             if (editingTask) {
               await updateDoc(doc(db, 'Aulas', aula.id, 'tareas', editingTask.id), {
                 ...taskData,
                 actualizadoEn: serverTimestamp()
               });
             } else {
-              await setDoc(doc(collection(db, 'Aulas', aula.id, 'tareas')), {
+              const taskRef = doc(collection(db, 'Aulas', aula.id, 'tareas'));
+              await setDoc(taskRef, {
                 ...taskData,
                 creadoEn: serverTimestamp()
               });
+              try {
+                await notifyStudents(alumnosAsignados, {
+                  id: taskRef.id,
+                  aulaId: aula.id,
+                  aulaNombre: aula.nombre || 'Aula',
+                  titulo: taskData.titulo,
+                  tipo: 'tarea',
+                  tipoTexto: 'Nueva tarea'
+                });
+              } catch (notificationError) {
+                console.error(`La tarea ${taskRef.id} se guardó, pero no se pudieron guardar todas las notificaciones:`, notificationError);
+                notificationsFailed = true;
+              }
             }
-            listStatus.textContent = editingTask ? 'Tarea actualizada correctamente.' : 'Tarea asignada correctamente.';
+            if (editingTask) listStatus.textContent = 'Tarea actualizada correctamente.';
+            else listStatus.textContent = notificationsFailed
+              ? 'La tarea se asignó, pero no se pudieron guardar todas las notificaciones.'
+              : 'Tarea asignada correctamente y notificaciones enviadas.';
             tasksPage.replaceWith(await renderTasks(aula));
           } catch (error) {
             console.error(`No se pudo ${editingTask ? 'actualizar' : 'asignar'} la tarea en el aula ${aula.id}:`, error);

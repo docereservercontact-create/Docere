@@ -86,7 +86,7 @@
     }
 
     .payment-panel {
-      margin: 0 0 24px;
+      margin: 0;
       padding: 22px 20px;
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -219,6 +219,9 @@
     .notification-list { display: grid; }
     .notification-item { display: grid; gap: 4px; padding: 12px 14px; border: 0; border-bottom: 1px solid var(--border); background: #fff; color: var(--text-primary); text-align: left; cursor: pointer; }
     .notification-item:hover { background: #f8fafc; }
+    .notification-item.is-unread { border-left: 3px solid var(--accent); background: #eff6ff; }
+    .notification-item.is-read { color: var(--text-secondary); }
+    .notification-read-state { font-size: 10px !important; font-weight: 700; text-transform: uppercase; }
     .notification-item strong { font-size: 13px; }
     .notification-item span, .notification-empty { color: var(--text-secondary); font-size: 12px; }
     .notification-empty { padding: 18px 14px; }
@@ -330,6 +333,7 @@
 
     .dashboard-main { min-width: 0; }
     .dashboard-sidebar { display: grid; gap: 20px; min-width: 0; }
+    .dashboard-events-column { display: grid; gap: 20px; min-width: 0; }
 
     .dashboard-widget {
       min-width: 0;
@@ -636,7 +640,7 @@
       .dashboard-grid { grid-template-columns: minmax(0, 1fr) minmax(220px, .8fr); }
       .dashboard-main { grid-column: 1 / -1; grid-row: 1; }
       .dashboard-sidebar { grid-column: 1; grid-row: 2; }
-      .dashboard-events { grid-column: 2; grid-row: 2; }
+      .dashboard-events-column { grid-column: 2; grid-row: 2; }
       .welcome-header,
       .announcement-wall {
         padding: 20px;
@@ -654,7 +658,7 @@
 
     @media (max-width: 768px) {
       .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
-      .dashboard-main, .dashboard-sidebar, .dashboard-events { grid-column: 1; grid-row: auto; }
+      .dashboard-main, .dashboard-sidebar, .dashboard-events-column { grid-column: 1; grid-row: auto; }
       .dashboard-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
       .assignment-card { grid-template-columns: 1fr; gap: 16px; }
       .footer-columns {
@@ -822,15 +826,6 @@
           </div>
         </section>
 
-        <section class="payment-panel" id="pagos" aria-labelledby="paymentSectionTitle">
-          <div class="payment-panel-header">
-            <h2 id="paymentSectionTitle">Pagos</h2>
-          </div>
-          <div id="studentPaymentsList" class="payment-list">
-            <div class="payment-empty">Cargando pagos...</div>
-          </div>
-        </section>
-
         <section class="announcement-wall" aria-labelledby="announcementWallTitle">
           <div class="wall-header">
             <div class="wall-title">
@@ -843,10 +838,20 @@
         </section>
       </div>
 
-      <aside class="dashboard-widget dashboard-events" aria-labelledby="upcomingEventsTitle">
-        <h2 class="widget-heading" id="upcomingEventsTitle">Próximos eventos</h2>
-        <div class="events-placeholder">Aquí aparecerán los próximos eventos programados.</div>
-      </aside>
+      <div class="dashboard-events-column">
+        <aside class="dashboard-widget dashboard-events" aria-labelledby="upcomingEventsTitle">
+          <h2 class="widget-heading" id="upcomingEventsTitle">Próximos eventos</h2>
+          <div class="events-placeholder" id="upcomingEventsList">Aquí aparecerán los próximos eventos programados.</div>
+        </aside>
+        <section class="payment-panel" id="pagos" aria-labelledby="paymentSectionTitle">
+          <div class="payment-panel-header">
+            <h2 id="paymentSectionTitle">Pagos</h2>
+          </div>
+          <div id="studentPaymentsList" class="payment-list">
+            <div class="payment-empty">Cargando pagos...</div>
+          </div>
+        </section>
+      </div>
     </div>
   </main>
 
@@ -919,7 +924,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDocs, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getMetadata, getStorage, listAll, ref } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
@@ -938,7 +943,7 @@
     const announcementWall = document.getElementById('announcementWall');
     const announcementWallStatus = document.getElementById('announcementWallStatus');
     const studentPaymentsList = document.getElementById('studentPaymentsList');
-    const upcomingEventsContainer = document.querySelector('.dashboard-events');
+    const upcomingEventsContainer = document.getElementById('upcomingEventsList');
     const calendarMonth = document.getElementById('calendarMonth');
     const calendarGrid = document.getElementById('calendarGrid');
     const calendarDayAssignments = document.getElementById('calendarDayAssignments');
@@ -955,7 +960,7 @@
     const db = getFirestore(app);
     const authenticatedDb = getFirestore(authApp);
     const storage = getStorage(authApp);
-    const notifications = [];
+    let notifications = [];
     let unreadNotificationCount = 0;
     let notificationToastTimer;
     let calendarDate = new Date();
@@ -1051,45 +1056,74 @@
     });
     renderCalendar();
 
+    function getStudentNotificationKey(student) {
+      return `${encodeURIComponent(student.coleccion || 'users')}_${encodeURIComponent(student.id || student.email || 'student')}`;
+    }
+
     function renderNotifications() {
       notificationList.replaceChildren();
       if (!notifications.length) {
         addWallText(notificationList, 'p', 'notification-empty', 'Aún no tienes notificaciones.');
+        unreadNotificationCount = 0;
+        notificationCount.hidden = true;
         return;
       }
 
       notifications.forEach((notification) => {
         const item = document.createElement('button');
         item.type = 'button';
-        item.className = 'notification-item';
+        item.className = `notification-item ${notification.leida ? 'is-read' : 'is-unread'}`;
         item.append(
           addWallText(item, 'strong', '', notification.titulo || 'Nueva actividad'),
-          addWallText(item, 'span', '', `${notification.tipoTexto} · ${notification.aulaNombre}`)
+          addWallText(item, 'span', '', `${notification.tipoTexto} · ${notification.aulaNombre || 'Aula'}`),
+          addWallText(item, 'span', 'notification-read-state', notification.leida ? 'Leída' : 'No leída')
         );
-        item.addEventListener('click', () => {
+        item.addEventListener('click', async () => {
+          if (!(await markNotificationAsRead(notification))) return;
           notificationPanel.hidden = true;
           notificationButton.setAttribute('aria-expanded', 'false');
           if (notification.tipo === 'tarea') {
             window.location.href = `asignaciones.html#assignment-${encodeURIComponent(notification.id)}`;
           } else if (notification.tipo === 'pizarra') {
             window.location.href = 'Apuntes_admision.html';
+          } else if (notification.tipo === 'pago') {
+            window.location.href = 'panel_estudiante.html#pagos';
+          } else if (notification.tipo === 'evento') {
+            openEventModal(notification);
           } else {
             const card = Array.from(announcementWall.querySelectorAll('.class-announcement'))
               .find((element) => element.dataset.announcementId === notification.id && element.dataset.classroomId === notification.aulaId);
-            card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            else window.location.href = 'panel_estudiante.html';
           }
         });
         notificationList.append(item);
       });
+      unreadNotificationCount = notifications.filter((notification) => !notification.leida).length;
+      notificationCount.textContent = unreadNotificationCount > 99 ? '99+' : String(unreadNotificationCount);
+      notificationCount.hidden = unreadNotificationCount === 0;
     }
 
-    function addNotification(notification) {
-      notifications.unshift(notification);
-      notifications.splice(10);
-      unreadNotificationCount += 1;
-      notificationCount.textContent = unreadNotificationCount > 99 ? '99+' : String(unreadNotificationCount);
-      notificationCount.hidden = false;
-      renderNotifications();
+    async function markNotificationAsRead(notification) {
+      if (notification.leida || !notification.notificationDocId) return true;
+      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      try {
+        await updateDoc(doc(db, 'Notificaciones', getStudentNotificationKey(student), 'items', notification.notificationDocId), {
+          leida: true,
+          leidaEn: serverTimestamp()
+        });
+        notification.leida = true;
+        renderNotifications();
+        return true;
+      } catch (error) {
+        console.error(`No se pudo marcar como leída la notificación ${notification.notificationDocId}:`, error);
+        notificationToast.textContent = 'No se pudo guardar el estado leído de esta notificación.';
+        notificationToast.hidden = false;
+        return false;
+      }
+    }
+
+    function showNotificationToast(notification) {
       notificationToast.textContent = `${notification.tipoTexto} en ${notification.aulaNombre}: ${notification.titulo || 'Actividad'}`;
       notificationToast.hidden = false;
       clearTimeout(notificationToastTimer);
@@ -1098,7 +1132,7 @@
         try {
           const browserNotification = new Notification(notification.tipoTexto, {
             body: `${notification.titulo || 'Actividad'} · ${notification.aulaNombre}`,
-            tag: `${notification.tipo}-${notification.aulaId}-${notification.id}`
+            tag: `${notification.tipo}-${notification.aulaId || ''}-${notification.id}`
           });
           browserNotification.onclick = () => {
             window.focus();
@@ -1106,6 +1140,8 @@
               window.location.href = `asignaciones.html#assignment-${encodeURIComponent(notification.id)}`;
             } else if (notification.tipo === 'pizarra') {
               window.location.href = 'Apuntes_admision.html';
+            } else if (notification.tipo === 'pago') {
+              window.location.href = 'panel_estudiante.html#pagos';
             } else {
               window.location.href = 'panel_estudiante.html';
             }
@@ -1116,6 +1152,53 @@
       }
     }
 
+    async function saveStudentNotification(student, notification) {
+      const notificationDocId = `${notification.tipo}_${notification.aulaId || 'portal'}_${notification.id}`;
+      await setDoc(doc(db, 'Notificaciones', getStudentNotificationKey(student), 'items', notificationDocId), {
+        ...notification,
+        leida: false,
+        creadoEn: serverTimestamp()
+      });
+    }
+
+    function addNotification(notification, student) {
+      saveStudentNotification(student, notification).catch((error) => {
+        console.error(`No se pudo guardar la notificación ${notification.tipo}/${notification.id}:`, error);
+      });
+    }
+
+    function subscribeStudentNotificationHistory() {
+      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!student?.id || !student?.coleccion) return;
+      let initialSnapshot = true;
+      return onSnapshot(
+        collection(db, 'Notificaciones', getStudentNotificationKey(student), 'items'),
+        (snapshot) => {
+          notifications = snapshot.docs.map((notificationDoc) => ({
+            notificationDocId: notificationDoc.id,
+            ...notificationDoc.data()
+          }));
+          notifications.sort((left, right) =>
+            (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0)
+          );
+          renderNotifications();
+          if (!initialSnapshot) {
+            snapshot.docChanges().forEach((change) => {
+              if (change.type !== 'added') return;
+              const notification = { notificationDocId: change.doc.id, ...change.doc.data() };
+              if (!notification.leida) showNotificationToast(notification);
+            });
+          }
+          initialSnapshot = false;
+        },
+        (error) => {
+          console.error('No se pudo cargar el historial de notificaciones del alumno:', error);
+          notificationList.replaceChildren();
+          addWallText(notificationList, 'p', 'notification-empty', 'No se pudo cargar el historial de notificaciones.');
+        }
+      );
+    }
+
     notificationButton.addEventListener('click', () => {
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission().catch((error) => {
@@ -1124,14 +1207,28 @@
       }
       notificationPanel.hidden = !notificationPanel.hidden;
       notificationButton.setAttribute('aria-expanded', String(!notificationPanel.hidden));
-      if (!notificationPanel.hidden) {
-        unreadNotificationCount = 0;
-        notificationCount.hidden = true;
-      }
     });
-    document.getElementById('notificationMarkRead').addEventListener('click', () => {
-      unreadNotificationCount = 0;
-      notificationCount.hidden = true;
+    document.getElementById('notificationMarkRead').addEventListener('click', async () => {
+      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!student?.id || !student?.coleccion) return;
+      const unread = notifications.filter((notification) => !notification.leida && notification.notificationDocId);
+      for (let offset = 0; offset < unread.length; offset += 450) {
+        const batch = writeBatch(db);
+        unread.slice(offset, offset + 450).forEach((notification) => {
+          batch.update(doc(db, 'Notificaciones', getStudentNotificationKey(student), 'items', notification.notificationDocId), {
+            leida: true,
+            leidaEn: serverTimestamp()
+          });
+        });
+        try {
+          await batch.commit();
+        } catch (error) {
+          console.error('No se pudieron marcar como leídas todas las notificaciones:', error);
+          notificationToast.textContent = 'No se pudieron marcar todas las notificaciones como leídas.';
+          notificationToast.hidden = false;
+          return;
+        }
+      }
     });
     document.addEventListener('click', (event) => {
       if (!event.target.closest('.notification-wrapper')) {
@@ -1463,7 +1560,6 @@
 
     function isSubmissionClosed(task) {
       const deadline = getTaskDeadline(task?.fechaEntrega);
-      if (task?.cerrarEntregas === true) return true;
       return Boolean(deadline && Date.now() > deadline.getTime());
     }
 
@@ -1477,18 +1573,6 @@
     function subscribeStudentClassNotifications(classrooms, student) {
       const unsubscribeAll = [];
       const notificationSources = [
-        {
-          collectionName: 'anuncios',
-          tipo: 'anuncio',
-          tipoTexto: 'Nuevo anuncio',
-          isVisible: () => true
-        },
-        {
-          collectionName: 'tareas',
-          tipo: 'tarea',
-          tipoTexto: 'Nueva tarea',
-          isVisible: (task) => isTaskAssignedToStudent(task, student)
-        },
         {
           collectionName: 'pizarras',
           tipo: 'pizarra',
@@ -1522,7 +1606,7 @@
                   titulo: data.titulo || data.nombre || (source.tipo === 'pizarra' ? 'Pizarra nueva' : ''),
                   tipo: source.tipo,
                   tipoTexto: source.tipoTexto
-                });
+                }, student);
               });
             },
             (error) => {
@@ -1597,7 +1681,6 @@
         listingError = error;
       }
 
-      const studentId = user?.uid || getLocalStudentSession()?.uid || 'student-local-user';
       const legacyFile = ref(storage, `entregas/${task.aulaId}/${task.id}/${studentId}.pdf`);
       try {
         await getMetadata(legacyFile);
@@ -1873,6 +1956,10 @@
       }
     }
 
+    const unsubscribeNotificationHistory = subscribeStudentNotificationHistory();
+    if (unsubscribeNotificationHistory) {
+      window.addEventListener('pagehide', unsubscribeNotificationHistory, { once: true });
+    }
     loadStudentAnnouncements();
     loadUpcomingEvents();
     loadStudentPayments();

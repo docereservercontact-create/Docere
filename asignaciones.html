@@ -37,7 +37,7 @@
     .assignment-due-label { color: var(--ink); font-size: 17px; text-align: right; }
     .assignment-due { color: var(--muted); font-size: 14px; text-align: right; }
     .assignment-submission-state { justify-self: end; padding: 5px 10px; border-radius: 999px; background: #e8f7ef; color: #087f5b; font-size: 12px; font-weight: 700; }
-    .assignment-submission-state.is-closed { background: #dfeaf9; color: #0f5d93; }
+    .assignment-submission-state.is-closed { background: #fee2e2; color: #b91c1c; }
     .assignment-submission-state.is-closed.has-submission { background: #e7f7ec; color: #0d7a48; }
     .assignment-submission-state[hidden] { display: none; }
     .assignment-submit { min-height: 46px; margin-top: 4px; padding: 0 16px; border: 0; border-radius: 9px; background: linear-gradient(110deg, #2479df, #118f9a); box-shadow: 0 5px 12px rgba(28, 120, 168, .17); color: #fff; font-size: 15px; font-weight: 650; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
@@ -228,7 +228,6 @@
 
     function isSubmissionClosed(task) {
       const deadline = getDeadlineDate(task?.fechaEntrega);
-      if (task?.cerrarEntregas === true) return true;
       return Boolean(deadline && Date.now() > deadline.getTime());
     }
 

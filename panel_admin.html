@@ -703,6 +703,10 @@
         .join(' ') || data.email || 'Alumno sin nombre';
     }
 
+    function getStudentNotificationKey(student) {
+      return `${encodeURIComponent(student.coleccion || 'users')}_${encodeURIComponent(student.id || student.email || 'student')}`;
+    }
+
     const classDays = [
       ['lunes', 'Lunes'],
       ['martes', 'Martes'],
@@ -1554,12 +1558,40 @@
       paymentFormMessage.textContent = 'Guardando esquema de pagos...';
       try {
         const paymentRef = await addDoc(collection(db, 'Pagos'), payload);
+        let notificationSaved = true;
+        try {
+          const notificationId = `pago_portal_${paymentRef.id}`;
+          const notificationBatch = writeBatch(db);
+          notificationBatch.set(doc(
+            db,
+            'Notificaciones',
+            getStudentNotificationKey({ coleccion: student.collectionName, id: student.id }),
+            'items',
+            notificationId
+          ), {
+            id: paymentRef.id,
+            tipo: 'pago',
+            tipoTexto: 'Nuevo esquema de pago',
+            titulo: payload.curso,
+            aulaNombre: 'Pagos',
+            curso: payload.curso,
+            montoCurso: payload.montoCurso,
+            leida: false,
+            creadoEn: serverTimestamp()
+          });
+          await notificationBatch.commit();
+        } catch (notificationError) {
+          notificationSaved = false;
+          console.error(`El pago ${paymentRef.id} se guardó, pero no se pudo guardar la notificación:`, notificationError);
+        }
         const record = { id: paymentRef.id, data: { ...payload, fechaRegistro: new Date() } };
         const current = cache.get('Pagos') || [];
         cache.set('Pagos', [record, ...current]);
         document.getElementById('countPagos').textContent = String(cache.get('Pagos').length);
         paymentForm.reset();
-        paymentFormMessage.textContent = 'Esquema de pagos guardado correctamente.';
+        paymentFormMessage.textContent = notificationSaved
+          ? 'Esquema de pagos guardado y notificación enviada al alumno.'
+          : 'Esquema de pagos guardado, pero no se pudo guardar la notificación del alumno.';
         statusLine.textContent = `${cache.get('Pagos').length} pagos registrados`;
         renderPaymentPreview();
         if (activeCollection === 'Pagos') {
