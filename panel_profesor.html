@@ -1784,7 +1784,7 @@
             addText(studentSection, 'p', 'task-submission-review-status', 'No se pudo relacionar esta entrega con un alumno asignado; no se puede guardar la calificación.');
           }
           container.append(studentSection);
-        });
+        }
         statusText.textContent = `${submissions.length} entrega(s) recibida(s).`;
       } catch (error) {
         console.error(`No se pudieron cargar las entregas de la tarea ${task.id}:`, error);
