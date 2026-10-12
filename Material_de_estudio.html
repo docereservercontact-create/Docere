@@ -179,6 +179,55 @@
       cursor: pointer;
     }
 
+    .page-hero {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-height: 180px;
+      margin: 24px 0 24px;
+      padding: 32px 42px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 28px;
+      background: linear-gradient(90deg, #0b4c6a 0%, #0a5a76 34%, #0b9c9a 100%);
+      box-shadow: 0 14px 32px rgba(12, 68, 90, 0.18);
+    }
+
+    .page-hero::before,
+    .page-hero::after {
+      position: absolute;
+      right: 6%;
+      display: block;
+      width: 260px;
+      height: 260px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 50%;
+      content: "";
+    }
+
+    .page-hero::before {
+      top: -120px;
+      box-shadow: 0 0 0 28px rgba(255, 255, 255, 0.03), 0 0 0 58px rgba(255, 255, 255, 0.02);
+    }
+
+    .page-hero::after {
+      right: 22%;
+      bottom: -170px;
+      width: 220px;
+      height: 220px;
+      opacity: 0.9;
+    }
+
+    .page-hero-title {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      font-size: clamp(2.3rem, 4vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -0.06em;
+      color: #fff;
+    }
+
     /* --- MAIN CONTENT --- */
     .dashboard-container {
       max-width: 1200px;
@@ -509,6 +558,9 @@
 
   <!-- CONTENIDO PRINCIPAL -->
   <main class="dashboard-container" id="studentContent">
+    <section class="page-hero" aria-label="Encabezado de material de estudio">
+      <h1 class="page-hero-title">Material de estudio</h1>
+    </section>
     <section class="welcome-header">
       <div class="welcome-text">
         <h1 id="welcomeTitle">¡Bienvenido a tu panel de alumno! 👋</h1>
