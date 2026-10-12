@@ -953,7 +953,12 @@
       if (!visibleRecords.length) {
         const emptyState = document.createElement('div');
         emptyState.className = 'empty-state';
-        emptyState.textContent = searchTerm ? 'No hay registros que coincidan con la búsqueda.' : 'Aún no hay registros en esta colección.';
+        const isAccessBlocked = (cache.get(activeCollection) || []).length === 0 && !searchTerm;
+        emptyState.textContent = searchTerm
+          ? 'No hay registros que coincidan con la búsqueda.'
+          : (isAccessBlocked
+              ? 'No hay registros en esta colección o no tienes permisos para leerla. Revisa las reglas de Firestore y crea al menos un documento.'
+              : 'Aún no hay registros en esta colección.');
         recordsList.append(emptyState);
         return;
       }
@@ -1580,12 +1585,17 @@
           } catch (error) {
             console.error(`No se pudieron precargar los registros de ${name}:`, error);
             cache.set(name, []);
+            const countNode = document.getElementById(config.countId);
+            if (countNode) countNode.textContent = '0';
           }
         }));
         populateAssignmentOptions();
         populatePaymentOptions();
         renderPaymentPreview();
-        statusLine.textContent = `${cache.get(activeCollection)?.length || 0} registros`;
+        const totalRecords = Object.keys(collections).reduce((sum, name) => sum + (cache.get(name)?.length || 0), 0);
+        statusLine.textContent = totalRecords > 0
+          ? `${totalRecords} registros cargados`
+          : 'No hay registros para mostrar o revisa las reglas de acceso de Firestore.';
         renderRecords();
       }
     } catch (error) {
