@@ -1,47 +1,36 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function isAdmin() {
-      return signedIn() && (
-        request.auth.token.email == 'admin@docere.com' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
-    }
-
-    match /admins/{adminId} {
-      allow read, write: if signedIn();
+    match /admins/{document=**} {
+      allow read, write: if true;
     }
 
     match /aspirantes_admision/{document=**} {
-      allow read, write: if signedIn();
+      allow read, write: if true;
     }
 
     match /Cursos/{document=**} {
-      allow read, write: if signedIn();
+      allow read, write: if true;
     }
 
     match /Profesores/{document=**} {
-      allow read, write: if signedIn();
+      allow read, write: if true;
     }
 
     match /Aulas/{document=**} {
-      allow read, write: if signedIn();
+      allow read, write: if true;
     }
 
     match /Pagos/{document=**} {
-      allow read, write: if signedIn();
+      allow read, write: if true;
     }
 
     match /users/{document=**} {
-      allow read, write: if signedIn();
+      allow read, write: if true;
     }
 
     match /{document=**} {
-      allow read, write: if signedIn();
+      allow read, write: if true;
     }
   }
 }
