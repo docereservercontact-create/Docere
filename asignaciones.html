@@ -225,8 +225,8 @@
     }
 
     function isSubmissionClosed(task) {
-      if (task.cerrarEntregas !== true) return false;
-      const deadline = getDeadlineDate(task.fechaEntrega);
+      const deadline = getDeadlineDate(task?.fechaEntrega);
+      if (task?.cerrarEntregas === true) return true;
       return Boolean(deadline && Date.now() > deadline.getTime());
     }
 
@@ -389,15 +389,18 @@
       manageButton.hidden = true;
 
       function updateControls(hasSubmission, submissionClosed) {
-        submissionState.hidden = !hasSubmission;
-        submissionState.textContent = 'Entregada';
-        deliverButton.textContent = hasSubmission
-          ? 'Cancelar entregar'
-          : submissionClosed ? 'Entrega cerrada' : 'Entregar tarea';
-        deliverButton.disabled = submissionClosed;
+        const expired = Boolean(submissionClosed && isSubmissionClosed(task));
+        submissionState.hidden = !(hasSubmission || expired);
+        if (expired) {
+          submissionState.textContent = hasSubmission ? 'Entregada · Cerrada' : 'No entregada · Cerrada';
+        } else if (hasSubmission) {
+          submissionState.textContent = 'Entregada';
+        }
+        deliverButton.textContent = expired ? 'Entrega cerrada' : (hasSubmission ? 'Cancelar entregar' : 'Entregar tarea');
+        deliverButton.disabled = expired;
         manageButton.hidden = !hasSubmission;
         manageButton.disabled = false;
-        manageButton.textContent = 'Ver / agregar archivos';
+        manageButton.textContent = expired ? 'Ver entrega' : 'Ver / agregar archivos';
         deliverButton.dataset.hasSubmission = String(hasSubmission);
       }
 

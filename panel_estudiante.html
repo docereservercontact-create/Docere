@@ -1461,6 +1461,12 @@
       return Number.isNaN(date.getTime()) ? null : date;
     }
 
+    function isSubmissionClosed(task) {
+      const deadline = getTaskDeadline(task?.fechaEntrega);
+      if (task?.cerrarEntregas === true) return true;
+      return Boolean(deadline && Date.now() > deadline.getTime());
+    }
+
     function formatTaskDeadline(value) {
       const date = getTaskDeadline(value);
       return date
@@ -1610,7 +1616,7 @@
           }
         }));
         const pendingTasks = results
-          .filter((result) => !result.submitted && !result.error)
+          .filter((result) => !result.submitted && !result.error && !isSubmissionClosed(result.task))
           .map((result) => result.task)
           .sort((left, right) => {
             const leftDate = getTaskDeadline(left.fechaEntrega)?.getTime() ?? Number.MAX_SAFE_INTEGER;
