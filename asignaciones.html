@@ -40,6 +40,11 @@
     .assignment-submission-state.is-closed { background: #fee2e2; color: #b91c1c; }
     .assignment-submission-state.is-closed.has-submission { background: #e7f7ec; color: #0d7a48; }
     .assignment-submission-state[hidden] { display: none; }
+    .assignment-feedback { display: grid; gap: 5px; margin-top: 12px; padding: 11px 12px; border: 1px solid #bfdbfe; border-radius: 9px; background: #eff6ff; color: var(--ink); }
+    .assignment-feedback[hidden] { display: none; }
+    .assignment-feedback-title { color: #1d4ed8; font-size: 12px; font-weight: 750; }
+    .assignment-feedback-grade { font-size: 14px; font-weight: 700; }
+    .assignment-feedback-comment { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
     .assignment-submit { min-height: 46px; margin-top: 4px; padding: 0 16px; border: 0; border-radius: 9px; background: linear-gradient(110deg, #2479df, #118f9a); box-shadow: 0 5px 12px rgba(28, 120, 168, .17); color: #fff; font-size: 15px; font-weight: 650; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
     .assignment-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(28, 120, 168, .22); }
     .assignment-submit:disabled { opacity: .65; cursor: wait; }
@@ -142,7 +147,7 @@
 
   <script type="module">
     import { getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-    import { addDoc, collection, getDocs, getFirestore, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { addDoc, collection, doc, getDoc, getDocs, getFirestore, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
     import { deleteObject, getDownloadURL, getMetadata, getStorage, listAll, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
@@ -282,6 +287,37 @@
       return ref(storage, `entregas/${task.aulaId}/${task.id}/${studentId}`);
     }
 
+    function getStudentGradeDocumentId(student) {
+      return `${student.coleccion}_${student.id}`;
+    }
+
+    async function loadAssignmentFeedback(task, container) {
+      const student = getLocalStudentSession();
+      const studentData = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!student?.uid || !studentData?.coleccion || !studentData?.id) return;
+      try {
+        const feedbackSnapshot = await getDoc(doc(
+          db,
+          'Aulas',
+          task.aulaId,
+          'tareas',
+          task.id,
+          'calificaciones',
+          getStudentGradeDocumentId(studentData)
+        ));
+        if (!feedbackSnapshot.exists()) return;
+        const feedback = feedbackSnapshot.data();
+        container.hidden = false;
+        addText(container, 'span', 'assignment-feedback-title', 'Calificación y retroalimentación');
+        addText(container, 'span', 'assignment-feedback-grade', `Calificación: ${feedback.calificacion} / ${feedback.puntosMaximos ?? task.puntos ?? 100}`);
+        if (feedback.comentario) addText(container, 'p', 'assignment-feedback-comment', feedback.comentario);
+      } catch (error) {
+        console.error(`No se pudo consultar la retroalimentación de la tarea ${task.id}:`, error);
+        container.hidden = false;
+        addText(container, 'span', 'assignment-feedback-title', 'No se pudo cargar la retroalimentación.');
+      }
+    }
+
     async function getStudentSubmissionFiles(task, user) {
       const folder = getSubmissionReference(task, user);
       let files = [];
@@ -405,6 +441,12 @@
       addText(content, 'h2', '', task.titulo || 'Asignación sin título');
       addText(content, 'p', 'assignment-context', task.tema || task.curso || 'Materia');
       addText(content, 'p', 'assignment-meta', `${task.curso || 'Curso'} · ${task.aulaNombre || 'Aula'}${task.profesorNombre ? ` · ${task.profesorNombre}` : ''}`);
+      const feedback = document.createElement('section');
+      feedback.className = 'assignment-feedback';
+      feedback.hidden = true;
+      feedback.setAttribute('aria-label', 'Calificación y retroalimentación del profesor');
+      content.append(feedback);
+      loadAssignmentFeedback(task, feedback);
 
       const details = document.createElement('aside');
       details.className = 'assignment-details';

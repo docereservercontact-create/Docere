@@ -200,6 +200,13 @@
       color: var(--text-secondary);
       text-align: center;
     }
+    .student-feedback-list { display: grid; gap: 10px; margin-top: 14px; }
+    .student-feedback-card { display: grid; gap: 6px; padding: 13px 14px; border: 1px solid var(--border); border-radius: 9px; background: #f8fafc; }
+    .student-feedback-card strong { font-size: 14px; }
+    .student-feedback-meta { color: var(--text-secondary); font-size: 12px; }
+    .student-feedback-grade { color: #1d4ed8; font-weight: 750; }
+    .student-feedback-comment { margin: 0; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+    .student-feedback-empty { padding: 15px; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-secondary); font-size: 13px; text-align: center; }
 
     .nav-actions {
       display: flex;
@@ -836,6 +843,16 @@
           <p class="wall-status" id="announcementWallStatus" role="status">Cargando anuncios de tus clases...</p>
           <div class="announcement-wall-list" id="announcementWall"></div>
         </section>
+        <section class="announcement-wall" aria-labelledby="studentFeedbackTitle">
+          <div class="wall-header">
+            <div class="wall-title">
+              <i data-lucide="message-square-text" style="color: var(--accent);"></i>
+              <h2 id="studentFeedbackTitle">Calificaciones y retroalimentación</h2>
+            </div>
+          </div>
+          <p class="wall-status" id="studentFeedbackStatus" role="status">Cargando tus calificaciones...</p>
+          <div class="student-feedback-list" id="studentFeedbackList"></div>
+        </section>
       </div>
 
       <div class="dashboard-events-column">
@@ -924,7 +941,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDocs, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, getDocs, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getMetadata, getStorage, listAll, ref } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
@@ -942,6 +959,8 @@
 
     const announcementWall = document.getElementById('announcementWall');
     const announcementWallStatus = document.getElementById('announcementWallStatus');
+    const studentFeedbackStatus = document.getElementById('studentFeedbackStatus');
+    const studentFeedbackList = document.getElementById('studentFeedbackList');
     const studentPaymentsList = document.getElementById('studentPaymentsList');
     const upcomingEventsContainer = document.getElementById('upcomingEventsList');
     const calendarMonth = document.getElementById('calendarMonth');
@@ -1535,6 +1554,61 @@
       }
     }
 
+    async function loadStudentFeedback() {
+      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      studentFeedbackList.replaceChildren();
+      if (!student?.id || !student?.coleccion) {
+        studentFeedbackStatus.textContent = 'Inicia sesión para consultar tus calificaciones.';
+        return;
+      }
+
+      try {
+        const classroomsSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomsSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => isStudentInClassroom(classroom, student));
+        const feedbackRecords = [];
+        for (const classroom of classrooms) {
+          const tasksSnapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'tareas'));
+          const assignedTasks = tasksSnapshot.docs
+            .map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }))
+            .filter((task) => isTaskAssignedToStudent(task, student));
+          const feedbackSnapshots = await Promise.all(assignedTasks.map((task) => {
+            const feedbackId = `${student.coleccion}_${student.id}`;
+            return getDoc(doc(db, 'Aulas', classroom.id, 'tareas', task.id, 'calificaciones', feedbackId))
+              .then((snapshot) => ({ task, snapshot }));
+          }));
+          feedbackSnapshots.forEach(({ task, snapshot }) => {
+            if (!snapshot.exists()) return;
+            feedbackRecords.push({ task, classroom, ...snapshot.data() });
+          });
+        }
+
+        feedbackRecords.sort((left, right) =>
+          (right.actualizadoEn?.toMillis?.() || 0) - (left.actualizadoEn?.toMillis?.() || 0)
+        );
+        if (!feedbackRecords.length) {
+          addWallText(studentFeedbackList, 'p', 'student-feedback-empty', 'Todavía no tienes calificaciones ni retroalimentación.');
+          studentFeedbackStatus.textContent = '';
+          return;
+        }
+
+        feedbackRecords.forEach((feedback) => {
+          const card = document.createElement('article');
+          card.className = 'student-feedback-card';
+          addWallText(card, 'strong', '', feedback.task.titulo || 'Asignación');
+          addWallText(card, 'span', 'student-feedback-meta', `${feedback.classroom.nombre || 'Aula'} · ${feedback.classroom.curso || feedback.task.curso || 'Curso'}`);
+          addWallText(card, 'span', 'student-feedback-grade', `Calificación: ${feedback.calificacion} / ${feedback.puntosMaximos ?? feedback.task.puntos ?? 100}`);
+          if (feedback.comentario) addWallText(card, 'p', 'student-feedback-comment', feedback.comentario);
+          studentFeedbackList.append(card);
+        });
+        studentFeedbackStatus.textContent = `${feedbackRecords.length} calificación(es) recibida(s).`;
+      } catch (error) {
+        console.error('No se pudieron cargar las calificaciones del alumno:', error);
+        studentFeedbackStatus.textContent = 'No se pudieron cargar las calificaciones. Revisa la conexión y los permisos.';
+      }
+    }
+
     function isStudentInClassroom(classroom, student) {
       if (!Array.isArray(classroom.alumnos)) return false;
       return classroom.alumnos.some((assignedStudent) =>
@@ -1963,6 +2037,7 @@
     loadStudentAnnouncements();
     loadUpcomingEvents();
     loadStudentPayments();
+    loadStudentFeedback();
     loadPendingTasks();
   </script>
 

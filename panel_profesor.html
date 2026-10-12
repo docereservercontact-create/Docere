@@ -176,6 +176,12 @@
     .task-submission-list { display: grid; gap: 6px; }
     .task-submission-link { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 12px; color: var(--blue); font-size: 12px; overflow-wrap: anywhere; }
     .task-submission-link span:last-child { color: var(--muted); }
+    .task-submission-review { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+    .task-submission-review label { display: grid; gap: 5px; color: var(--ink); font-size: 12px; font-weight: 650; }
+    .task-submission-review input, .task-submission-review textarea { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 5px; font: inherit; }
+    .task-submission-review textarea { min-height: 70px; resize: vertical; }
+    .task-submission-review button { min-height: 34px; padding: 0 10px; border: 1px solid var(--blue); border-radius: 5px; background: var(--blue); color: #fff; font-weight: 650; cursor: pointer; }
+    .task-submission-review-status { margin: 0; color: var(--muted); font-size: 12px; }
     .task-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .task-card-actions button { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; }
     .task-card-actions .task-delete-button { border-color: #f3b4b0; color: var(--red); }
@@ -1655,6 +1661,7 @@
         const taskFolder = ref(storage, `entregas/${task.aulaId}/${task.id}`);
         const files = await listTaskSubmissionFiles(taskFolder);
         const submissions = await Promise.all(files.map(async (fileReference) => ({
+          reference: fileReference,
           metadata: await getMetadata(fileReference),
           url: await getDownloadURL(fileReference)
         })));
@@ -1668,20 +1675,115 @@
         submissions.sort((left, right) =>
           new Date(right.metadata.updated || 0).getTime() - new Date(left.metadata.updated || 0).getTime()
         );
-        submissions.forEach(({ metadata, url }) => {
-          const link = document.createElement('a');
-          link.className = 'task-submission-link';
-          link.href = url;
-          link.target = '_blank';
-          link.rel = 'noopener noreferrer';
-          const originalName = metadata.customMetadata?.originalName || 'entrega.pdf';
-          const studentName = metadata.customMetadata?.studentName || metadata.customMetadata?.studentEmail || 'Alumno';
-          const updatedAt = metadata.updated
-            ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(metadata.updated))
-            : '';
-          addText(link, 'span', '', `${studentName} · ${originalName}`);
-          addText(link, 'span', '', updatedAt ? `Actualizada ${updatedAt}` : '');
-          container.append(link);
+        const submissionGroups = new Map();
+        submissions.forEach((submission) => {
+          const metadata = submission.metadata.customMetadata || {};
+          const rosterStudent = (Array.isArray(task.alumnosAsignados) ? task.alumnosAsignados : []).find((student) =>
+            (metadata.studentId && metadata.studentCollection
+              && String(student.id) === String(metadata.studentId)
+              && student.coleccion === metadata.studentCollection)
+            || (metadata.studentEmail
+              && String(student.email || student.correo || '').trim().toLowerCase() === metadata.studentEmail.trim().toLowerCase())
+          );
+          const studentKey = rosterStudent
+            ? `${rosterStudent.coleccion}/${rosterStudent.id}`
+            : `unmatched/${metadata.studentEmail || metadata.studentName || submission.reference.fullPath}`;
+          if (!submissionGroups.has(studentKey)) {
+            submissionGroups.set(studentKey, {
+              student: rosterStudent || null,
+              studentName: metadata.studentName || metadata.studentEmail || 'Alumno',
+              files: []
+            });
+          }
+          submissionGroups.get(studentKey).files.push(submission);
+        });
+
+        for (const group of submissionGroups.values()) {
+          const studentSection = document.createElement('section');
+          studentSection.className = 'task-submission-review';
+          addText(studentSection, 'strong', '', group.student?.nombre || group.studentName);
+          group.files.forEach(({ metadata, url }) => {
+            const link = document.createElement('a');
+            link.className = 'task-submission-link';
+            link.href = url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            const originalName = metadata.customMetadata?.originalName || 'entrega.pdf';
+            const updatedAt = metadata.updated
+              ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(metadata.updated))
+              : '';
+            addText(link, 'span', '', originalName);
+            addText(link, 'span', '', updatedAt ? `Actualizada ${updatedAt}` : '');
+            studentSection.append(link);
+          });
+
+          if (group.student) {
+            const feedbackId = `${group.student.coleccion}_${group.student.id}`;
+            const feedbackRef = doc(db, 'Aulas', task.aulaId, 'tareas', task.id, 'calificaciones', feedbackId);
+            const [gradeLabel, commentLabel] = ['Calificación', 'Retroalimentación'].map((labelText) => {
+              const label = document.createElement('label');
+              label.append(document.createTextNode(labelText));
+              return label;
+            });
+            const gradeInput = document.createElement('input');
+            gradeInput.type = 'number';
+            gradeInput.min = '0';
+            gradeInput.max = String(Number(task.puntos ?? 100));
+            gradeInput.step = '0.01';
+            gradeInput.required = true;
+            gradeInput.setAttribute('aria-label', `Calificación para ${group.student.nombre || group.studentName}`);
+            const commentInput = document.createElement('textarea');
+            commentInput.maxLength = 2000;
+            commentInput.placeholder = 'Escribe comentarios para el alumno...';
+            commentInput.setAttribute('aria-label', `Retroalimentación para ${group.student.nombre || group.studentName}`);
+            const saveGradeButton = document.createElement('button');
+            saveGradeButton.type = 'button';
+            saveGradeButton.textContent = 'Guardar calificación';
+            const feedbackStatus = addText(studentSection, 'p', 'task-submission-review-status', '');
+            const gradeSnapshot = await getDoc(feedbackRef);
+            if (gradeSnapshot.exists()) {
+              const feedback = gradeSnapshot.data();
+              gradeInput.value = feedback.calificacion ?? '';
+              commentInput.value = feedback.comentario || '';
+            }
+            gradeLabel.append(gradeInput);
+            commentLabel.append(commentInput);
+            saveGradeButton.addEventListener('click', async () => {
+              if (!gradeInput.reportValidity()) return;
+              const grade = Number(gradeInput.value);
+              const maxGrade = Number(task.puntos ?? 100);
+              if (!Number.isFinite(grade) || grade < 0 || grade > maxGrade) {
+                feedbackStatus.textContent = `La calificación debe estar entre 0 y ${maxGrade}.`;
+                return;
+              }
+              saveGradeButton.disabled = true;
+              feedbackStatus.textContent = 'Guardando calificación...';
+              try {
+                await setDoc(feedbackRef, {
+                  estudianteId: group.student.id,
+                  estudianteColeccion: group.student.coleccion,
+                  estudianteNombre: group.student.nombre || group.studentName,
+                  tareaId: task.id,
+                  aulaId: task.aulaId,
+                  calificacion: grade,
+                  puntosMaximos: maxGrade,
+                  comentario: commentInput.value.trim(),
+                  profesorDocId: session.teacherDocId,
+                  actualizadoEn: serverTimestamp()
+                });
+                feedbackStatus.textContent = 'Calificación y retroalimentación guardadas.';
+              } catch (error) {
+                console.error(`No se pudo guardar la calificación de ${group.student.coleccion}/${group.student.id} para la tarea ${task.id}:`, error);
+                feedbackStatus.textContent = 'No se pudo guardar. Revisa los permisos y la conexión de Firestore.';
+              } finally {
+                saveGradeButton.disabled = false;
+              }
+            });
+            studentSection.append(gradeLabel, commentLabel, saveGradeButton);
+          } else {
+            addText(studentSection, 'p', 'task-submission-review-status', 'No se pudo relacionar esta entrega con un alumno asignado; no se puede guardar la calificación.');
+          }
+          container.append(studentSection);
         });
         statusText.textContent = `${submissions.length} entrega(s) recibida(s).`;
       } catch (error) {
