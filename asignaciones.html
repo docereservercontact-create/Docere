@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Asignaciones de tus aulas.">
+  <title>Mis asignaciones | Docére</title>
+  <script src="student-session.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --page: #eef5fa;
+      --surface: #fff;
+      --ink: #101d32;
+      --muted: #52647b;
+      --line: #d7e3ee;
+      --blue: #155eef;
+      --teal: #10a6a1;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: linear-gradient(180deg, #e5f2f6 0, #f4f8fb 100%); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .page { width: min(100% - 40px, 1200px); margin: 0 auto; padding: 32px 0 56px; }
+    .page-banner { position: relative; display: flex; min-height: 190px; align-items: center; overflow: hidden; margin-bottom: 24px; padding: 32px 42px; border-radius: 22px; background: linear-gradient(110deg, #174879, #079b9d); box-shadow: 0 14px 30px rgba(24, 70, 112, .15); }
+    .page-banner::before, .page-banner::after { position: absolute; right: 8%; width: 230px; height: 230px; border: 1px solid rgba(255,255,255,.16); border-radius: 50%; content: ""; }
+    .page-banner::before { top: -145px; box-shadow: 0 0 0 26px rgba(255,255,255,.035), 0 0 0 54px rgba(255,255,255,.025); }
+    .page-banner::after { right: 25%; bottom: -180px; width: 210px; height: 210px; }
+    .page-banner h1 { position: relative; z-index: 1; margin: 0; color: #fff; font-size: clamp(32px, 5vw, 56px); font-weight: 500; }
+    .assignment-surface { padding: 24px 27px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.78); box-shadow: 0 10px 30px rgba(38, 78, 115, .06); }
+    .status { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+    .assignment-list { display: grid; gap: 14px; }
+    .assignment-card { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; padding: 16px 22px; border: 1px solid #dbe5ee; border-left: 4px solid var(--teal); border-radius: 12px; background: linear-gradient(115deg, #fff, #f9fcfd); box-shadow: 0 4px 12px rgba(29, 68, 103, .035); }
+    .assignment-card h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; overflow-wrap: anywhere; }
+    .assignment-context { margin: 0; color: var(--ink); font-size: 16px; }
+    .assignment-meta { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .assignment-details { display: grid; align-content: start; justify-items: stretch; gap: 10px; }
+    .assignment-due-label { color: var(--ink); font-size: 17px; text-align: right; }
+    .assignment-due { color: var(--muted); font-size: 14px; text-align: right; }
+    .assignment-submission-state { justify-self: end; padding: 5px 10px; border-radius: 999px; background: #e8f7ef; color: #087f5b; font-size: 12px; font-weight: 700; }
+    .assignment-submission-state.is-closed { background: #fee2e2; color: #b91c1c; }
+    .assignment-submission-state.is-closed.has-submission { background: #e7f7ec; color: #0d7a48; }
+    .assignment-submission-state[hidden] { display: none; }
+    .assignment-feedback { display: grid; gap: 5px; margin-top: 12px; padding: 11px 12px; border: 1px solid #bfdbfe; border-radius: 9px; background: #eff6ff; color: var(--ink); }
+    .assignment-feedback[hidden] { display: none; }
+    .assignment-feedback-title { color: #1d4ed8; font-size: 12px; font-weight: 750; }
+    .assignment-feedback-grade { font-size: 14px; font-weight: 700; }
+    .assignment-feedback-comment { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+    .assignment-submit { min-height: 46px; margin-top: 4px; padding: 0 16px; border: 0; border-radius: 9px; background: linear-gradient(110deg, #2479df, #118f9a); box-shadow: 0 5px 12px rgba(28, 120, 168, .17); color: #fff; font-size: 15px; font-weight: 650; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
+    .assignment-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(28, 120, 168, .22); }
+    .assignment-submit:disabled { opacity: .65; cursor: wait; }
+    .assignment-manage { min-height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--blue); font-weight: 650; cursor: pointer; }
+    .assignment-manage[hidden] { display: none; }
+    .assignment-submit:focus-visible, .assignment-dialog-close:focus-visible, .submission-upload:focus-visible { outline: 3px solid #41c9c4; outline-offset: 2px; }
+    .empty { padding: 28px 18px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); text-align: center; }
+    dialog.assignment-dialog { width: min(620px, calc(100% - 28px)); max-height: min(82vh, 700px); padding: 0; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); box-shadow: 0 24px 70px rgba(15, 35, 58, .28); }
+    dialog.assignment-dialog::backdrop { background: rgba(13, 31, 51, .52); }
+    .assignment-dialog-header, .assignment-dialog-body { padding: 20px 22px; }
+    .assignment-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
+    .assignment-dialog-header h2 { margin: 0; font-size: 20px; }
+    .assignment-dialog-close { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; }
+    .assignment-instructions { line-height: 1.6; overflow-wrap: anywhere; }
+    .assignment-instructions > :first-child { margin-top: 0; }
+    .assignment-instructions > :last-child { margin-bottom: 0; }
+    .assignment-attachments { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .assignment-attachments a { color: var(--blue); overflow-wrap: anywhere; }
+    .submission-form { display: grid; gap: 12px; margin-top: 22px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #f6fafc; }
+    .submission-form label { display: grid; gap: 8px; color: var(--ink); font-size: 14px; font-weight: 650; }
+    .submission-form input[type="file"] { width: 100%; padding: 10px; border: 1px dashed #9bb6ca; border-radius: 8px; background: #fff; color: var(--muted); }
+    .submission-help, .submission-status { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .submission-status:empty { display: none; }
+    .submission-upload { min-height: 42px; padding: 0 15px; border: 0; border-radius: 9px; background: linear-gradient(110deg, #2479df, #118f9a); color: #fff; font-weight: 650; cursor: pointer; }
+    .submission-upload:disabled { opacity: .65; cursor: wait; }
+    .submission-file-link { color: var(--blue); font-weight: 650; overflow-wrap: anywhere; }
+    .submission-files { display: grid; gap: 8px; }
+    .submission-files:empty { display: none; }
+    .submission-file { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .submission-file-link { min-width: 0; }
+    .submission-file-delete, .submission-cancel { min-height: 34px; padding: 0 10px; border: 1px solid #f3b4b0; border-radius: 7px; background: #fff; color: #b42318; font-weight: 650; cursor: pointer; }
+    .submission-file-delete:disabled, .submission-cancel:disabled { opacity: .6; cursor: wait; }
+    .submission-cancel[hidden] { display: none; }
+    @media (max-width: 700px) {
+      .page { width: min(100% - 28px, 1200px); padding: 20px 0 36px; }
+      .page-banner { min-height: 140px; margin-bottom: 16px; padding: 24px; border-radius: 16px; }
+      .assignment-surface { padding: 14px; border-radius: 12px; }
+      .assignment-card { grid-template-columns: 1fr; gap: 14px; padding: 16px; }
+      .assignment-details { grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; }
+      .assignment-due-label, .assignment-due { text-align: left; }
+      .assignment-submit, .assignment-manage { grid-column: 1 / -1; }
+    }
+  </style>
+  <link rel="stylesheet" href="student-panel-navigation.css">
+  <link rel="stylesheet" href="panel-visual-theme.css">
+  <script src="student-panel-navigation.js" defer></script>
+</head>
+<body>
+  <nav class="student-navbar">
+    <div class="student-nav-container">
+      <a href="index.html" class="student-brand"><img src="logon.png" alt="Docére"></a>
+      <button class="student-menu-toggle" id="studentMenuToggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="studentNavLinks"><i data-lucide="menu"></i></button>
+      <ul class="student-nav-links" id="studentNavLinks">
+        <li><a href="panel_estudiante.html">Mi panel</a></li>
+        <li><a href="asignaciones.html" aria-current="page">Asignaciones</a></li>
+        <li><a href="mis-cursos.html">Mis Cursos</a></li>
+        <li><a href="Apuntes_admision.html">Apuntes</a></li>
+        <li><a href="Material_de_estudio.html">Material de Estudio</a></li>
+        <li><a href="https://www.bidi.unam.mx/" target="_blank" rel="noopener noreferrer">Libreria</a></li>
+      </ul>
+      <div class="student-nav-actions">
+        <a href="perfil.html" class="user-profile" title="Ir a mi perfil">
+          <div class="avatar-wrapper"><i data-lucide="user-round"></i></div>
+          <div class="user-info"><span class="user-name" id="userNameLabel">Alumno</span><span class="user-role">Estudiante</span></div>
+        </a>
+        <a class="notification-button" href="panel_estudiante.html" aria-label="Notificaciones" title="Notificaciones"><i data-lucide="bell"></i></a>
+        <a class="btn btn-primary" href="panel_estudiante.html#class"><i data-lucide="video"></i><span>Entrar a clase</span></a>
+        <button class="btn btn-outline" id="btnCerrarSesion" type="button"><i data-lucide="log-out"></i><span>Cerrar sesión</span></button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page">
+    <header class="page-banner"><h1>Asignaciones</h1></header>
+    <section class="assignment-surface" aria-label="Asignaciones del alumno">
+      <p class="status" id="assignmentsStatus" role="status" aria-live="polite">Cargando asignaciones...</p>
+      <div class="assignment-list" id="assignmentsList"></div>
+    </section>
+  </main>
+
+  <dialog class="assignment-dialog" id="assignmentDialog" aria-labelledby="assignmentDialogTitle">
+    <div class="assignment-dialog-header">
+      <div><h2 id="assignmentDialogTitle"></h2><p class="assignment-meta" id="assignmentDialogContext"></p></div>
+      <button class="assignment-dialog-close" id="assignmentDialogClose" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <div class="assignment-dialog-body">
+      <div class="assignment-instructions" id="assignmentDialogInstructions"></div>
+      <div class="assignment-attachments" id="assignmentDialogAttachments"></div>
+      <form class="submission-form" id="submissionForm">
+        <label for="submissionFile">Entrega tus archivos en PDF</label>
+        <input id="submissionFile" name="submissionFile" type="file" accept=".pdf,application/pdf" multiple required>
+        <p class="submission-help">Puedes entregar varios archivos PDF de hasta 10 MB cada uno. Puedes agregar o eliminar archivos antes del cierre.</p>
+        <div class="submission-files" id="submissionFiles" aria-live="polite"></div>
+        <p class="submission-status" id="submissionStatus" role="status" aria-live="polite"></p>
+        <button class="submission-upload" id="submissionUploadButton" type="submit">Subir archivos PDF</button>
+        <button class="submission-cancel" id="submissionCancelButton" type="button" hidden>Cancelar entrega</button>
+      </form>
+    </div>
+  </dialog>
+
+  <script type="module">
+    import { getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { addDoc, collection, doc, getDoc, getDocs, getFirestore, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { deleteObject, getDownloadURL, getMetadata, getStorage, listAll, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+    import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
+    import { auth, authApp, firebaseConfig, signOutPortalUser } from './portal-auth.js';
+
+    const appName = 'studentAssignments';
+    const app = getApps().find((firebaseApp) => firebaseApp.name === appName)
+      || initializeApp(firebaseConfig, appName);
+    const db = getFirestore(app);
+    const authenticatedDb = getFirestore(authApp);
+    const storage = getStorage(authApp);
+    const assignmentsStatus = document.getElementById('assignmentsStatus');
+    const assignmentsList = document.getElementById('assignmentsList');
+    const assignmentDialog = document.getElementById('assignmentDialog');
+    const assignmentDialogTitle = document.getElementById('assignmentDialogTitle');
+    const assignmentDialogContext = document.getElementById('assignmentDialogContext');
+    const assignmentDialogInstructions = document.getElementById('assignmentDialogInstructions');
+    const assignmentDialogAttachments = document.getElementById('assignmentDialogAttachments');
+    const submissionForm = document.getElementById('submissionForm');
+    const submissionFile = document.getElementById('submissionFile');
+    const submissionFiles = document.getElementById('submissionFiles');
+    const submissionStatus = document.getElementById('submissionStatus');
+    const submissionUploadButton = document.getElementById('submissionUploadButton');
+    const submissionCancelButton = document.getElementById('submissionCancelButton');
+    let selectedTask = null;
+    let refreshSelectedTaskControls = null;
+
+    function addText(parent, tagName, className, text) {
+      const element = document.createElement(tagName);
+      element.className = className;
+      element.textContent = text;
+      parent.append(element);
+      return element;
+    }
+
+    function isStudentInClassroom(classroom, student) {
+      return Array.isArray(classroom.alumnos) && classroom.alumnos.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && assignedStudent.email === student.email)
+      );
+    }
+
+    function isTaskAssignedToStudent(task, student) {
+      if (!Array.isArray(task.alumnosAsignados)) return true;
+      return task.alumnosAsignados.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && assignedStudent.email === student.email)
+      );
+    }
+
+    function sanitizeRichHtml(html) {
+      const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'H2', 'H3', 'UL', 'OL', 'LI', 'BLOCKQUOTE']);
+      const blockedTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'SVG', 'MATH']);
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+
+      function copySafeNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || '');
+        if (node.nodeType !== Node.ELEMENT_NODE || blockedTags.has(node.tagName)) return document.createDocumentFragment();
+        const fragment = document.createDocumentFragment();
+        const target = allowedTags.has(node.tagName) ? document.createElement(node.tagName.toLowerCase()) : fragment;
+        Array.from(node.childNodes).forEach((child) => target.append(copySafeNode(child)));
+        return target;
+      }
+
+      const safeContent = document.createElement('div');
+      Array.from(parsed.body.childNodes).forEach((node) => safeContent.append(copySafeNode(node)));
+      return safeContent.innerHTML;
+    }
+
+    function formatDeadline(value) {
+      if (!value) return 'Sin fecha de entrega';
+      const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+      return Number.isNaN(date.getTime())
+        ? 'Fecha de entrega no válida'
+        : new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    }
+
+    function getDeadlineDate(value) {
+      if (!value) return null;
+      const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function isSubmissionClosed(task) {
+      const deadline = getDeadlineDate(task?.fechaEntrega);
+      return Boolean(deadline && Date.now() > deadline.getTime());
+    }
+
+    function getLocalStudentSession() {
+      const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!session?.id && !session?.email) return null;
+      return {
+        uid: String(session.id || session.email || 'student-local-user'),
+        email: String(session.email || ''),
+        displayName: session.nombre || 'Alumno'
+      };
+    }
+
+    function getAuthenticatedStudent() {
+      return new Promise((resolve, reject) => {
+        const session = getLocalStudentSession();
+        if (!session) {
+          reject(new Error('No existe sesión activa del alumno.'));
+          return;
+        }
+
+        const fallbackUser = { ...session, uid: String(session.uid || session.email || 'student-local-user') };
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          unsubscribe();
+          if (!user) {
+            resolve(fallbackUser);
+            return;
+          }
+
+          const sessionEmail = String(session.email || '').trim().toLowerCase();
+          const userEmail = String(user.email || '').trim().toLowerCase();
+          if (sessionEmail && userEmail && userEmail !== sessionEmail) {
+            resolve(fallbackUser);
+            return;
+          }
+
+          resolve({
+            ...fallbackUser,
+            uid: String(user.uid || fallbackUser.uid),
+            email: user.email || fallbackUser.email,
+            displayName: user.displayName || fallbackUser.displayName
+          });
+        }, (error) => {
+          unsubscribe();
+          resolve(fallbackUser);
+        });
+      });
+    }
+
+    function getSubmissionReference(task, user) {
+      const studentId = user?.uid || getLocalStudentSession()?.uid || 'student-local-user';
+      return ref(storage, `entregas/${task.aulaId}/${task.id}/${studentId}`);
+    }
+
+    function getStudentGradeDocumentId(student) {
+      return `${student.coleccion}_${student.id}`;
+    }
+
+    async function loadAssignmentFeedback(task, container) {
+      const student = getLocalStudentSession();
+      const studentData = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!student?.uid || !studentData?.coleccion || !studentData?.id) return;
+      try {
+        const feedbackSnapshot = await getDoc(doc(
+          db,
+          'Aulas',
+          task.aulaId,
+          'tareas',
+          task.id,
+          'calificaciones',
+          getStudentGradeDocumentId(studentData)
+        ));
+        if (!feedbackSnapshot.exists()) return;
+        const feedback = feedbackSnapshot.data();
+        container.hidden = false;
+        addText(container, 'span', 'assignment-feedback-title', 'Calificación y retroalimentación');
+        addText(container, 'span', 'assignment-feedback-grade', `Calificación: ${feedback.calificacion} / ${feedback.puntosMaximos ?? task.puntos ?? 100}`);
+        if (feedback.comentario) addText(container, 'p', 'assignment-feedback-comment', feedback.comentario);
+      } catch (error) {
+        console.error(`No se pudo consultar la retroalimentación de la tarea ${task.id}:`, error);
+        container.hidden = false;
+        addText(container, 'span', 'assignment-feedback-title', 'No se pudo cargar la retroalimentación.');
+      }
+    }
+
+    async function getStudentSubmissionFiles(task, user) {
+      const folder = getSubmissionReference(task, user);
+      let files = [];
+      let listError = null;
+      try {
+        const result = await listAll(folder);
+        files = result.items.slice();
+      } catch (error) {
+        listError = error;
+      }
+
+      // Keep access to deliveries created before submissions moved into per-student folders.
+      const studentId = user?.uid || getLocalStudentSession()?.uid || 'student-local-user';
+      const legacyFile = ref(storage, `entregas/${task.aulaId}/${task.id}/${studentId}.pdf`);
+      try {
+        await getMetadata(legacyFile);
+        files.push(legacyFile);
+      } catch (error) {
+        if (error.code !== 'storage/object-not-found') {
+          if (!listError) throw error;
+        }
+      }
+
+      if (!files.length && listError) throw listError;
+      return Promise.all(files.map(async (fileReference) => ({
+        reference: fileReference,
+        metadata: await getMetadata(fileReference),
+        url: await getDownloadURL(fileReference)
+      })));
+    }
+
+    function setSubmissionControls(hasSubmission, closed) {
+      if (!refreshSelectedTaskControls) return;
+      refreshSelectedTaskControls(hasSubmission, closed);
+    }
+
+    async function refreshSubmissionList(task) {
+      const user = await getAuthenticatedStudent();
+      const files = await getStudentSubmissionFiles(task, user);
+      submissionFiles.replaceChildren();
+      files.forEach(({ reference, metadata, url }) => {
+        const item = document.createElement('div');
+        item.className = 'submission-file';
+        const link = addText(item, 'a', 'submission-file-link', metadata.customMetadata?.originalName || 'entrega.pdf');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        const deleteButton = addText(item, 'button', 'submission-file-delete', 'Eliminar');
+        deleteButton.type = 'button';
+        deleteButton.disabled = isSubmissionClosed(task);
+        deleteButton.addEventListener('click', async () => {
+          if (!confirm(`¿Eliminar el archivo "${metadata.customMetadata?.originalName || 'entrega.pdf'}"?`)) return;
+          deleteButton.disabled = true;
+          deleteButton.textContent = 'Eliminando...';
+          try {
+            await deleteObject(reference);
+            submissionStatus.textContent = 'Archivo eliminado.';
+            await refreshSubmissionList(task);
+            setSubmissionControls(submissionFiles.childElementCount > 0, isSubmissionClosed(task));
+          } catch (error) {
+            console.error(`No se pudo eliminar una entrega de la tarea ${task.id}:`, error);
+            submissionStatus.textContent = error.code === 'storage/unauthorized'
+              ? 'Firebase Storage no autorizó eliminar este archivo. Comprueba que las reglas publicadas permitan delete para el alumno asignado.'
+              : error.message || 'No se pudo eliminar el archivo.';
+            deleteButton.disabled = isSubmissionClosed(task);
+            deleteButton.textContent = 'Eliminar';
+          }
+        });
+        item.append(deleteButton);
+        submissionFiles.append(item);
+      });
+      submissionCancelButton.hidden = files.length === 0;
+      submissionStatus.textContent = files.length
+        ? `${files.length} archivo(s) en tu entrega.`
+        : 'Aún no has entregado archivos.';
+      return files;
+    }
+
+    async function cancelSubmission(task, button) {
+      if (!confirm('¿Cancelar la entrega y eliminar todos los archivos enviados para esta tarea?')) return;
+      button.disabled = true;
+      button.textContent = 'Cancelando...';
+      submissionStatus.textContent = 'Eliminando los archivos de la entrega...';
+      try {
+        const user = await getAuthenticatedStudent();
+        const files = await getStudentSubmissionFiles(task, user);
+        await Promise.all(files.map(({ reference }) => deleteObject(reference)));
+        submissionFiles.replaceChildren();
+        submissionCancelButton.hidden = true;
+        submissionStatus.textContent = 'Entrega cancelada. Se eliminaron todos sus archivos.';
+        setSubmissionControls(false, isSubmissionClosed(task));
+      } catch (error) {
+        console.error(`No se pudo cancelar la entrega de la tarea ${task.id}:`, error);
+        const message = error.code === 'storage/unauthorized'
+          ? 'Firebase Storage no autorizó cancelar la entrega. Comprueba que las reglas publicadas permitan delete para el alumno asignado.'
+          : error.message || 'No se pudo cancelar la entrega.';
+        try {
+          const remainingFiles = await refreshSubmissionList(task);
+          setSubmissionControls(remainingFiles.length > 0, isSubmissionClosed(task));
+        } catch (refreshError) {
+          console.error(`No se pudo actualizar la entrega de la tarea ${task.id}:`, refreshError);
+        }
+        submissionStatus.textContent = message;
+        if (!assignmentDialog.open) alert(message);
+      } finally {
+        if (button === submissionCancelButton) {
+          button.disabled = isSubmissionClosed(task);
+          button.textContent = 'Cancelar entrega';
+        } else {
+          button.disabled = isSubmissionClosed(task);
+          button.textContent = button.dataset.hasSubmission === 'true' ? 'Cancelar entregar' : 'Entregar tarea';
+        }
+      }
+    }
+
+    function renderAssignment(task) {
+      const card = document.createElement('article');
+      card.className = 'assignment-card';
+      card.id = `assignment-${task.id}`;
+      const content = document.createElement('div');
+      addText(content, 'h2', '', task.titulo || 'Asignación sin título');
+      addText(content, 'p', 'assignment-context', task.materia || task.tema || task.curso || 'General');
+      addText(content, 'p', 'assignment-meta', `${task.curso || 'Curso'} · ${task.aulaNombre || 'Aula'}${task.profesorNombre ? ` · ${task.profesorNombre}` : ''}`);
+      const feedback = document.createElement('section');
+      feedback.className = 'assignment-feedback';
+      feedback.hidden = true;
+      feedback.setAttribute('aria-label', 'Calificación y retroalimentación del profesor');
+      content.append(feedback);
+      loadAssignmentFeedback(task, feedback);
+
+      const details = document.createElement('aside');
+      details.className = 'assignment-details';
+      addText(details, 'span', 'assignment-due-label', 'Fecha de entrega');
+      addText(details, 'span', 'assignment-due', formatDeadline(task.fechaEntrega));
+      const closed = isSubmissionClosed(task);
+      const submissionState = addText(details, 'span', 'assignment-submission-state', '');
+      submissionState.hidden = true;
+      const deliverButton = addText(details, 'button', 'assignment-submit', closed ? 'Entrega cerrada' : 'Cargando entrega...');
+      deliverButton.type = 'button';
+      deliverButton.disabled = true;
+      const manageButton = addText(details, 'button', 'assignment-manage', 'Ver / agregar archivos');
+      manageButton.type = 'button';
+      manageButton.hidden = true;
+
+      function updateControls(hasSubmission, submissionClosed) {
+        const expired = Boolean(submissionClosed && isSubmissionClosed(task));
+        submissionState.hidden = !(hasSubmission || expired);
+        if (expired) {
+          submissionState.textContent = hasSubmission ? 'Entregada · Cerrada' : 'No entregada · Cerrada';
+          submissionState.classList.add('is-closed');
+          submissionState.classList.toggle('has-submission', hasSubmission);
+        } else if (hasSubmission) {
+          submissionState.textContent = 'Entregada';
+          submissionState.classList.remove('is-closed', 'has-submission');
+        } else {
+          submissionState.textContent = 'No entregada';
+          submissionState.classList.remove('is-closed', 'has-submission');
+        }
+        deliverButton.textContent = expired ? 'Entrega cerrada' : (hasSubmission ? 'Cancelar entregar' : 'Entregar tarea');
+        deliverButton.disabled = expired;
+        manageButton.hidden = !hasSubmission;
+        manageButton.disabled = false;
+        manageButton.textContent = expired ? 'Ver entrega' : 'Ver / agregar archivos';
+        deliverButton.dataset.hasSubmission = String(hasSubmission);
+      }
+
+      async function openSubmissionDialog() {
+        selectedTask = task;
+        refreshSelectedTaskControls = updateControls;
+        assignmentDialogTitle.textContent = task.titulo || 'Asignación';
+        assignmentDialogContext.textContent = `${task.tema || 'Materia'} · ${task.puntos ?? 100} puntos · ${formatDeadline(task.fechaEntrega)}`;
+        assignmentDialogInstructions.innerHTML = sanitizeRichHtml(task.instrucciones || 'El profesor no agregó instrucciones.');
+        assignmentDialogAttachments.replaceChildren();
+        (Array.isArray(task.adjuntos) ? task.adjuntos : []).forEach((attachment) => {
+          try {
+            const url = new URL(attachment.url);
+            if (!['http:', 'https:'].includes(url.protocol)) return;
+            const link = addText(assignmentDialogAttachments, 'a', '', attachment.nombre || url.hostname);
+            link.href = url.href;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+          } catch {
+            return;
+          }
+        });
+        submissionForm.reset();
+        submissionFiles.replaceChildren();
+        submissionStatus.replaceChildren();
+        submissionFile.disabled = closed;
+        submissionUploadButton.disabled = closed;
+        submissionUploadButton.textContent = closed ? 'Entrega cerrada' : 'Subir archivos PDF';
+        submissionCancelButton.hidden = true;
+        submissionCancelButton.disabled = closed;
+        if (closed) submissionStatus.textContent = 'La fecha límite para entregar esta tarea ya pasó. Puedes consultar tus archivos, pero ya no modificarlos.';
+        assignmentDialog.showModal();
+        try {
+          const files = await refreshSubmissionList(task);
+          updateControls(files.length > 0, closed);
+        } catch (error) {
+          console.error(`No se pudo consultar la entrega de la tarea ${task.id}:`, error);
+          submissionStatus.textContent = error.code === 'storage/unauthorized'
+            ? 'Firebase Storage no permite consultar tu entrega. Publica las reglas actualizadas de storage.rules; mientras tanto no se puede confirmar si el archivo está entregado.'
+            : error.message || 'No se pudo consultar tu entrega.';
+        }
+      }
+
+      deliverButton.addEventListener('click', async () => {
+        if (deliverButton.dataset.hasSubmission === 'true') {
+          selectedTask = task;
+          refreshSelectedTaskControls = updateControls;
+          await cancelSubmission(task, deliverButton);
+          return;
+        }
+        await openSubmissionDialog();
+      });
+      manageButton.addEventListener('click', openSubmissionDialog);
+
+      getAuthenticatedStudent()
+        .then((user) => getStudentSubmissionFiles(task, user))
+        .then((files) => updateControls(files.length > 0, closed))
+        .catch((error) => {
+          console.error(`No se pudo consultar la entrega de la tarea ${task.id}:`, error);
+          submissionState.hidden = false;
+          submissionState.textContent = 'No se pudo verificar';
+          deliverButton.textContent = 'Consultar entrega';
+          deliverButton.disabled = closed;
+          deliverButton.dataset.hasSubmission = 'false';
+          manageButton.hidden = false;
+          manageButton.textContent = 'Ver estado';
+        });
+
+      card.append(content, details);
+      return card;
+    }
+
+    document.getElementById('assignmentDialogClose').addEventListener('click', () => assignmentDialog.close());
+    assignmentDialog.addEventListener('click', (event) => {
+      if (event.target === assignmentDialog) assignmentDialog.close();
+    });
+
+    submissionCancelButton.addEventListener('click', () => {
+      if (selectedTask) cancelSubmission(selectedTask, submissionCancelButton);
+    });
+
+    submissionForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!selectedTask || isSubmissionClosed(selectedTask)) {
+        submissionStatus.textContent = 'La fecha límite para entregar esta tarea ya pasó.';
+        return;
+      }
+
+      const files = Array.from(submissionFile.files || []);
+      if (!files.length) {
+        submissionStatus.textContent = 'Selecciona uno o más archivos PDF antes de subirlos.';
+        return;
+      }
+      for (const file of files) {
+        if (!file.name.toLowerCase().endsWith('.pdf') || (file.type && file.type !== 'application/pdf')) {
+          submissionStatus.textContent = `${file.name}: el archivo debe ser un PDF.`;
+          return;
+        }
+        if (!file.size || file.size > 10 * 1024 * 1024) {
+          submissionStatus.textContent = `${file.name}: el archivo debe pesar menos de 10 MB.`;
+          return;
+        }
+        const signature = new TextDecoder().decode(await file.slice(0, 5).arrayBuffer());
+        if (signature !== '%PDF-') {
+          submissionStatus.textContent = `${file.name}: el archivo seleccionado no contiene un documento PDF válido.`;
+          return;
+        }
+      }
+
+      submissionUploadButton.disabled = true;
+      submissionFile.disabled = true;
+      submissionStatus.textContent = `Subiendo ${files.length} archivo(s)...`;
+      try {
+        const user = await getAuthenticatedStudent();
+        const folder = getSubmissionReference(selectedTask, user);
+        for (const file of files) {
+          const fileReference = ref(folder, `${crypto.randomUUID()}.pdf`);
+          await uploadBytes(fileReference, file, {
+            contentType: 'application/pdf',
+            customMetadata: {
+              originalName: file.name.slice(0, 200),
+              studentId: String(studentSession.id),
+              studentCollection: String(studentSession.coleccion),
+              studentName: String(studentSession.nombre || 'Alumno'),
+              studentEmail: user.email || '',
+              taskTitle: String(selectedTask.titulo || 'Asignación')
+            }
+          });
+        }
+        let teacherAlertSent = true;
+        try {
+          await addDoc(collection(authenticatedDb, 'Aulas', selectedTask.aulaId, 'notificacionesProfesor'), {
+            tipo: 'entrega',
+            tareaId: selectedTask.id,
+            titulo: String(selectedTask.titulo || 'Tarea'),
+            estudianteId: String(studentSession.id),
+            estudianteColeccion: String(studentSession.coleccion),
+            estudianteUid: user.uid,
+            estudianteNombre: String(studentSession.nombre || 'Alumno'),
+            estudianteEmail: user.email || '',
+            archivos: files.map((file) => file.name.slice(0, 200)).join(', ').slice(0, 500),
+            creadoEn: serverTimestamp()
+          });
+        } catch (notificationError) {
+          teacherAlertSent = false;
+          console.error(`Los archivos de la tarea ${selectedTask.id} se subieron, pero no se pudo avisar al profesor:`, notificationError);
+        }
+        submissionFile.value = '';
+        submissionStatus.textContent = teacherAlertSent
+          ? `${files.length} archivo(s) agregado(s) correctamente. Se notificó al profesor.`
+          : `${files.length} archivo(s) agregado(s), pero no se pudo notificar al profesor. Revisa los permisos de escritura de Firestore.`;
+        const uploadedFiles = await refreshSubmissionList(selectedTask);
+        setSubmissionControls(uploadedFiles.length > 0, isSubmissionClosed(selectedTask));
+      } catch (error) {
+        console.error(`No se pudo subir la entrega de la tarea ${selectedTask.id}:`, error);
+        const message = error.code === 'storage/unauthorized'
+          ? 'Firebase Storage rechazó la subida (storage/unauthorized). Comprueba que estén publicadas las reglas nuevas de storage.rules en el bucket correcto, que el alumno esté asignado y que la fecha de entrega siga abierta.'
+          : error.code === 'storage/bucket-not-found'
+            ? 'No se encontró el bucket de Firebase Storage. Revisa la configuración storageBucket del proyecto.'
+            : error.message || 'No se pudo subir el archivo. Inténtalo de nuevo.';
+        try {
+          const currentFiles = await refreshSubmissionList(selectedTask);
+          setSubmissionControls(currentFiles.length > 0, isSubmissionClosed(selectedTask));
+        } catch (refreshError) {
+          console.error(`No se pudo actualizar la entrega de la tarea ${selectedTask.id}:`, refreshError);
+        }
+        submissionStatus.textContent = message;
+      } finally {
+        submissionUploadButton.disabled = isSubmissionClosed(selectedTask);
+        submissionFile.disabled = isSubmissionClosed(selectedTask);
+        if (!isSubmissionClosed(selectedTask)) submissionUploadButton.textContent = 'Subir archivos PDF';
+      }
+    });
+
+    const studentSession = JSON.parse(localStorage.getItem('studentSession') || 'null');
+    document.getElementById('userNameLabel').textContent = studentSession?.nombre || 'Alumno';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
+      if (!confirm('¿Deseas cerrar sesión?')) return;
+      try {
+        const { logSessionEvent } = await import('./session-audit.js');
+        await logSessionEvent(studentSession, 'cierre_sesion', 'alumno');
+      } catch (error) {
+        console.error('No se pudo registrar el cierre de sesión del alumno:', error);
+      }
+      try {
+        await signOutPortalUser();
+      } catch (error) {
+        console.error('No se pudo cerrar la sesión segura de Firebase:', error);
+      }
+      localStorage.removeItem('studentSession');
+      localStorage.removeItem('studentSessionLastActivity');
+      window.location.href = 'index.html';
+    });
+
+    async function loadAssignments() {
+      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!student?.id || !student?.coleccion) {
+        assignmentsStatus.textContent = 'No se encontró la sesión del alumno. Inicia sesión para consultar tus asignaciones.';
+        return;
+      }
+
+      try {
+        const absenceStatus = await getStudentAbsenceStatus(student);
+        if (absenceStatus.isSuspended) {
+          assignmentsStatus.textContent = getSuspensionMessage(absenceStatus);
+          return;
+        }
+
+        const classroomsSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomsSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => isStudentInClassroom(classroom, student));
+
+        if (!classrooms.length) {
+          assignmentsStatus.textContent = 'Aún no estás asignado a un aula.';
+          assignmentsList.append(addText(document.createElement('div'), 'p', 'empty', 'Cuando se te asigne un aula, aquí aparecerán tus tareas.'));
+          return;
+        }
+
+        const assignmentsByClassroom = new Map();
+        const loadedClassrooms = new Set();
+        const unsubscribeTasks = [];
+
+        function renderAssignments() {
+          const assignments = Array.from(assignmentsByClassroom.values())
+            .filter(Boolean)
+            .flat()
+            .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+          assignmentsList.replaceChildren();
+          assignments.forEach((task) => assignmentsList.append(renderAssignment(task)));
+          dueCalendar.setTasks(assignments);
+          const targetId = decodeURIComponent(window.location.hash.slice(1));
+          const targetAssignment = targetId.startsWith('assignment-')
+            ? document.getElementById(targetId)
+            : null;
+          if (targetAssignment) {
+            targetAssignment.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            targetAssignment.querySelector('.assignment-submit')?.click();
+            window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+          }
+
+          const failedCount = Array.from(assignmentsByClassroom.values()).filter((result) => result === null).length;
+          if (loadedClassrooms.size < classrooms.length) {
+            assignmentsStatus.textContent = assignments.length
+              ? `${assignments.length} asignación(es). Cargando ${classrooms.length - loadedClassrooms.size} aula(s)...`
+              : 'Cargando asignaciones...';
+          } else if (!assignments.length) {
+            assignmentsStatus.textContent = failedCount
+              ? `No se pudieron consultar las tareas de ${failedCount} aula(s). Revisa los permisos de Firestore.`
+              : 'Todavía no tienes asignaciones.';
+          } else {
+            assignmentsStatus.textContent = failedCount
+              ? `${assignments.length} asignación(es). No se pudieron consultar ${failedCount} aula(s).`
+              : `${assignments.length} asignación(es) en ${classrooms.length} aula(s).`;
+          }
+        }
+
+        classrooms.forEach((classroom) => {
+          const unsubscribe = onSnapshot(collection(db, 'Aulas', classroom.id, 'tareas'), (snapshot) => {
+            assignmentsByClassroom.set(classroom.id, snapshot.docs
+              .map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }))
+              .filter((task) => isTaskAssignedToStudent(task, student))
+              .map((task) => ({
+                ...task,
+                aulaId: classroom.id,
+                aulaNombre: classroom.nombre || task.aulaNombre || 'Aula',
+                curso: classroom.curso || task.curso || ''
+              })));
+            loadedClassrooms.add(classroom.id);
+            renderAssignments();
+          }, (error) => {
+            console.error(`No se pudieron escuchar las asignaciones del aula ${classroom.id}:`, error);
+            assignmentsByClassroom.set(classroom.id, null);
+            loadedClassrooms.add(classroom.id);
+            renderAssignments();
+          });
+          unsubscribeTasks.push(unsubscribe);
+        });
+
+        window.addEventListener('pagehide', () => unsubscribeTasks.forEach((unsubscribe) => unsubscribe()), { once: true });
+        assignmentsStatus.textContent = 'Cargando asignaciones...';
+      } catch (error) {
+        console.error('No se pudieron cargar las asignaciones del alumno:', error);
+        assignmentsStatus.textContent = 'No se pudieron cargar tus asignaciones. Revisa la conexión y los permisos de Firestore.';
+      }
+    }
+
+    loadAssignments();
+  </script>
+</body>
+</html>

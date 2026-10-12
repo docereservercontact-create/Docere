@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pizarras de mis aulas</title>
+  <script src="student-session.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #dbe4ef;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .navbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent);
+      font-size: 1.25rem;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.current {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border: 0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: var(--border); }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 8px;
+      border-left: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none;
+    }
+
+    .user-profile:hover { background: rgba(37, 99, 235, 0.08); }
+
+    .avatar-wrapper {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      background: #e0e7ff;
+      color: var(--accent);
+    }
+
+    .user-info { display: flex; flex-direction: column; }
+    .user-name { color: var(--text); font-size: 13px; font-weight: 600; }
+    .user-role { color: var(--muted); font-size: 11px; }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: 0;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    main {
+      width: min(1120px, calc(100% - 40px));
+      margin: 36px auto;
+    }
+
+    .page-hero {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-height: 180px;
+      margin-bottom: 24px;
+      padding: 32px 42px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 28px;
+      background: linear-gradient(90deg, #0b4c6a 0%, #0a5a76 34%, #0b9c9a 100%);
+      box-shadow: 0 14px 32px rgba(12, 68, 90, 0.18);
+    }
+
+    .page-hero::before,
+    .page-hero::after {
+      position: absolute;
+      right: 6%;
+      display: block;
+      width: 260px;
+      height: 260px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 50%;
+      content: "";
+    }
+
+    .page-hero::before {
+      top: -120px;
+      box-shadow: 0 0 0 28px rgba(255, 255, 255, 0.03), 0 0 0 58px rgba(255, 255, 255, 0.02);
+    }
+
+    .page-hero::after {
+      right: 22%;
+      bottom: -170px;
+      width: 220px;
+      height: 220px;
+      opacity: 0.9;
+    }
+
+    .page-hero-title {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      font-size: clamp(2.3rem, 4vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -0.06em;
+      color: #fff;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .intro {
+      margin: 0 0 24px;
+      color: var(--muted);
+    }
+
+    .pizarras-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+      gap: 16px;
+    }
+
+    .subject-card {
+      min-width: 0;
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .subject-card h2 {
+      margin: 0 0 8px;
+      font-size: 21px;
+    }
+
+    .subject-card p {
+      margin: 0 0 20px;
+      color: var(--muted);
+    }
+
+    .subject-topics { display: grid; gap: 7px; }
+    .subject-topic-link { color: var(--accent); font-size: 16px; line-height: 1.45; overflow-wrap: anywhere; text-decoration: none; }
+    .subject-topic-link:hover { color: var(--accent-hover); text-decoration: underline; }
+    .subject-topic-link:focus-visible { border-radius: 3px; outline: 2px solid var(--accent); outline-offset: 3px; }
+
+    .btn {
+      display: inline-flex;
+      min-height: 48px;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 0 18px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 650;
+      text-decoration: none;
+    }
+
+    .btn:hover { background: var(--accent-hover); }
+
+    #accessMessage {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+    }
+
+    @media (max-width: 768px) {
+      .menu-toggle { display: block; }
+      .nav-container { position: relative; }
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 20px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      }
+      .nav-links.active { display: flex; }
+      .user-info { display: none; }
+    }
+
+    @media (max-width: 520px) {
+      .nav-container { gap: 8px; padding: 10px 12px; }
+      .brand { font-size: 1rem; gap: 6px; }
+      .brand svg { width: 20px; }
+      .nav-actions { gap: 6px; }
+      .nav-actions .btn { padding: 9px 10px; }
+      .user-profile { padding: 4px; }
+      main { width: min(100% - 28px, 1120px); margin-top: 26px; }
+      h1 { font-size: 24px; }
+      .subject-card { padding: 20px; }
+      #btnIngresarClase span,
+      #btnCerrarSesion span { display: none; }
+    }
+  </style>
+  <link rel="stylesheet" href="student-panel-navigation.css">
+  <script src="student-panel-navigation.js" defer></script>
+</head>
+<body>
+  <nav class="navbar student-navbar">
+    <div class="student-nav-container">
+      <a href="index.html" class="student-brand">
+        <img src="logon.png" alt="Docére">
+      </a>
+
+      <button class="student-menu-toggle" id="studentMenuToggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="studentNavLinks">
+        <i data-lucide="menu"></i>
+      </button>
+
+      <ul class="student-nav-links" id="studentNavLinks">
+        <li><a href="panel_estudiante.html">Mi panel</a></li>
+        <li><a href="asignaciones.html">Asignaciones</a></li>
+        <li><a href="mis-cursos.html">Mis Cursos</a></li>
+        <li><a href="Apuntes_admision.html" class="current" aria-current="page">Apuntes</a></li>
+        <li><a href="Material_de_estudio.html">Material de Estudio</a></li>
+        <li><a href="https://www.bidi.unam.mx/" target="_blank" rel="noopener noreferrer">Libreria</a></li>
+      </ul>
+
+      <div class="student-nav-actions">
+        <a href="perfil.html" class="user-profile" title="Ir a mi perfil">
+          <div class="avatar-wrapper">
+            <i data-lucide="user-round"></i>
+          </div>
+          <div class="user-info">
+            <span class="user-name" id="userNameLabel">Alumno</span>
+            <span class="user-role">Estudiante</span>
+          </div>
+        </a>
+        <button type="button" class="btn btn-primary" id="btnIngresarClase">
+          <i data-lucide="video"></i>
+          <span>Entrar a clase</span>
+        </button>
+        <button class="btn btn-outline" id="btnCerrarSesion">
+          <i data-lucide="log-out"></i>
+          <span>Cerrar sesión</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <section class="page-hero" aria-label="Encabezado de apuntes">
+      <h1 class="page-hero-title">Apuntes</h1>
+    </section>
+    <h1>Pizarras de mis aulas</h1>
+    <p class="intro">Consulta las pizarras que tus profesores han publicado.</p>
+    <p id="accessMessage" role="status" aria-live="polite">Cargando pizarras...</p>
+    <section class="pizarras-list" id="pizarrasList" aria-label="Pizarras publicadas"></section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
+      authDomain: "docere-931ec.firebaseapp.com",
+      projectId: "docere-931ec",
+      storageBucket: "docere-931ec.firebasestorage.app",
+      messagingSenderId: "1005663843239",
+      appId: "1:1005663843239:web:d8f6c7524a5d10bf797c82",
+      measurementId: "G-B6TDT4VE7S"
+    };
+
+    const message = document.getElementById('accessMessage');
+    const pizarrasList = document.getElementById('pizarrasList');
+    const classEntryButton = document.getElementById('btnIngresarClase');
+    const classMeetingUrl = 'https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1';
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function withTimeout(promise, messageText, timeoutMs = 20000) {
+      let timeoutId;
+      const timeout = new Promise((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(messageText)), timeoutMs);
+      });
+      return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
+    }
+
+    function addText(parent, tagName, className, text) {
+      const element = document.createElement(tagName);
+      element.className = className;
+      element.textContent = text;
+      parent.append(element);
+      return element;
+    }
+
+    function isStudentInClassroom(classroom, student) {
+      return Array.isArray(classroom.alumnos) && classroom.alumnos.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && assignedStudent.email === student.email)
+      );
+    }
+
+    pizarrasList.addEventListener('click', async (event) => {
+      const link = event.target.closest('a[href]');
+      if (!link) return;
+      event.preventDefault();
+      const pizarraWindow = window.open('about:blank', '_blank');
+      try {
+        const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+        const absenceStatus = await getStudentAbsenceStatus(session);
+        if (absenceStatus.isSuspended) {
+          pizarraWindow?.close();
+          pizarrasList.replaceChildren();
+          message.textContent = getSuspensionMessage(absenceStatus);
+          return;
+        }
+        if (pizarraWindow) {
+          pizarraWindow.opener = null;
+          pizarraWindow.location.href = link.href;
+        } else {
+          window.location.assign(link.href);
+        }
+      } catch (error) {
+        console.error('No se pudo verificar la asistencia antes de abrir la pizarra:', error);
+        pizarraWindow?.close();
+        alert('No se pudo verificar tu estado de asistencia. No se abrió la pizarra.');
+      }
+    });
+
+    classEntryButton.addEventListener('click', async () => {
+      classEntryButton.disabled = true;
+      const classWindow = window.open('about:blank', '_blank');
+      try {
+        const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+        const absenceStatus = await getStudentAbsenceStatus(session);
+        if (absenceStatus.isSuspended) {
+          classWindow?.close();
+          alert(getSuspensionMessage(absenceStatus));
+          return;
+        }
+        if (classWindow) {
+          classWindow.opener = null;
+          classWindow.location.href = classMeetingUrl;
+        } else {
+          window.location.assign(classMeetingUrl);
+        }
+      } catch (error) {
+        console.error('No se pudo verificar la asistencia antes de entrar a clase:', error);
+        classWindow?.close();
+        alert('No se pudo verificar tu estado de asistencia. Inténtalo de nuevo.');
+      } finally {
+        classEntryButton.disabled = false;
+      }
+    });
+
+    try {
+      const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!session?.id || !session?.coleccion) throw new Error('No hay una sesión válida.');
+      message.textContent = 'Buscando tus aulas...';
+      const classroomsSnapshot = await withTimeout(
+        getDocs(collection(db, 'Aulas')),
+        'La consulta de aulas está tardando demasiado. Revisa tu conexión e inténtalo de nuevo.'
+      );
+      const classrooms = classroomsSnapshot.docs
+        .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+        .filter((classroom) => isStudentInClassroom(classroom, session));
+      if (!classrooms.length) {
+        message.textContent = 'Todavía no estás asignado a un aula.';
+      } else {
+        message.textContent = 'Cargando las pizarras publicadas de tus aulas...';
+        const classroomResults = await Promise.all(classrooms.map(async (classroom) => {
+          try {
+            const snapshot = await withTimeout(
+              getDocs(collection(db, 'Aulas', classroom.id, 'pizarras')),
+              `La consulta de pizarras del aula ${classroom.nombre || classroom.id} está tardando demasiado.`
+            );
+            let subjectNames = new Map();
+            try {
+              const subjectsSnapshot = await withTimeout(
+                getDocs(collection(db, 'Aulas', classroom.id, 'materias')),
+                `La consulta de materias del aula ${classroom.nombre || classroom.id} está tardando demasiado.`
+              );
+              subjectNames = new Map(subjectsSnapshot.docs.map((subjectDoc) => [subjectDoc.id, subjectDoc.data().nombre]));
+            } catch (error) {
+              console.error(`No se pudieron consultar las materias del aula ${classroom.id}:`, error);
+            }
+            return snapshot.docs
+              .map((pizarraDoc) => ({ id: pizarraDoc.id, ...pizarraDoc.data() }))
+              .filter((pizarra) => pizarra.publicado === true)
+              .map((pizarra) => ({
+                ...pizarra,
+                aulaId: classroom.id,
+                aulaNombre: classroom.nombre || 'Aula',
+                materiaNombre: subjectNames.get(pizarra.materiaId) || pizarra.materia || pizarra.nombre || 'Otras pizarras',
+                materiaResuelta: Boolean(subjectNames.get(pizarra.materiaId))
+              }));
+          } catch (error) {
+            console.error(`No se pudieron cargar las pizarras del aula ${classroom.id}:`, error);
+            return null;
+          }
+        }));
+        const failedCount = classroomResults.filter((result) => result === null).length;
+        const pizarras = classroomResults
+          .filter(Boolean)
+          .flat()
+          .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+
+        const subjectGroups = new Map();
+        pizarras.forEach((pizarra) => {
+          const materia = (pizarra.materiaNombre || pizarra.materia || pizarra.nombre || 'Otras pizarras').trim();
+          const groupKey = `${pizarra.aulaId}/${pizarra.materiaResuelta ? pizarra.materiaId : materia.toLocaleLowerCase()}`;
+          if (!subjectGroups.has(groupKey)) {
+            subjectGroups.set(groupKey, { materia, aulaNombre: pizarra.aulaNombre, topics: [] });
+          }
+          subjectGroups.get(groupKey).topics.push(pizarra);
+        });
+
+        const getBoardOrder = (pizarra) => Number.isFinite(pizarra.orden)
+          ? pizarra.orden
+          : -(pizarra.creadoEn?.toMillis?.() || 0);
+        subjectGroups.forEach(({ materia, aulaNombre, topics }) => {
+          const card = document.createElement('article');
+          card.className = 'subject-card';
+          addText(card, 'h2', '', materia);
+          addText(card, 'p', '', aulaNombre);
+          const topicList = document.createElement('div');
+          topicList.className = 'subject-topics';
+          topics.sort((left, right) => getBoardOrder(left) - getBoardOrder(right));
+          topics.forEach((pizarra) => {
+            try {
+              const linkUrl = new URL(pizarra.enlace);
+              if (!['http:', 'https:'].includes(linkUrl.protocol)) throw new Error('Protocolo no permitido.');
+              const link = addText(topicList, 'a', 'subject-topic-link', pizarra.nombre || 'Abrir pizarra');
+              link.href = linkUrl.href;
+              link.target = '_blank';
+              link.rel = 'noopener noreferrer';
+            } catch {
+              addText(topicList, 'span', 'subject-topic-link', `${pizarra.nombre || 'Tema'} · Enlace no disponible`);
+            }
+          });
+          card.append(topicList);
+          pizarrasList.append(card);
+        });
+
+        message.textContent = pizarras.length
+          ? failedCount
+            ? `Se muestran ${pizarras.length} pizarra(s). No se pudieron consultar ${failedCount} aula(s).`
+            : `${pizarras.length} pizarra(s) publicada(s).`
+          : failedCount
+            ? 'No se pudieron consultar las pizarras. Revisa los permisos de Firestore.'
+            : 'Todavía no hay pizarras publicadas en tus aulas.';
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    } catch (error) {
+      console.error('No se pudieron cargar las pizarras del alumno:', error);
+      message.textContent = 'No se pudieron cargar tus pizarras. Regresa al panel e inténtalo de nuevo.';
+    }
+  </script>
+  <script>
+    const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+    if (session?.nombre) document.getElementById('userNameLabel').textContent = session.nombre;
+
+    document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
+      if (!confirm('¿Deseas cerrar sesión?')) return;
+      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      try {
+        const { logSessionEvent } = await import('./session-audit.js');
+        await logSessionEvent(student, 'cierre_sesion', 'alumno');
+      } catch (error) {
+        console.error('No se pudo registrar el cierre de sesión del alumno:', error);
+      }
+      try {
+        const { signOutPortalUser } = await import('./portal-auth.js');
+        await signOutPortalUser();
+      } catch (error) {
+        console.error('No se pudo cerrar la sesión segura de Firebase:', error);
+      }
+      localStorage.removeItem('studentSession');
+      localStorage.removeItem('studentSessionLastActivity');
+      window.location.href = 'index.html';
+    });
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  </script>
+</body>
+</html>
