@@ -277,7 +277,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, setDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -376,13 +376,30 @@
       }
 
       try {
-        await addDoc(collection(db, "aspirantes_admision"), {
+        const studentRecord = {
           ...obj,
           turno: obj.turno || "No asignado",
           modalidad: "En Línea",
           avance: 0,
           accesoAprobado: false,
           fechaRegistro: serverTimestamp()
+        };
+        const studentId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : `alumno_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+        await setDoc(doc(db, 'users', studentId), {
+          ...studentRecord,
+          userUid: studentId,
+          email: studentRecord.email || '',
+          password: studentRecord.password || '',
+          tipo: 'alumno',
+          origen: 'registro_formulario'
+        });
+
+        await addDoc(collection(db, "aspirantes_admision"), {
+          ...studentRecord,
+          userUid: studentId
         });
 
         resultado.style.display = 'block';
