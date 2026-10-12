@@ -253,6 +253,21 @@
     .pending-empty { padding: 14px 10px; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; text-align: center; }
 
     .events-placeholder { min-height: 250px; display: grid; place-items: center; padding: 18px; border: 1px dashed var(--border); border-radius: 9px; color: var(--text-secondary); font-size: 13px; line-height: 1.5; text-align: center; }
+    .events-list { display: grid; gap: 10px; }
+    .event-item { width: 100%; display: grid; gap: 6px; padding: 12px 11px; border: 1px solid var(--border); border-radius: 9px; background: #f8fafc; color: var(--text-primary); text-align: left; cursor: pointer; }
+    .event-item:hover { border-color: #c8d1e0; background: #eff6ff; }
+    .event-date { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .event-title { font-size: 14px; font-weight: 700; line-height: 1.4; }
+    .event-meta { color: var(--text-secondary); font-size: 12px; }
+    .event-modal-backdrop { position: fixed; inset: 0; z-index: 999; display: grid; place-items: center; padding: 20px; background: rgba(15, 23, 42, .5); }
+    .event-modal { width: min(560px, 100%); max-height: min(80vh, 620px); overflow: auto; padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: #fff; box-shadow: 0 18px 48px rgba(15, 23, 42, .22); }
+    .event-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .event-modal-title { margin: 0; font-size: 1.25rem; }
+    .event-modal-close { flex: 0 0 auto; width: 32px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text-primary); cursor: pointer; }
+    .event-modal-meta { margin: 10px 0 14px; color: var(--text-secondary); font-size: 12px; }
+    .event-modal-body { overflow-wrap: anywhere; line-height: 1.7; color: var(--text-primary); }
+    .event-modal-body > :first-child { margin-top: 0; }
+    .event-modal-body > :last-child { margin-bottom: 0; }
 
     .welcome-header {
       background-color: var(--bg-card);
@@ -796,6 +811,7 @@
 
     const announcementWall = document.getElementById('announcementWall');
     const announcementWallStatus = document.getElementById('announcementWallStatus');
+    const upcomingEventsContainer = document.querySelector('.dashboard-events');
     const calendarMonth = document.getElementById('calendarMonth');
     const calendarGrid = document.getElementById('calendarGrid');
     const calendarDayAssignments = document.getElementById('calendarDayAssignments');
@@ -1050,6 +1066,137 @@
       content.innerHTML = sanitizeAnnouncement(announcement.contenido || '');
       card.append(content);
       return card;
+    }
+
+    function formatEventDate(dateValue) {
+      if (!dateValue) return 'Sin fecha';
+      const date = typeof dateValue.toDate === 'function' ? dateValue.toDate() : new Date(`${dateValue}T12:00:00`);
+      if (Number.isNaN(date.getTime())) return 'Sin fecha';
+      return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+    }
+
+    function openEventModal(event) {
+      const existingModal = document.querySelector('.event-modal-backdrop');
+      if (existingModal) existingModal.remove();
+
+      const backdrop = document.createElement('div');
+      backdrop.className = 'event-modal-backdrop';
+      const modal = document.createElement('div');
+      modal.className = 'event-modal';
+      const header = document.createElement('div');
+      header.className = 'event-modal-header';
+      const title = document.createElement('h3');
+      title.className = 'event-modal-title';
+      title.textContent = event.titulo || 'Evento';
+      const closeButton = document.createElement('button');
+      closeButton.type = 'button';
+      closeButton.className = 'event-modal-close';
+      closeButton.setAttribute('aria-label', 'Cerrar evento');
+      closeButton.textContent = '×';
+      closeButton.addEventListener('click', () => backdrop.remove());
+      header.append(title, closeButton);
+
+      const meta = document.createElement('p');
+      meta.className = 'event-modal-meta';
+      const details = [formatEventDate(event.fecha)];
+      if (event.lugar) details.push(event.lugar);
+      if (event.aulaNombre) details.push(event.aulaNombre);
+      meta.textContent = details.join(' · ');
+
+      const description = document.createElement('div');
+      description.className = 'event-modal-body';
+      description.textContent = event.descripcion || 'No hay más detalles para este evento.';
+
+      modal.append(header, meta, description);
+      backdrop.append(modal);
+      document.body.append(backdrop);
+      backdrop.addEventListener('click', (clickEvent) => {
+        if (clickEvent.target === backdrop) backdrop.remove();
+      });
+      closeButton.focus();
+    }
+
+    async function loadUpcomingEvents() {
+      if (!upcomingEventsContainer) return;
+      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      upcomingEventsContainer.replaceChildren();
+
+      if (!student?.id || !student?.coleccion) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'events-placeholder';
+        placeholder.textContent = 'Inicia sesión para ver los próximos eventos.';
+        upcomingEventsContainer.append(placeholder);
+        return;
+      }
+
+      try {
+        const classroomsSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomsSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => isStudentInClassroom(classroom, student));
+
+        const events = [];
+        for (const classroom of classrooms) {
+          const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'publicaciones'));
+          snapshot.docs.forEach((publicationDoc) => {
+            const publication = publicationDoc.data();
+            if (!publication?.titulo) return;
+            events.push({
+              id: publicationDoc.id,
+              aulaId: classroom.id,
+              aulaNombre: classroom.nombre || 'Aula',
+              ...publication
+            });
+          });
+        }
+
+        const upcomingEvents = events
+          .filter((event) => {
+            if (!event.fecha) return false;
+            const eventDate = new Date(`${event.fecha}T12:00:00`);
+            if (Number.isNaN(eventDate.getTime())) return false;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return eventDate >= today;
+          })
+          .sort((left, right) => new Date(`${left.fecha}T12:00:00`).getTime() - new Date(`${right.fecha}T12:00:00`).getTime())
+          .slice(0, 8);
+
+        if (!upcomingEvents.length) {
+          const placeholder = document.createElement('div');
+          placeholder.className = 'events-placeholder';
+          placeholder.textContent = 'No hay eventos próximos en este momento.';
+          upcomingEventsContainer.append(placeholder);
+          return;
+        }
+
+        const list = document.createElement('div');
+        list.className = 'events-list';
+        upcomingEvents.forEach((event) => {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'event-item';
+          const date = document.createElement('span');
+          date.className = 'event-date';
+          date.textContent = formatEventDate(event.fecha);
+          const title = document.createElement('span');
+          title.className = 'event-title';
+          title.textContent = event.titulo;
+          const meta = document.createElement('span');
+          meta.className = 'event-meta';
+          meta.textContent = event.aulaNombre || 'Aula';
+          item.append(date, title, meta);
+          item.addEventListener('click', () => openEventModal(event));
+          list.append(item);
+        });
+        upcomingEventsContainer.append(list);
+      } catch (error) {
+        console.error('No se pudieron cargar los próximos eventos:', error);
+        const placeholder = document.createElement('div');
+        placeholder.className = 'events-placeholder';
+        placeholder.textContent = 'No se pudieron cargar los eventos del momento.';
+        upcomingEventsContainer.append(placeholder);
+      }
     }
 
     function isStudentInClassroom(classroom, student) {
@@ -1449,6 +1596,7 @@
     }
 
     loadStudentAnnouncements();
+    loadUpcomingEvents();
     loadPendingTasks();
   </script>
 

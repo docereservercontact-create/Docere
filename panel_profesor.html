@@ -87,6 +87,9 @@
     .announcement-submit { justify-self: start; min-height: 38px; padding: 0 14px; border: 0; border-radius: 5px; background: var(--blue); color: #fff; font-weight: 650; cursor: pointer; }
     .announcement-submit:disabled { opacity: .6; cursor: wait; }
     .announcement-list { display: grid; gap: 10px; }
+    .publication-form { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
+    .publication-form input, .publication-form textarea { width: 100%; min-height: 42px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
+    .publication-form textarea { min-height: 120px; resize: vertical; }
     .announcement-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
     .announcement-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
     .announcement-card h3 { margin: 0 0 4px; font-size: 16px; }
@@ -1063,6 +1066,155 @@
         .format(new Date(`${date}T12:00:00`));
     }
 
+    async function renderPublications(aula) {
+      const publications = document.createElement('section');
+      publications.className = 'announcements';
+      const form = document.createElement('form');
+      form.className = 'publication-form';
+      const titleInput = document.createElement('input');
+      titleInput.type = 'text';
+      titleInput.maxLength = 120;
+      titleInput.required = true;
+      titleInput.placeholder = 'Título de la publicación';
+      titleInput.setAttribute('aria-label', 'Título de la publicación');
+
+      const dateInput = document.createElement('input');
+      dateInput.type = 'date';
+      dateInput.required = true;
+      dateInput.value = getLocalDateString();
+
+      const locationInput = document.createElement('input');
+      locationInput.type = 'text';
+      locationInput.maxLength = 120;
+      locationInput.placeholder = 'Lugar o modalidad (opcional)';
+      locationInput.setAttribute('aria-label', 'Lugar o modalidad de la publicación');
+
+      const descriptionInput = document.createElement('textarea');
+      descriptionInput.className = 'publication-description';
+      descriptionInput.rows = 5;
+      descriptionInput.required = true;
+      descriptionInput.placeholder = 'Escribe la descripción completa del evento o publicación...';
+      descriptionInput.setAttribute('aria-label', 'Descripción de la publicación');
+
+      const formStatus = document.createElement('p');
+      formStatus.className = 'attendance-status';
+      formStatus.setAttribute('role', 'status');
+      const publishButton = document.createElement('button');
+      publishButton.type = 'submit';
+      publishButton.className = 'announcement-submit';
+      publishButton.textContent = 'Guardar publicación';
+
+      form.append(titleInput, dateInput, locationInput, descriptionInput, publishButton, formStatus);
+      const publicationList = document.createElement('div');
+      publicationList.className = 'announcement-list';
+      publications.append(form, publicationList);
+
+      async function loadPublications() {
+        publicationList.replaceChildren();
+        try {
+          const snapshot = await getDocs(collection(db, 'Aulas', aula.id, 'publicaciones'));
+          const records = snapshot.docs
+            .map((publicationDoc) => ({ id: publicationDoc.id, ...publicationDoc.data() }))
+            .sort((left, right) => {
+              const leftDate = left.fecha ? new Date(`${left.fecha}T12:00:00`).getTime() : Number.MAX_SAFE_INTEGER;
+              const rightDate = right.fecha ? new Date(`${right.fecha}T12:00:00`).getTime() : Number.MAX_SAFE_INTEGER;
+              return leftDate - rightDate;
+            });
+
+          if (!records.length) {
+            addText(publicationList, 'p', 'tab-placeholder', 'Todavía no hay publicaciones para esta aula.');
+            return;
+          }
+
+          records.forEach((record) => {
+            const card = document.createElement('article');
+            card.className = 'announcement-card';
+            const header = document.createElement('div');
+            header.className = 'announcement-card-header';
+            addText(header, 'h3', '', record.titulo || 'Publicación');
+            const deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
+            deleteButton.className = 'pizarra-delete';
+            deleteButton.textContent = 'Eliminar';
+            deleteButton.addEventListener('click', async () => {
+              if (!confirm(`¿Eliminar la publicación "${record.titulo || 'sin título'}"?`)) return;
+              deleteButton.disabled = true;
+              try {
+                await deleteDoc(doc(db, 'Aulas', aula.id, 'publicaciones', record.id));
+                formStatus.textContent = 'Publicación eliminada.';
+                await loadPublications();
+              } catch (error) {
+                console.error(`No se pudo eliminar la publicación ${record.id} del aula ${aula.id}:`, error);
+                formStatus.textContent = 'No se pudo eliminar la publicación. Revisa los permisos de Firestore.';
+                deleteButton.disabled = false;
+              }
+            });
+            header.append(deleteButton);
+
+            const dateText = record.fecha
+              ? new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${record.fecha}T12:00:00`))
+              : 'Sin fecha';
+            const meta = document.createElement('p');
+            meta.className = 'announcement-meta';
+            meta.textContent = `${dateText}${record.lugar ? ` · ${record.lugar}` : ''}`;
+
+            const body = document.createElement('div');
+            body.className = 'announcement-body';
+            body.textContent = record.descripcion || 'Sin descripción.';
+
+            card.append(header, meta, body);
+            publicationList.append(card);
+          });
+        } catch (error) {
+          console.error(`No se pudieron cargar las publicaciones del aula ${aula.id}:`, error);
+          addText(publicationList, 'p', 'attendance-status', 'No se pudieron cargar las publicaciones. Revisa los permisos de Firestore.');
+        }
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const publicationData = {
+          titulo: titleInput.value.trim(),
+          fecha: dateInput.value,
+          lugar: locationInput.value.trim(),
+          descripcion: descriptionInput.value.trim(),
+          aulaId: aula.id,
+          aulaNombre: aula.nombre || 'Aula',
+          profesorNombre: session.nombre || 'Profesor',
+          profesorDocId: session.teacherDocId,
+          creadoEn: serverTimestamp(),
+          actualizadoEn: serverTimestamp()
+        };
+
+        if (!publicationData.titulo || !publicationData.fecha || !publicationData.descripcion) {
+          formStatus.textContent = 'Completa el título, la fecha y la descripción.';
+          return;
+        }
+
+        publishButton.disabled = true;
+        formStatus.textContent = 'Guardando publicación...';
+        try {
+          await setDoc(doc(collection(db, 'Aulas', aula.id, 'publicaciones')), publicationData);
+          form.reset();
+          dateInput.value = getLocalDateString();
+          formStatus.textContent = 'Publicación guardada y lista para aparecer en “Próximos eventos”.';
+          await loadPublications();
+        } catch (error) {
+          console.error(`No se pudo guardar la publicación del aula ${aula.id}:`, error);
+          formStatus.textContent = 'No se pudo guardar la publicación. Revisa los permisos de Firestore.';
+        } finally {
+          publishButton.disabled = false;
+        }
+      });
+
+      try {
+        await loadPublications();
+      } catch (error) {
+        console.error(`No se pudo inicializar la lista de publicaciones del aula ${aula.id}:`, error);
+      }
+      return publications;
+    }
+
     async function renderAttendance(aula) {
       const attendance = document.createElement('section');
       attendance.className = 'attendance';
@@ -1880,6 +2032,7 @@
       const tabOptions = [
         { id: 'padlet', label: 'Padlet' },
         { id: 'pizarras', label: 'Pizarras' },
+        { id: 'publications', label: 'Publicaciones' },
         { id: 'attendance', label: 'Lista de asistencias' },
         { id: 'grades', label: 'Lista de calificaciones' },
         { id: 'tasks', label: 'Tareas' },
@@ -1897,6 +2050,8 @@
           content.append(await renderAnnouncements(aula));
         } else if (selectedId === 'pizarras') {
           content.append(await renderPizarras(aula));
+        } else if (selectedId === 'publications') {
+          content.append(await renderPublications(aula));
         } else if (selectedId === 'attendance') {
           content.append(await renderAttendance(aula));
         } else if (selectedId === 'tasks') {
@@ -1904,9 +2059,7 @@
         } else {
           const message = document.createElement('p');
           message.className = 'tab-placeholder';
-          message.textContent = selectedId === 'padlet'
-            ? 'El espacio del aula está listo. Aquí se mostrará el contenido cuando definamos qué debe incluir.'
-            : 'Esta sección estará disponible cuando definamos su funcionamiento.';
+          message.textContent = 'Esta sección estará disponible cuando definamos su funcionamiento.';
           content.append(message);
         }
       }
