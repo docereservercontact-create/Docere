@@ -568,7 +568,6 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    import { auth as portalAuth } from './portal-auth.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -601,7 +600,6 @@
     const paymentResetButton = document.getElementById('paymentResetButton');
     const app = initializeApp(firebaseConfig, 'adminPanel');
     const db = getFirestore(app);
-    const auth = portalAuth;
     const collections = {
       aspirantes_admision: { countId: 'countAspirantes', titleKeys: ['asp_nombre', 'nombre'], secondaryKeys: ['asp_apellido1', 'email'] },
       Cursos: { countId: 'countCursos', titleKeys: ['asp_nombre', 'nombre'], secondaryKeys: ['curso', 'email'] },
@@ -613,9 +611,23 @@
     let activeCollection = 'aspirantes_admision';
     let activityTimer;
 
-    function closeAdminSession() {
+    async function closeAdminSession() {
+      try {
+        const authModule = await import('./portal-auth.js');
+        if (typeof authModule.signOutPortalUser === 'function') {
+          await authModule.signOutPortalUser();
+        }
+      } catch (error) {
+        console.warn('No fue posible cerrar la sesión de Firebase desde el panel admin:', error);
+      }
       localStorage.removeItem(sessionKey);
       localStorage.removeItem(activityKey);
+      localStorage.removeItem('studentSession');
+      localStorage.removeItem('studentSessionLastActivity');
+      localStorage.removeItem('teacherSession');
+      localStorage.removeItem('teacherSessionLastActivity');
+      localStorage.removeItem('saved_student_email');
+      localStorage.removeItem('saved_student_password');
       window.location.replace('login.html');
     }
 
@@ -625,7 +637,9 @@
       document.getElementById('adminName').textContent = session.nombre || session.email;
     }
 
-    document.getElementById('logoutButton').addEventListener('click', closeAdminSession);
+    document.getElementById('logoutButton').addEventListener('click', async () => {
+      await closeAdminSession();
+    });
 
     function updateActivity() {
       if (!session) return;
@@ -1560,16 +1574,6 @@
     searchInput.addEventListener('input', renderRecords);
 
     try {
-      const currentUser = auth.currentUser;
-      const currentEmail = (currentUser?.email || '').trim().toLowerCase();
-      const sessionEmail = (session?.email || '').trim().toLowerCase();
-
-      if (!currentUser || currentEmail !== sessionEmail) {
-        statusLine.textContent = 'La sesión del administrador no está activa en Firebase. Inicia sesión de nuevo.';
-        closeAdminSession();
-        return;
-      }
-
       const adminRecord = await getDoc(doc(db, 'admins', session.id));
       if (!adminRecord.exists() || adminRecord.data().correo !== session.email) {
         closeAdminSession();
