@@ -1573,38 +1573,43 @@
 
     searchInput.addEventListener('input', renderRecords);
 
-    try {
-      const adminRecord = await getDoc(doc(db, 'admins', session.id));
-      if (!adminRecord.exists() || adminRecord.data().correo !== session.email) {
-        closeAdminSession();
-      } else {
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        await Promise.all(Object.entries(collections).map(async ([name, config]) => {
-          try {
-            const snapshot = await getDocs(collection(db, name));
-            const records = snapshot.docs.map((record) => ({ id: record.id, data: record.data() }));
-            records.sort((left, right) => (right.data.fechaRegistro?.toMillis?.() || 0) - (left.data.fechaRegistro?.toMillis?.() || 0));
-            cache.set(name, records);
-            document.getElementById(config.countId).textContent = String(records.length);
-          } catch (error) {
-            console.error(`No se pudieron precargar los registros de ${name}:`, error);
-            cache.set(name, []);
-            const countNode = document.getElementById(config.countId);
-            if (countNode) countNode.textContent = '0';
-          }
-        }));
-        populateAssignmentOptions();
-        populatePaymentOptions();
-        renderPaymentPreview();
-        const totalRecords = Object.keys(collections).reduce((sum, name) => sum + (cache.get(name)?.length || 0), 0);
-        statusLine.textContent = totalRecords > 0
-          ? `${totalRecords} registros cargados`
-          : 'No hay registros para mostrar o revisa las reglas de acceso de Firestore.';
-        renderRecords();
+    if (!session?.id || !session?.email || !Number.isFinite(lastActivity) || Date.now() - lastActivity >= idleLimit) {
+      statusLine.textContent = 'Sesión administrativa inválida. Redirigiendo...';
+      closeAdminSession();
+    } else {
+      try {
+        const adminRecord = await getDoc(doc(db, 'admins', session.id));
+        if (!adminRecord.exists() || adminRecord.data().correo !== session.email) {
+          closeAdminSession();
+        } else {
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+          await Promise.all(Object.entries(collections).map(async ([name, config]) => {
+            try {
+              const snapshot = await getDocs(collection(db, name));
+              const records = snapshot.docs.map((record) => ({ id: record.id, data: record.data() }));
+              records.sort((left, right) => (right.data.fechaRegistro?.toMillis?.() || 0) - (left.data.fechaRegistro?.toMillis?.() || 0));
+              cache.set(name, records);
+              document.getElementById(config.countId).textContent = String(records.length);
+            } catch (error) {
+              console.error(`No se pudieron precargar los registros de ${name}:`, error);
+              cache.set(name, []);
+              const countNode = document.getElementById(config.countId);
+              if (countNode) countNode.textContent = '0';
+            }
+          }));
+          populateAssignmentOptions();
+          populatePaymentOptions();
+          renderPaymentPreview();
+          const totalRecords = Object.keys(collections).reduce((sum, name) => sum + (cache.get(name)?.length || 0), 0);
+          statusLine.textContent = totalRecords > 0
+            ? `${totalRecords} registros cargados`
+            : 'No hay registros para mostrar o revisa las reglas de acceso de Firestore.';
+          renderRecords();
+        }
+      } catch (error) {
+        console.error('No se pudo validar o cargar el panel administrativo:', error);
+        statusLine.textContent = 'No se pudo validar el acceso administrativo. Revisa la conexión y las reglas de Firestore.';
       }
-    } catch (error) {
-      console.error('No se pudo validar o cargar el panel administrativo:', error);
-      statusLine.textContent = 'No se pudo validar el acceso administrativo. Revisa la conexión y las reglas de Firestore.';
     }
 
     window.addEventListener('storage', (event) => {
