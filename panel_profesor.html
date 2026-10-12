@@ -1108,6 +1108,17 @@
       const publicationList = document.createElement('div');
       publicationList.className = 'announcement-list';
       publications.append(form, publicationList);
+      let editingPublicationId = null;
+
+      function resetPublicationForm() {
+        editingPublicationId = null;
+        titleInput.value = '';
+        dateInput.value = getLocalDateString();
+        locationInput.value = '';
+        descriptionInput.value = '';
+        publishButton.textContent = 'Guardar publicación';
+        formStatus.textContent = '';
+      }
 
       async function loadPublications() {
         publicationList.replaceChildren();
@@ -1132,6 +1143,25 @@
             const header = document.createElement('div');
             header.className = 'announcement-card-header';
             addText(header, 'h3', '', record.titulo || 'Publicación');
+
+            const actions = document.createElement('div');
+            actions.className = 'announcement-card-actions';
+            const editButton = document.createElement('button');
+            editButton.type = 'button';
+            editButton.className = 'announcement-edit';
+            editButton.textContent = 'Editar';
+            editButton.addEventListener('click', () => {
+              editingPublicationId = record.id;
+              titleInput.value = record.titulo || '';
+              dateInput.value = record.fecha || getLocalDateString();
+              locationInput.value = record.lugar || '';
+              descriptionInput.value = record.descripcion || '';
+              publishButton.textContent = 'Guardar cambios';
+              formStatus.textContent = 'Editando publicación. Guarda los cambios para actualizarla.';
+              titleInput.focus();
+              form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+
             const deleteButton = document.createElement('button');
             deleteButton.type = 'button';
             deleteButton.className = 'pizarra-delete';
@@ -1141,6 +1171,7 @@
               deleteButton.disabled = true;
               try {
                 await deleteDoc(doc(db, 'Aulas', aula.id, 'publicaciones', record.id));
+                if (editingPublicationId === record.id) resetPublicationForm();
                 formStatus.textContent = 'Publicación eliminada.';
                 await loadPublications();
               } catch (error) {
@@ -1149,7 +1180,8 @@
                 deleteButton.disabled = false;
               }
             });
-            header.append(deleteButton);
+            actions.append(editButton, deleteButton);
+            header.append(actions);
 
             const dateText = record.fecha
               ? new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${record.fecha}T12:00:00`))
@@ -1182,7 +1214,6 @@
           aulaNombre: aula.nombre || 'Aula',
           profesorNombre: session.nombre || 'Profesor',
           profesorDocId: session.teacherDocId,
-          creadoEn: serverTimestamp(),
           actualizadoEn: serverTimestamp()
         };
 
@@ -1192,12 +1223,19 @@
         }
 
         publishButton.disabled = true;
-        formStatus.textContent = 'Guardando publicación...';
+        formStatus.textContent = editingPublicationId ? 'Guardando cambios...' : 'Guardando publicación...';
         try {
-          await setDoc(doc(collection(db, 'Aulas', aula.id, 'publicaciones')), publicationData);
-          form.reset();
-          dateInput.value = getLocalDateString();
-          formStatus.textContent = 'Publicación guardada y lista para aparecer en “Próximos eventos”.';
+          if (editingPublicationId) {
+            await updateDoc(doc(db, 'Aulas', aula.id, 'publicaciones', editingPublicationId), publicationData);
+            formStatus.textContent = 'Cambios guardados correctamente.';
+          } else {
+            await setDoc(doc(collection(db, 'Aulas', aula.id, 'publicaciones')), {
+              ...publicationData,
+              creadoEn: serverTimestamp()
+            });
+            formStatus.textContent = 'Publicación guardada y lista para aparecer en “Próximos eventos”.';
+          }
+          resetPublicationForm();
           await loadPublications();
         } catch (error) {
           console.error(`No se pudo guardar la publicación del aula ${aula.id}:`, error);
