@@ -1992,6 +1992,10 @@
             videoForm.addEventListener('submit', async (event) => {
               event.preventDefault();
               const title = titleInput.value.trim();
+              if (!title) {
+                statusText.textContent = 'Escribe un título para el video.';
+                return;
+              }
               let url;
               try {
                 url = new URL(urlInput.value.trim());
@@ -2014,7 +2018,7 @@
                   url: url.href,
                   creadoEn: serverTimestamp()
                 });
-                await loadSections();
+                if (!await loadSections()) return;
                 statusText.textContent = 'Video agregado.';
               } catch (error) {
                 console.error(`No se pudo agregar un video a la sección ${section.id} del aula ${aula.id}:`, error);
@@ -2055,7 +2059,7 @@
             creadoEn: serverTimestamp()
           });
           sectionForm.reset();
-          await loadSections();
+          if (!await loadSections()) return;
           statusText.textContent = 'Sección creada. Ya puedes agregar videos.';
         } catch (error) {
           console.error(`No se pudo crear una sección de material para el aula ${aula.id}:`, error);
