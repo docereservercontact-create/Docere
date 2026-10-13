@@ -274,10 +274,12 @@
     .study-video-class h3 { margin: 0 0 16px; font-size: 18px; }
     .study-video-section + .study-video-section { margin-top: 20px; }
     .study-video-section h4 { margin: 0 0 10px; font-size: 15px; }
-    .study-video-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 300px)); gap: 16px; }
+    .study-video-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 300px)); justify-content: center; gap: 16px; }
     .study-video-card { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
-    .study-video-preview { display: grid; place-items: center; gap: 8px; width: 100%; aspect-ratio: 16 / 9; padding: 16px; border: 0; background: linear-gradient(135deg, #172554, #334155); color: #fff; cursor: pointer; }
-    .study-video-preview:hover { background: linear-gradient(135deg, #1e3a8a, #475569); }
+    .study-video-preview { position: relative; display: grid; place-items: center; gap: 8px; width: 100%; aspect-ratio: 16 / 9; padding: 16px; overflow: hidden; border: 0; background: linear-gradient(135deg, #172554, #334155); color: #fff; cursor: pointer; }
+    .study-video-preview::after { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(15, 23, 42, 0.52), rgba(15, 23, 42, 0.08)); content: ""; }
+    .study-video-thumbnail { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .study-video-play-icon, .study-video-preview-label { position: relative; z-index: 1; }
     .study-video-play-icon { display: grid; place-items: center; width: 48px; height: 48px; padding-left: 4px; border-radius: 50%; background: rgba(255, 255, 255, 0.94); color: var(--accent); font-size: 20px; }
     .study-video-preview-label { font-size: 13px; font-weight: 650; }
     .study-video-info { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; }
@@ -286,7 +288,7 @@
     .study-video-link:hover { text-decoration: underline; }
     .study-material-status { margin: 0; color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
 
-    .study-video-dialog { width: min(960px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 14px; background: #111827; color: #fff; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45); }
+    .study-video-dialog { position: fixed; inset: 0; width: min(960px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); margin: auto; padding: 0; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 14px; background: #111827; color: #fff; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45); }
     .study-video-dialog::backdrop { background: rgba(10, 15, 25, 0.78); backdrop-filter: blur(3px); }
     .study-video-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; }
     .study-video-dialog-header h2 { margin: 0; font-size: 16px; font-weight: 650; }
@@ -644,6 +646,22 @@
       return null;
     }
 
+    function getVideoThumbnailUrl(value) {
+      const safeUrl = getSafeVideoUrl(value);
+      if (!safeUrl) return null;
+      const url = new URL(safeUrl);
+      const host = url.hostname.toLowerCase().replace(/^www\./, '');
+      let videoId = '';
+      if (host === 'youtu.be') {
+        videoId = url.pathname.slice(1).split('/')[0];
+      } else if (['youtube.com', 'm.youtube.com', 'youtube-nocookie.com'].includes(host)) {
+        videoId = url.searchParams.get('v') || url.pathname.match(/^\/(?:embed|shorts)\/([^/?]+)/)?.[1] || '';
+      }
+      return /^[\w-]{11}$/.test(videoId)
+        ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+        : null;
+    }
+
     function openStudyVideo(embedUrl, title) {
       const dialog = document.getElementById('studyVideoDialog');
       const frame = document.getElementById('studyVideoDialogFrame');
@@ -675,6 +693,16 @@
         preview.type = 'button';
         preview.setAttribute('aria-label', `Reproducir ${title}`);
         preview.addEventListener('click', () => openStudyVideo(embedUrl, title));
+        const thumbnailUrl = getVideoThumbnailUrl(safeUrl);
+        if (thumbnailUrl) {
+          const thumbnail = document.createElement('img');
+          thumbnail.className = 'study-video-thumbnail';
+          thumbnail.src = thumbnailUrl;
+          thumbnail.alt = '';
+          thumbnail.loading = 'lazy';
+          thumbnail.addEventListener('error', () => thumbnail.remove(), { once: true });
+          preview.append(thumbnail);
+        }
         const playIcon = addStudyText(preview, 'span', 'study-video-play-icon', '▶');
         playIcon.setAttribute('aria-hidden', 'true');
         addStudyText(preview, 'span', 'study-video-preview-label', 'Reproducir video');
