@@ -7,6 +7,7 @@
   <title>Panel del profesor | Docére</title>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="panel-visual-theme.css">
+  <link rel="stylesheet" href="student-due-calendar.css">
   <style>
     :root {
       --page: #f4f7fb;
@@ -81,6 +82,8 @@
     .editor-toolbar { display: flex; flex-wrap: wrap; gap: 5px; }
     .editor-toolbar button { min-width: 36px; min-height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); cursor: pointer; }
     .editor-toolbar button:hover { background: #edf3fb; }
+    .editor-color-label { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font-size: 12px; }
+    .editor-color-label input { width: 26px; height: 26px; padding: 0; border: 0; background: transparent; cursor: pointer; }
     .announcement-editor { min-height: 140px; padding: 11px; border: 1px solid var(--line); border-radius: 5px; background: #fff; line-height: 1.5; }
     .announcement-editor:focus { outline: 2px solid #a9c4ff; border-color: var(--blue); }
     .announcement-editor:empty::before { color: #94a3b8; content: attr(data-placeholder); pointer-events: none; }
@@ -333,6 +336,7 @@
     import { getDownloadURL, getMetadata, getStorage, listAll, ref } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
     import { logSessionEvent } from './session-audit.js';
     import { authApp, signOutPortalUser } from './portal-auth.js';
+    import { createStudentDueCalendar } from './student-due-calendar.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -551,6 +555,31 @@
       return safeContent.innerHTML;
     }
 
+    function sanitizeAnnouncementHtml(html) {
+      const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'H2', 'H3', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'SPAN', 'FONT']);
+      const blockedTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'SVG', 'MATH']);
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+
+      function copySafeNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || '');
+        if (node.nodeType !== Node.ELEMENT_NODE || blockedTags.has(node.tagName)) return document.createDocumentFragment();
+
+        const fragment = document.createDocumentFragment();
+        const isColorTag = node.tagName === 'SPAN' || node.tagName === 'FONT';
+        const target = allowedTags.has(node.tagName)
+          ? document.createElement(node.tagName === 'FONT' ? 'span' : node.tagName.toLowerCase())
+          : fragment;
+        const color = node.style?.color || (node.tagName === 'FONT' ? node.getAttribute('color') : '');
+        if (isColorTag && /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(color || '')) target.style.color = color;
+        Array.from(node.childNodes).forEach((child) => target.append(copySafeNode(child)));
+        return target;
+      }
+
+      const safeContent = document.createElement('div');
+      Array.from(parsed.body.childNodes).forEach((node) => safeContent.append(copySafeNode(node)));
+      return safeContent.innerHTML;
+    }
+
     function formatAnnouncementDate(timestamp) {
       const date = timestamp?.toDate?.();
       return date
@@ -611,6 +640,32 @@
         });
         toolbar.append(button);
       });
+      const colorLabel = document.createElement('label');
+      colorLabel.className = 'editor-color-label';
+      colorLabel.append(document.createTextNode('Color'));
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = '#155eef';
+      colorInput.setAttribute('aria-label', 'Color del texto seleccionado');
+      let savedEditorRange = null;
+      colorInput.addEventListener('pointerdown', () => {
+        const selection = window.getSelection();
+        if (selection?.rangeCount && editor.contains(selection.anchorNode)) {
+          savedEditorRange = selection.getRangeAt(0).cloneRange();
+        }
+      });
+      colorInput.addEventListener('input', () => {
+        editor.focus();
+        if (savedEditorRange) {
+          const selection = window.getSelection();
+          selection?.removeAllRanges();
+          selection?.addRange(savedEditorRange);
+          savedEditorRange = null;
+        }
+        document.execCommand('foreColor', false, colorInput.value);
+      });
+      colorLabel.append(colorInput);
+      toolbar.append(colorLabel);
 
       form.append(titleInput, toolbar, editor, publishButton, editorStatus);
       const announcementList = document.createElement('div');
@@ -650,7 +705,7 @@
             editButton.addEventListener('click', () => {
               editingAnnouncementId = record.id;
               titleInput.value = record.titulo || '';
-              editor.innerHTML = sanitizeRichHtml(record.contenido || '');
+              editor.innerHTML = sanitizeAnnouncementHtml(record.contenido || '');
               publishButton.textContent = 'Guardar cambios';
               editorStatus.textContent = 'Editando anuncio. Guarda los cambios para actualizarlo.';
               titleInput.focus();
@@ -661,7 +716,7 @@
             addText(card, 'p', 'announcement-meta', `${record.autor || session.nombre} · ${formatAnnouncementDate(record.creadoEn)}`);
             const body = document.createElement('div');
             body.className = 'announcement-body';
-            body.innerHTML = sanitizeRichHtml(record.contenido || '');
+            body.innerHTML = sanitizeAnnouncementHtml(record.contenido || '');
             card.append(body);
             announcementList.append(card);
           });
@@ -673,7 +728,7 @@
 
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const contenido = sanitizeRichHtml(editor.innerHTML);
+        const contenido = sanitizeAnnouncementHtml(editor.innerHTML);
         if (!titleInput.value.trim() || !editor.textContent.trim()) {
           editorStatus.textContent = 'Escribe un título y el contenido del anuncio.';
           return;
@@ -2681,6 +2736,57 @@
       return gradesPage;
     }
 
+    async function renderClassroomCalendar(aula) {
+      const page = document.createElement('section');
+      const statusText = addText(page, 'p', 'attendance-status', 'Cargando asignaciones y eventos...');
+      statusText.setAttribute('role', 'status');
+      statusText.setAttribute('aria-live', 'polite');
+      const calendarContainer = document.createElement('div');
+      page.append(calendarContainer);
+
+      try {
+        const [tasksSnapshot, eventsSnapshot] = await Promise.all([
+          getDocs(collection(db, 'Aulas', aula.id, 'tareas')),
+          getDocs(collection(db, 'Aulas', aula.id, 'publicaciones'))
+        ]);
+        const hasValidDate = (value) => {
+          if (!value) return false;
+          const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+          return !Number.isNaN(date.getTime());
+        };
+        const tasks = tasksSnapshot.docs
+          .map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }))
+          .filter((task) => hasValidDate(task.fechaEntrega))
+          .map((task) => ({
+            ...task,
+            tema: `Asignación · ${task.materia || task.tema || 'General'}`,
+            aulaNombre: aula.nombre || 'Aula'
+          }));
+        const events = eventsSnapshot.docs
+          .map((eventDoc) => ({ id: eventDoc.id, ...eventDoc.data() }))
+          .filter((event) => typeof event.fecha === 'string' && hasValidDate(new Date(`${event.fecha}T12:00:00`)))
+          .map((event) => ({
+            ...event,
+            fechaEntrega: new Date(`${event.fecha}T12:00:00`),
+            titulo: event.titulo || 'Evento',
+            tema: `Evento${event.lugar ? ` · ${event.lugar}` : ''}`,
+            aulaNombre: aula.nombre || 'Aula'
+          }));
+
+        statusText.textContent = `${tasks.length} asignación(es) con fecha y ${events.length} evento(s).`;
+        createStudentDueCalendar(calendarContainer, null, {
+          title: 'Calendario de actividades',
+          gridLabel: 'Fechas de actividades',
+          emptyDayMessage: 'No hay asignaciones ni eventos para este día.',
+          countLabel: 'actividad(es)'
+        }).setTasks([...tasks, ...events]);
+      } catch (error) {
+        console.error(`No se pudo cargar el calendario de actividades del aula ${aula.id}:`, error);
+        statusText.textContent = 'No se pudieron cargar las asignaciones y eventos. Revisa los permisos de Firestore.';
+      }
+      return page;
+    }
+
     function showClassroom(aula, index) {
       classWorkspace.replaceChildren();
       classWorkspace.hidden = false;
@@ -2735,6 +2841,8 @@
           content.append(await renderGrades(aula));
         } else if (selectedId === 'tasks') {
           content.append(await renderTasks(aula));
+        } else if (selectedId === 'calendar') {
+          content.append(await renderClassroomCalendar(aula));
         } else {
           const message = document.createElement('p');
           message.className = 'tab-placeholder';

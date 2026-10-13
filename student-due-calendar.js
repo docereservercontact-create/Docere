@@ -1,4 +1,4 @@
-export function createStudentDueCalendar(container, onTaskSelect = null) {
+export function createStudentDueCalendar(container, onTaskSelect = null, options = {}) {
   const calendar = document.createElement('section');
   calendar.className = 'student-due-calendar';
   calendar.setAttribute('aria-labelledby', 'studentDueCalendarTitle');
@@ -6,7 +6,7 @@ export function createStudentDueCalendar(container, onTaskSelect = null) {
   header.className = 'student-due-calendar-header';
   const title = document.createElement('h2');
   title.id = 'studentDueCalendarTitle';
-  title.textContent = 'Calendario de entregas';
+  title.textContent = options.title || 'Calendario de entregas';
   const monthNav = document.createElement('div');
   monthNav.className = 'student-due-calendar-month-nav';
   const previousButton = document.createElement('button');
@@ -26,7 +26,7 @@ export function createStudentDueCalendar(container, onTaskSelect = null) {
   const grid = document.createElement('div');
   grid.className = 'student-due-calendar-grid';
   grid.setAttribute('role', 'grid');
-  grid.setAttribute('aria-label', 'Fechas de entrega');
+  grid.setAttribute('aria-label', options.gridLabel || 'Fechas de entrega');
   const details = document.createElement('div');
   details.className = 'student-due-calendar-details';
   details.setAttribute('role', 'status');
@@ -61,7 +61,7 @@ export function createStudentDueCalendar(container, onTaskSelect = null) {
     details.append(heading);
     if (!dayTasks.length) {
       const emptyMessage = document.createElement('p');
-      emptyMessage.textContent = 'No tienes asignaciones con entrega este día.';
+      emptyMessage.textContent = options.emptyDayMessage || 'No tienes asignaciones con entrega este día.';
       details.append(emptyMessage);
       return;
     }
@@ -121,7 +121,8 @@ export function createStudentDueCalendar(container, onTaskSelect = null) {
       dayButton.className = 'student-due-calendar-day';
       dayButton.type = 'button';
       dayButton.textContent = String(date.getDate());
-      dayButton.setAttribute('aria-label', `${formatDate(date)}${dayTasks.length ? `, ${dayTasks.length} asignación(es)` : ''}`);
+      const countLabel = options.countLabel || 'asignación(es)';
+      dayButton.setAttribute('aria-label', `${formatDate(date)}${dayTasks.length ? `, ${dayTasks.length} ${countLabel}` : ''}`);
       if (date.getMonth() !== monthIndex) dayButton.classList.add('student-due-calendar-day--outside');
       if (key === todayKey) dayButton.classList.add('student-due-calendar-day--today');
       if (dayTasks.length) {

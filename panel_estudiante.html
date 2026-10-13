@@ -1271,7 +1271,7 @@
     }
 
     function sanitizeAnnouncement(html) {
-      const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'H2', 'H3', 'UL', 'OL', 'LI', 'BLOCKQUOTE']);
+      const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'H2', 'H3', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'SPAN', 'FONT']);
       const blockedTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'SVG', 'MATH']);
       const parsed = new DOMParser().parseFromString(html, 'text/html');
 
@@ -1279,7 +1279,12 @@
         if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || '');
         if (node.nodeType !== Node.ELEMENT_NODE || blockedTags.has(node.tagName)) return document.createDocumentFragment();
         const fragment = document.createDocumentFragment();
-        const target = allowedTags.has(node.tagName) ? document.createElement(node.tagName.toLowerCase()) : fragment;
+        const isColorTag = node.tagName === 'SPAN' || node.tagName === 'FONT';
+        const target = allowedTags.has(node.tagName)
+          ? document.createElement(node.tagName === 'FONT' ? 'span' : node.tagName.toLowerCase())
+          : fragment;
+        const color = node.style?.color || (node.tagName === 'FONT' ? node.getAttribute('color') : '');
+        if (isColorTag && /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(color || '')) target.style.color = color;
         Array.from(node.childNodes).forEach((child) => target.append(copySafeNode(child)));
         return target;
       }
