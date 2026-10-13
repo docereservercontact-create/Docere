@@ -274,15 +274,26 @@
     .study-video-class h3 { margin: 0 0 16px; font-size: 18px; }
     .study-video-section + .study-video-section { margin-top: 20px; }
     .study-video-section h4 { margin: 0 0 10px; font-size: 15px; }
-    .study-video-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+    .study-video-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 300px)); gap: 16px; }
     .study-video-card { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
-    .study-video-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #0f172a; }
-    .study-video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .study-video-preview { display: grid; place-items: center; gap: 8px; width: 100%; aspect-ratio: 16 / 9; padding: 16px; border: 0; background: linear-gradient(135deg, #172554, #334155); color: #fff; cursor: pointer; }
+    .study-video-preview:hover { background: linear-gradient(135deg, #1e3a8a, #475569); }
+    .study-video-play-icon { display: grid; place-items: center; width: 48px; height: 48px; padding-left: 4px; border-radius: 50%; background: rgba(255, 255, 255, 0.94); color: var(--accent); font-size: 20px; }
+    .study-video-preview-label { font-size: 13px; font-weight: 650; }
     .study-video-info { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; }
     .study-video-info h5 { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
     .study-video-link { flex: 0 0 auto; color: var(--accent); font-size: 13px; font-weight: 650; text-decoration: none; }
     .study-video-link:hover { text-decoration: underline; }
     .study-material-status { margin: 0; color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+
+    .study-video-dialog { width: min(960px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 14px; background: #111827; color: #fff; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45); }
+    .study-video-dialog::backdrop { background: rgba(10, 15, 25, 0.78); backdrop-filter: blur(3px); }
+    .study-video-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; }
+    .study-video-dialog-header h2 { margin: 0; font-size: 16px; font-weight: 650; }
+    .study-video-dialog-close { display: grid; place-items: center; flex: 0 0 auto; width: 36px; height: 36px; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 50%; background: transparent; color: inherit; font-size: 24px; line-height: 1; cursor: pointer; }
+    .study-video-dialog-close:hover { background: rgba(255, 255, 255, 0.12); }
+    .study-video-dialog-frame { width: 100%; aspect-ratio: 16 / 9; background: #000; }
+    .study-video-dialog-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
 
     /* --- FOOTER --- */
     footer {
@@ -429,7 +440,6 @@
     }
   </style>
   <link rel="stylesheet" href="student-panel-navigation.css">
-  <link rel="stylesheet" href="student-due-calendar.css">
   <script src="student-panel-navigation.js" defer></script>
 </head>
 <body>
@@ -501,6 +511,14 @@
       <div id="studyVideosContent"></div>
     </section>
   </main>
+
+  <dialog class="study-video-dialog" id="studyVideoDialog" aria-labelledby="studyVideoDialogTitle">
+    <div class="study-video-dialog-header">
+      <h2 id="studyVideoDialogTitle"></h2>
+      <button class="study-video-dialog-close" id="closeStudyVideoDialog" type="button" aria-label="Cerrar video">×</button>
+    </div>
+    <div class="study-video-dialog-frame" id="studyVideoDialogFrame"></div>
+  </dialog>
 
   <!-- FOOTER SINCRO INDEX -->
   <footer>
@@ -575,10 +593,10 @@
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
     import { firebaseConfig } from './portal-auth.js';
 
-    const dueCalendarAppName = 'studentStudyDueCalendar';
-    const dueCalendarApp = getApps().find((firebaseApp) => firebaseApp.name === dueCalendarAppName)
-      || initializeApp(firebaseConfig, dueCalendarAppName);
-    const db = getFirestore(dueCalendarApp);
+    const studyMaterialsAppName = 'studentStudyMaterials';
+    const studyMaterialsApp = getApps().find((firebaseApp) => firebaseApp.name === studyMaterialsAppName)
+      || initializeApp(firebaseConfig, studyMaterialsAppName);
+    const db = getFirestore(studyMaterialsApp);
 
     function isStudentInClassroom(classroom, student) {
       return Array.isArray(classroom.alumnos) && classroom.alumnos.some((assignedStudent) =>
@@ -626,6 +644,24 @@
       return null;
     }
 
+    function openStudyVideo(embedUrl, title) {
+      const dialog = document.getElementById('studyVideoDialog');
+      const frame = document.getElementById('studyVideoDialogFrame');
+      const titleElement = document.getElementById('studyVideoDialogTitle');
+      const playerUrl = new URL(embedUrl);
+      playerUrl.searchParams.set('autoplay', '1');
+
+      titleElement.textContent = title;
+      const iframe = document.createElement('iframe');
+      iframe.src = playerUrl.href;
+      iframe.title = title;
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+      iframe.allowFullscreen = true;
+      iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+      frame.replaceChildren(iframe);
+      dialog.showModal();
+    }
+
     function renderStudyVideo(video) {
       const safeUrl = getSafeVideoUrl(video.url);
       if (!safeUrl) return null;
@@ -633,29 +669,44 @@
       card.className = 'study-video-card';
       const embedUrl = getVideoEmbedUrl(safeUrl);
       if (embedUrl) {
-        const frame = document.createElement('div');
-        frame.className = 'study-video-frame';
-        const iframe = document.createElement('iframe');
-        iframe.src = embedUrl;
-        iframe.title = video.titulo || 'Video de estudio';
-        iframe.loading = 'lazy';
-        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-        iframe.allowFullscreen = true;
-        iframe.referrerPolicy = 'strict-origin-when-cross-origin';
-        frame.append(iframe);
-        card.append(frame);
+        const title = video.titulo || 'Video de estudio';
+        const preview = document.createElement('button');
+        preview.className = 'study-video-preview';
+        preview.type = 'button';
+        preview.setAttribute('aria-label', `Reproducir ${title}`);
+        preview.addEventListener('click', () => openStudyVideo(embedUrl, title));
+        const playIcon = addStudyText(preview, 'span', 'study-video-play-icon', '▶');
+        playIcon.setAttribute('aria-hidden', 'true');
+        addStudyText(preview, 'span', 'study-video-preview-label', 'Reproducir video');
+        card.append(preview);
       }
 
       const info = document.createElement('div');
       info.className = 'study-video-info';
       addStudyText(info, 'h5', '', video.titulo || 'Video de estudio');
-      const link = addStudyText(info, 'a', 'study-video-link', embedUrl ? 'Abrir video' : 'Ver video');
+      const link = addStudyText(info, 'a', 'study-video-link', embedUrl ? 'Reproducir' : 'Ver video');
       link.href = safeUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
+      if (embedUrl) {
+        link.href = '#';
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          openStudyVideo(embedUrl, video.titulo || 'Video de estudio');
+        });
+      } else {
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+      }
       card.append(info);
       return card;
     }
+
+    const studyVideoDialog = document.getElementById('studyVideoDialog');
+    const studyVideoDialogFrame = document.getElementById('studyVideoDialogFrame');
+    document.getElementById('closeStudyVideoDialog').addEventListener('click', () => studyVideoDialog.close());
+    studyVideoDialog.addEventListener('click', (event) => {
+      if (event.target === studyVideoDialog) studyVideoDialog.close();
+    });
+    studyVideoDialog.addEventListener('close', () => studyVideoDialogFrame.replaceChildren());
 
     async function loadStudyVideos() {
       const statusText = document.getElementById('studyVideosStatus');
@@ -798,30 +849,21 @@
   <!-- JAVASCRIPT -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // 1. Cargar datos del alumno en la sesión
       const sessionRaw = localStorage.getItem('studentSession');
       if (sessionRaw) {
         try {
           const session = JSON.parse(sessionRaw);
           if (session && session.nombre) {
             const userNameLabel = document.getElementById('userNameLabel');
-            const welcomeTitle = document.getElementById('welcomeTitle');
-
             if (userNameLabel) userNameLabel.textContent = session.nombre;
-            if (welcomeTitle) welcomeTitle.textContent = `¡Bienvenido, ${session.nombre}! 👋`;
           }
         } catch (e) {
           console.error("Error al parsear la sesión:", e);
         }
       }
 
-      // 2. Inicializar Lucide Icons
-      if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
 
-      // 3. Menú Responsive
-      // 4. Cerrar Sesión
       const btnCerrarSesion = document.getElementById('btnCerrarSesion');
       if (btnCerrarSesion) {
         btnCerrarSesion.addEventListener('click', async () => {
@@ -846,14 +888,6 @@
         });
       }
 
-      // 5. Descarga e Impresión a PDF Directa
-      const btnDownloadPDF = document.getElementById('btnDownloadPDF');
-      if (btnDownloadPDF) {
-        btnDownloadPDF.addEventListener('click', () => {
-          const calendarUrl = "https://calendar.google.com/calendar/u/0/r/week";
-          window.open(calendarUrl, '_blank');
-        });
-      }
     });
   </script>
 </body>
