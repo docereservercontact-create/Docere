@@ -415,11 +415,10 @@
         assignmentAnalysisMetrics.append(metric);
       };
       formatMetric({
-      formatMetric({
+        value: formattedAverage,
         label: `Promedio · ${includedGrades.length} evaluada(s)`
       });
       formatMetric({ value: `${grades.length}/${assignments.length}`, label: 'Asignaciones calificadas' });
-      formatMetric({ value: String(Math.max(0, pendingCount)), label: 'Sin calificar' });
       formatMetric({ value: String(Math.max(0, pendingCount)), label: 'Sin calificar' });
 
       const averageMessage = average === null
