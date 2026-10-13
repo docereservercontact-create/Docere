@@ -221,6 +221,21 @@
     .task-check-field input { width: 17px; height: 17px; margin: 1px 0 0; }
     .task-form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
     .task-form-status { min-height: 18px; margin: 0; color: var(--muted); font-size: 13px; }
+    .study-materials-page { display: grid; gap: 14px; }
+    .study-materials-intro { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .study-section-form, .study-section-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .study-section-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+    .study-materials-page label { display: grid; gap: 6px; color: #475569; font-size: 13px; font-weight: 600; }
+    .study-materials-page input { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); font: inherit; }
+    .study-section-list { display: grid; gap: 12px; }
+    .study-section-card { display: grid; gap: 12px; }
+    .study-section-card h4 { margin: 0; font-size: 16px; }
+    .study-video-form { display: grid; grid-template-columns: minmax(150px, .8fr) minmax(200px, 1.4fr) auto; gap: 10px; align-items: end; padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: #f8fafc; }
+    .study-video-list { display: grid; gap: 7px; }
+    .study-video-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; }
+    .study-video-item a { min-width: 0; color: var(--blue); font-size: 13px; overflow-wrap: anywhere; }
+    .study-video-delete { flex: 0 0 auto; min-height: 32px; padding: 0 10px; border: 1px solid #f3b4b0; border-radius: 5px; background: #fff; color: var(--red); font-weight: 600; cursor: pointer; }
+    .study-video-status { min-height: 18px; margin: 0; color: var(--muted); font-size: 13px; }
     @media (max-width: 960px) {
       .panel-layout { grid-template-columns: minmax(0, 1fr); }
       .class-sidebar { padding: 14px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -257,6 +272,10 @@
       .tasks-toolbar button,
       .announcement-submit,
       .task-form-actions button { width: 100%; }
+      .study-section-form,
+      .study-video-form { grid-template-columns: minmax(0, 1fr); }
+      .study-section-form button,
+      .study-video-form button { width: 100%; }
       .announcement-card-header { flex-wrap: wrap; }
       .footer-columns { grid-template-columns: 1fr; gap: 20px; }
       footer { padding: 32px 16px 16px; }
@@ -1846,6 +1865,210 @@
       }
     }
 
+    async function renderStudyMaterials(aula) {
+      const page = document.createElement('section');
+      page.className = 'study-materials-page';
+      const toolbar = document.createElement('div');
+      toolbar.className = 'tasks-toolbar';
+      addText(toolbar, 'h3', '', 'Material de estudio');
+      const intro = addText(page, 'p', 'study-materials-intro', 'Crea secciones para organizar los videos y agrega el enlace de cada recurso. YouTube y Vimeo se mostrarán en el material del alumno.');
+      const sectionForm = document.createElement('form');
+      sectionForm.className = 'study-section-form';
+      const sectionLabel = document.createElement('label');
+      sectionLabel.textContent = 'Nombre de la sección';
+      const sectionInput = document.createElement('input');
+      sectionInput.name = 'sectionTitle';
+      sectionInput.maxLength = 100;
+      sectionInput.required = true;
+      sectionInput.placeholder = 'Ej. Álgebra';
+      sectionLabel.append(sectionInput);
+      const createSectionButton = addText(sectionForm, 'button', 'task-primary-button', 'Agregar sección');
+      createSectionButton.type = 'submit';
+      sectionForm.prepend(sectionLabel);
+      const statusText = addText(page, 'p', 'study-video-status', 'Cargando material...');
+      statusText.setAttribute('role', 'status');
+      statusText.setAttribute('aria-live', 'polite');
+      const sectionList = document.createElement('div');
+      sectionList.className = 'study-section-list';
+      page.append(toolbar, intro, sectionForm, statusText, sectionList);
+
+      async function loadSections() {
+        statusText.textContent = 'Cargando secciones y videos...';
+        sectionList.replaceChildren();
+        try {
+          const snapshot = await getDocs(collection(db, 'Aulas', aula.id, 'materiales'));
+          const sections = snapshot.docs
+            .map((sectionDoc) => ({ id: sectionDoc.id, ...sectionDoc.data() }))
+            .sort((left, right) => (left.orden ?? 0) - (right.orden ?? 0)
+              || (left.titulo || '').localeCompare(right.titulo || '', 'es'));
+          if (!sections.length) {
+            statusText.textContent = 'Aún no hay secciones. Agrega una para comenzar.';
+            return sections;
+          }
+
+          for (const section of sections) {
+            const card = document.createElement('article');
+            card.className = 'study-section-card';
+            addText(card, 'h4', '', section.titulo || 'Sección sin título');
+            const videoForm = document.createElement('form');
+            videoForm.className = 'study-video-form';
+            const titleLabel = document.createElement('label');
+            titleLabel.textContent = 'Título del video';
+            const titleInput = document.createElement('input');
+            titleInput.name = 'videoTitle';
+            titleInput.maxLength = 150;
+            titleInput.required = true;
+            titleInput.placeholder = 'Ej. Introducción al tema';
+            titleLabel.append(titleInput);
+            const urlLabel = document.createElement('label');
+            urlLabel.textContent = 'Enlace del video';
+            const urlInput = document.createElement('input');
+            urlInput.name = 'videoUrl';
+            urlInput.type = 'url';
+            urlInput.maxLength = 2048;
+            urlInput.required = true;
+            urlInput.placeholder = 'https://www.youtube.com/watch?v=...';
+            urlLabel.append(urlInput);
+            const addVideoButton = addText(videoForm, 'button', 'task-primary-button', 'Agregar video');
+            addVideoButton.type = 'submit';
+            videoForm.prepend(titleLabel, urlLabel);
+            const videoList = document.createElement('div');
+            videoList.className = 'study-video-list';
+            card.append(videoForm, videoList);
+
+            try {
+              const videoSnapshot = await getDocs(collection(
+                db,
+                'Aulas',
+                aula.id,
+                'materiales',
+                section.id,
+                'videos'
+              ));
+              const videos = videoSnapshot.docs
+                .map((videoDoc) => ({ id: videoDoc.id, ...videoDoc.data() }))
+                .filter((video) => {
+                  try {
+                    const url = new URL(video.url);
+                    if (['http:', 'https:'].includes(url.protocol)) return true;
+                  } catch {
+                    console.error(`Se omitió el video ${video.id} porque su enlace no es válido.`);
+                    return false;
+                  }
+                  console.error(`Se omitió el video ${video.id} porque su enlace no es HTTP(S).`);
+                  return false;
+                })
+                .sort((left, right) => (left.titulo || '').localeCompare(right.titulo || '', 'es'));
+              videos.forEach((video) => {
+                const item = document.createElement('div');
+                item.className = 'study-video-item';
+                const link = addText(item, 'a', '', video.titulo || 'Video de estudio');
+                link.href = video.url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                const deleteButton = addText(item, 'button', 'study-video-delete', 'Eliminar');
+                deleteButton.type = 'button';
+                deleteButton.addEventListener('click', async () => {
+                  if (!confirm(`¿Eliminar el video "${video.titulo || 'Video de estudio'}"?`)) return;
+                  deleteButton.disabled = true;
+                  statusText.textContent = 'Eliminando video...';
+                  try {
+                    await deleteDoc(doc(db, 'Aulas', aula.id, 'materiales', section.id, 'videos', video.id));
+                    statusText.textContent = 'Video eliminado.';
+                    await loadSections();
+                  } catch (error) {
+                    console.error(`No se pudo eliminar el video ${video.id} de la sección ${section.id} del aula ${aula.id}:`, error);
+                    statusText.textContent = 'No se pudo eliminar el video. Revisa la conexión y los permisos de Firestore.';
+                    deleteButton.disabled = false;
+                  }
+                });
+                videoList.append(item);
+              });
+            } catch (error) {
+              console.error(`No se pudieron cargar los videos de la sección ${section.id} del aula ${aula.id}:`, error);
+              addText(videoList, 'p', 'study-video-status', 'No se pudieron cargar los videos de esta sección.');
+            }
+
+            videoForm.addEventListener('submit', async (event) => {
+              event.preventDefault();
+              const title = titleInput.value.trim();
+              let url;
+              try {
+                url = new URL(urlInput.value.trim());
+              } catch {
+                urlInput.setAttribute('aria-invalid', 'true');
+                statusText.textContent = 'Escribe un enlace válido para el video.';
+                return;
+              }
+              urlInput.removeAttribute('aria-invalid');
+              if (!['http:', 'https:'].includes(url.protocol)) {
+                statusText.textContent = 'El enlace del video debe comenzar con http:// o https://.';
+                return;
+              }
+              addVideoButton.disabled = true;
+              statusText.textContent = 'Guardando video...';
+              try {
+                const videoReference = doc(collection(db, 'Aulas', aula.id, 'materiales', section.id, 'videos'));
+                await setDoc(videoReference, {
+                  titulo: title,
+                  url: url.href,
+                  creadoEn: serverTimestamp()
+                });
+                await loadSections();
+                statusText.textContent = 'Video agregado.';
+              } catch (error) {
+                console.error(`No se pudo agregar un video a la sección ${section.id} del aula ${aula.id}:`, error);
+                statusText.textContent = 'No se pudo guardar el video. Revisa la conexión y los permisos de Firestore.';
+                addVideoButton.disabled = false;
+              }
+            });
+            sectionList.append(card);
+          }
+          statusText.textContent = `${sections.length} sección(es) disponibles.`;
+          return sections;
+        } catch (error) {
+          console.error(`No se pudo cargar el material del aula ${aula.id}:`, error);
+          statusText.textContent = 'No se pudo cargar el material. Revisa la conexión y los permisos de Firestore.';
+          return null;
+        }
+      }
+
+      sectionForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const title = sectionInput.value.trim();
+        if (!title) return;
+        createSectionButton.disabled = true;
+        statusText.textContent = 'Creando sección...';
+        try {
+          const currentSections = await getDocs(collection(db, 'Aulas', aula.id, 'materiales'));
+          const duplicateSection = currentSections.docs.some((sectionDoc) =>
+            (sectionDoc.data().titulo || '').trim().toLocaleLowerCase() === title.toLocaleLowerCase()
+          );
+          if (duplicateSection) {
+            statusText.textContent = 'Ya existe una sección con ese nombre.';
+            return;
+          }
+          const sectionReference = doc(collection(db, 'Aulas', aula.id, 'materiales'));
+          await setDoc(sectionReference, {
+            titulo: title,
+            orden: currentSections.size,
+            creadoEn: serverTimestamp()
+          });
+          sectionForm.reset();
+          await loadSections();
+          statusText.textContent = 'Sección creada. Ya puedes agregar videos.';
+        } catch (error) {
+          console.error(`No se pudo crear una sección de material para el aula ${aula.id}:`, error);
+          statusText.textContent = 'No se pudo crear la sección. Revisa la conexión y los permisos de Firestore.';
+        } finally {
+          createSectionButton.disabled = false;
+        }
+      });
+
+      await loadSections();
+      return page;
+    }
+
     async function renderTasks(aula) {
       const tasksPage = document.createElement('section');
       tasksPage.className = 'tasks-page';
@@ -2480,6 +2703,7 @@
         { id: 'padlet', label: 'Padlet' },
         { id: 'pizarras', label: 'Pizarras' },
         { id: 'publications', label: 'Eventos' },
+        { id: 'study-materials', label: 'Material de estudio' },
         { id: 'attendance', label: 'Lista de asistencias' },
         { id: 'grades', label: 'Lista de calificaciones' },
         { id: 'tasks', label: 'Tareas' },
@@ -2499,6 +2723,8 @@
           content.append(await renderPizarras(aula));
         } else if (selectedId === 'publications') {
           content.append(await renderPublications(aula));
+        } else if (selectedId === 'study-materials') {
+          content.append(await renderStudyMaterials(aula));
         } else if (selectedId === 'attendance') {
           content.append(await renderAttendance(aula));
         } else if (selectedId === 'grades') {

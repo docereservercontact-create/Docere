@@ -337,6 +337,33 @@
       font-size: 0.9rem;
     }
 
+    .study-videos-card {
+      margin-bottom: 30px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg-card);
+    }
+
+    .study-video-class + .study-video-class {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .study-video-class h3 { margin: 0 0 16px; font-size: 18px; }
+    .study-video-section + .study-video-section { margin-top: 20px; }
+    .study-video-section h4 { margin: 0 0 10px; font-size: 15px; }
+    .study-video-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+    .study-video-card { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+    .study-video-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #0f172a; }
+    .study-video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .study-video-info { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; }
+    .study-video-info h5 { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+    .study-video-link { flex: 0 0 auto; color: var(--accent); font-size: 13px; font-weight: 650; text-decoration: none; }
+    .study-video-link:hover { text-decoration: underline; }
+    .study-material-status { margin: 0; color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+
     /* --- FOOTER --- */
     footer {
       background-color: var(--footer-bg);
@@ -592,6 +619,17 @@
       <p class="goodnotes-note">Si la vista embebida no se carga, puedes abrir el contenido directamente en GoodNotes con el botón de arriba.</p>
     </section>
 
+    <section class="study-videos-card" aria-labelledby="studyVideosTitle">
+      <div class="schedule-header">
+        <div class="schedule-title">
+          <i data-lucide="play-circle" style="color: var(--accent);"></i>
+          <h2 id="studyVideosTitle">Videos de estudio</h2>
+        </div>
+      </div>
+      <p class="study-material-status" id="studyVideosStatus" role="status" aria-live="polite">Cargando videos...</p>
+      <div id="studyVideosContent"></div>
+    </section>
+
     <!-- APARTADO DE HORARIOS (VISTA SEMANAL ÚNICA) -->
     <div id="panelContent">
       <section id="horarios" class="schedule-card">
@@ -720,6 +758,183 @@
       );
     }
 
+    function addStudyText(parent, tagName, className, text) {
+      const element = document.createElement(tagName);
+      element.className = className;
+      element.textContent = text;
+      parent.append(element);
+      return element;
+    }
+
+    function getSafeVideoUrl(value) {
+      let url;
+      try {
+        url = new URL(value);
+      } catch {
+        return null;
+      }
+      if (!['http:', 'https:'].includes(url.protocol)) return null;
+      return url.href;
+    }
+
+    function getVideoEmbedUrl(value) {
+      const safeUrl = getSafeVideoUrl(value);
+      if (!safeUrl) return null;
+      const url = new URL(safeUrl);
+      const host = url.hostname.toLowerCase().replace(/^www\./, '');
+      let videoId = '';
+      if (host === 'youtu.be') {
+        videoId = url.pathname.slice(1).split('/')[0];
+      } else if (['youtube.com', 'm.youtube.com', 'youtube-nocookie.com'].includes(host)) {
+        videoId = url.searchParams.get('v') || url.pathname.match(/^\/(?:embed|shorts)\/([^/?]+)/)?.[1] || '';
+      }
+      if (/^[\w-]{11}$/.test(videoId)) return `https://www.youtube-nocookie.com/embed/${videoId}`;
+
+      if (host === 'vimeo.com') {
+        const vimeoId = url.pathname.match(/^\/(?:video\/)?(\d+)/)?.[1];
+        if (vimeoId) return `https://player.vimeo.com/video/${vimeoId}`;
+      }
+      return null;
+    }
+
+    function renderStudyVideo(video) {
+      const safeUrl = getSafeVideoUrl(video.url);
+      if (!safeUrl) return null;
+      const card = document.createElement('article');
+      card.className = 'study-video-card';
+      const embedUrl = getVideoEmbedUrl(safeUrl);
+      if (embedUrl) {
+        const frame = document.createElement('div');
+        frame.className = 'study-video-frame';
+        const iframe = document.createElement('iframe');
+        iframe.src = embedUrl;
+        iframe.title = video.titulo || 'Video de estudio';
+        iframe.loading = 'lazy';
+        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+        iframe.allowFullscreen = true;
+        iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+        frame.append(iframe);
+        card.append(frame);
+      }
+
+      const info = document.createElement('div');
+      info.className = 'study-video-info';
+      addStudyText(info, 'h5', '', video.titulo || 'Video de estudio');
+      const link = addStudyText(info, 'a', 'study-video-link', embedUrl ? 'Abrir video' : 'Ver video');
+      link.href = safeUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      card.append(info);
+      return card;
+    }
+
+    async function loadStudyVideos() {
+      const statusText = document.getElementById('studyVideosStatus');
+      const content = document.getElementById('studyVideosContent');
+      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      if (!student?.id || !student?.coleccion) {
+        statusText.textContent = 'Inicia sesión para consultar los videos de tus aulas.';
+        return;
+      }
+
+      try {
+        const absenceStatus = await getStudentAbsenceStatus(student);
+        if (absenceStatus.isSuspended) {
+          statusText.textContent = getSuspensionMessage(absenceStatus);
+          return;
+        }
+        const classroomsSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomsSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => isStudentInClassroom(classroom, student));
+        if (!classrooms.length) {
+          statusText.textContent = 'Todavía no estás asignado a un aula.';
+          return;
+        }
+
+        const classroomResults = await Promise.all(classrooms.map(async (classroom) => {
+          try {
+            const sectionsSnapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'materiales'));
+            const sections = await Promise.all(sectionsSnapshot.docs.map(async (sectionDoc) => {
+              const videosSnapshot = await getDocs(collection(
+                db,
+                'Aulas',
+                classroom.id,
+                'materiales',
+                sectionDoc.id,
+                'videos'
+              ));
+              return {
+                id: sectionDoc.id,
+                ...sectionDoc.data(),
+                videos: videosSnapshot.docs
+                  .map((videoDoc) => ({ id: videoDoc.id, ...videoDoc.data() }))
+                  .filter((video) => {
+                    if (!getSafeVideoUrl(video.url)) {
+                      console.error(`Se omitió el video ${video.id} porque su enlace no es válido.`);
+                      return false;
+                    }
+                    return true;
+                  })
+                  .sort((left, right) => (left.titulo || '').localeCompare(right.titulo || '', 'es'))
+              };
+            }));
+            sections.sort((left, right) => (left.orden ?? 0) - (right.orden ?? 0)
+              || (left.titulo || '').localeCompare(right.titulo || '', 'es'));
+            return { classroom, sections };
+          } catch (error) {
+            console.error(`No se pudo cargar el material de estudio del aula ${classroom.id}:`, error);
+            return { classroom, sections: null };
+          }
+        }));
+
+        content.replaceChildren();
+        let videoCount = 0;
+        let sectionCount = 0;
+        let failedCount = 0;
+        classroomResults.forEach(({ classroom, sections }) => {
+          if (sections === null) {
+            failedCount += 1;
+            return;
+          }
+          if (!sections.length) return;
+
+          const classroomSection = document.createElement('section');
+          classroomSection.className = 'study-video-class';
+          addStudyText(classroomSection, 'h3', '', classroom.nombre || classroom.curso || 'Aula');
+          sections.forEach((section) => {
+            sectionCount += 1;
+            videoCount += section.videos.length;
+            const sectionElement = document.createElement('section');
+            sectionElement.className = 'study-video-section';
+            addStudyText(sectionElement, 'h4', '', section.titulo || 'Material de estudio');
+            if (!section.videos.length) {
+              addStudyText(sectionElement, 'p', 'study-material-status', 'Aún no hay videos en esta sección.');
+            } else {
+              const videoList = document.createElement('div');
+              videoList.className = 'study-video-list';
+              section.videos.forEach((video) => {
+                const videoCard = renderStudyVideo(video);
+                if (videoCard) videoList.append(videoCard);
+              });
+              sectionElement.append(videoList);
+            }
+            classroomSection.append(sectionElement);
+          });
+          content.append(classroomSection);
+        });
+
+        if (!sectionCount && !failedCount) {
+          statusText.textContent = 'Tus profesores aún no han agregado videos de estudio.';
+        } else {
+          statusText.textContent = `${videoCount} video(s) en ${sectionCount} sección(es).${failedCount ? ` No se pudo consultar el material de ${failedCount} aula(s).` : ''}`;
+        }
+      } catch (error) {
+        console.error('No se pudieron cargar los videos de estudio:', error);
+        statusText.textContent = 'No se pudieron cargar los videos de estudio. Revisa la conexión y los permisos de Firestore.';
+      }
+    }
+
     async function loadStudentDueDates() {
       const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
       if (!student?.id || !student?.coleccion) {
@@ -788,6 +1003,7 @@
       }
     }
 
+    loadStudyVideos();
     loadStudentDueDates();
 
     const classEntryButton = document.getElementById('btnIngresarClase');
