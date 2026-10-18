@@ -13,7 +13,9 @@ function studentMatchesClassroom(classroom, student) {
 function getMeetingUrl(classroom) {
   try {
     const url = new URL(String(classroom.enlaceClase || '').trim());
-    return url.protocol === 'https:' && url.hostname === 'meet.google.com' && url.pathname !== '/'
+    const isGoogleMeet = url.hostname === 'meet.google.com';
+    const isZoom = url.hostname === 'zoom.us' || url.hostname.endsWith('.zoom.us');
+    return url.protocol === 'https:' && (isGoogleMeet || isZoom) && url.pathname !== '/'
       ? url.href
       : '';
   } catch {
@@ -115,7 +117,7 @@ export function bindStudentClassMeetingButton({
         const meetingUrl = getMeetingUrl(classrooms[0]);
         if (!meetingUrl) {
           reservedWindow?.close();
-          alert('El profesor aún no ha asignado un enlace de Google Meet a tu aula.');
+          alert('El profesor aún no ha asignado un enlace de reunión válido a tu aula.');
           return;
         }
         openMeeting(meetingUrl, reservedWindow);
@@ -135,7 +137,7 @@ export function bindStudentClassMeetingButton({
         const course = document.createElement('span');
         course.textContent = meetingUrl
           ? classroom.curso || 'Curso sin especificar'
-          : 'El profesor aún no ha asignado un enlace de Google Meet';
+          : 'El profesor aún no ha asignado un enlace de reunión válido';
         option.append(name, course);
         if (meetingUrl) {
           option.addEventListener('click', () => {

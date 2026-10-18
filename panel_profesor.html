@@ -2834,7 +2834,7 @@
       const meetingInput = document.createElement('input');
       meetingInput.type = 'url';
       meetingInput.inputMode = 'url';
-      meetingInput.placeholder = 'https://meet.google.com/abc-defg-hij';
+      meetingInput.placeholder = 'https://meet.google.com/... o https://zoom.us/...';
       meetingInput.value = aula.enlaceClase || '';
       meetingInput.autocomplete = 'url';
       meetingInput.required = true;
@@ -2858,11 +2858,13 @@
         try {
           parsedUrl = new URL(meetingInput.value.trim());
         } catch {
-          meetingStatus.textContent = 'Escribe un enlace válido de Google Meet.';
+          meetingStatus.textContent = 'Escribe un enlace válido de Google Meet o Zoom.';
           return;
         }
-        if (parsedUrl.protocol !== 'https:' || parsedUrl.hostname !== 'meet.google.com' || parsedUrl.pathname === '/') {
-          meetingStatus.textContent = 'Usa un enlace de reunión de Google Meet, por ejemplo https://meet.google.com/abc-defg-hij.';
+        const isGoogleMeet = parsedUrl.hostname === 'meet.google.com';
+        const isZoom = parsedUrl.hostname === 'zoom.us' || parsedUrl.hostname.endsWith('.zoom.us');
+        if (parsedUrl.protocol !== 'https:' || (!isGoogleMeet && !isZoom) || parsedUrl.pathname === '/') {
+          meetingStatus.textContent = 'Usa un enlace HTTPS de Google Meet o Zoom.';
           return;
         }
 
