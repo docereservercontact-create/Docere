@@ -70,6 +70,12 @@
     .classroom-header h2 { position: relative; z-index: 1; margin: 0 0 5px; font-size: clamp(22px, 3vw, 30px); line-height: 1.25; overflow-wrap: anywhere; }
     .classroom-header p { position: relative; z-index: 1; margin: 0; color: rgba(255,255,255,.88); font-size: 13px; font-weight: 600; }
     .student-count { position: relative; z-index: 1; flex: 0 0 auto; padding: 5px 8px; border-radius: 20px; background: rgba(255,255,255,.18); color: #fff; font-size: 11px; font-weight: 650; white-space: nowrap; }
+    .class-meeting-settings { position: relative; z-index: 1; display: grid; flex: 1 1 320px; gap: 6px; max-width: 420px; }
+    .class-meeting-settings label, .class-meeting-status { color: rgba(255,255,255,.9); font-size: 12px; }
+    .class-meeting-settings input { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid rgba(255,255,255,.5); border-radius: 5px; background: rgba(255,255,255,.96); color: #17212b; font: inherit; }
+    .class-meeting-settings button { justify-self: start; min-height: 36px; padding: 0 12px; border: 0; border-radius: 5px; background: #fff; color: #243b53; font-weight: 650; cursor: pointer; }
+    .class-meeting-settings button:disabled { cursor: wait; opacity: .7; }
+    .class-meeting-status { min-height: 16px; margin: 0; }
     .class-tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--line); }
     .class-tab { flex: 0 0 auto; min-height: 48px; padding: 0 12px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #475569; font-size: 12px; font-weight: 650; cursor: pointer; }
     .class-tab:hover { background: #f8fafc; }
@@ -288,7 +294,7 @@
     @media (max-width: 380px) {
       .topbar { gap: 8px; padding-right: 10px; padding-left: 10px; }
       .brand { font-size: 12px; }
-      .classroom-header { flex-direction: column; gap: 8px; }
+      .classroom-header { flex-direction: column; gap: 12px; }
       .student-count { align-self: flex-start; }
       .task-composer-card { padding: 11px; }
     }
@@ -2800,6 +2806,53 @@
       addText(bannerTitle, 'p', '', aula.curso || 'Curso sin especificar');
       addText(banner, 'span', 'student-count', `${aula.alumnos.length} alumno${aula.alumnos.length === 1 ? '' : 's'}`);
       banner.prepend(bannerTitle);
+
+      const meetingSettings = document.createElement('div');
+      meetingSettings.className = 'class-meeting-settings';
+      const meetingLabel = addText(meetingSettings, 'label', '', 'Enlace de la clase para esta aula');
+      const meetingInput = document.createElement('input');
+      meetingInput.type = 'url';
+      meetingInput.inputMode = 'url';
+      meetingInput.placeholder = 'https://...';
+      meetingInput.value = aula.enlaceClase || '';
+      meetingInput.setAttribute('aria-label', `Enlace de clase para ${aula.nombre || 'esta aula'}`);
+      meetingLabel.htmlFor = `meeting-url-${aula.id}`;
+      meetingInput.id = meetingLabel.htmlFor;
+      const saveMeetingButton = addText(meetingSettings, 'button', '', 'Guardar enlace');
+      saveMeetingButton.type = 'button';
+      const meetingStatus = addText(meetingSettings, 'p', 'class-meeting-status', '');
+      meetingStatus.setAttribute('role', 'status');
+      saveMeetingButton.addEventListener('click', async () => {
+        const meetingUrl = meetingInput.value.trim();
+        if (meetingUrl) {
+          try {
+            const parsedUrl = new URL(meetingUrl);
+            if (parsedUrl.protocol !== 'https:') throw new Error('El enlace debe usar HTTPS.');
+          } catch (error) {
+            meetingStatus.textContent = error.message === 'El enlace debe usar HTTPS.'
+              ? error.message
+              : 'Escribe un enlace válido que comience con https://.';
+            return;
+          }
+        }
+
+        saveMeetingButton.disabled = true;
+        meetingStatus.textContent = 'Guardando enlace...';
+        try {
+          await updateDoc(doc(db, 'Aulas', aula.id), {
+            enlaceClase: meetingUrl,
+            enlaceClaseActualizadoEn: serverTimestamp()
+          });
+          aula.enlaceClase = meetingUrl;
+          meetingStatus.textContent = meetingUrl ? 'Enlace guardado para esta aula.' : 'Enlace eliminado de esta aula.';
+        } catch (error) {
+          console.error(`No se pudo guardar el enlace de clase del aula ${aula.id}:`, error);
+          meetingStatus.textContent = 'No se pudo guardar el enlace. Revisa la conexión y los permisos de Firestore.';
+        } finally {
+          saveMeetingButton.disabled = false;
+        }
+      });
+      banner.append(meetingSettings);
       classroom.append(banner);
 
       const tabs = document.createElement('div');
