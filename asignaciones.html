@@ -36,6 +36,10 @@
     .assignment-analysis-metric span { color: var(--muted); font-size: 12px; }
     .assignment-analysis-status { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
     .assignment-list { display: grid; gap: 14px; }
+    .assignment-subject-group { display: grid; gap: 10px; }
+    .assignment-subject-heading { margin: 12px 0 0; font-size: 20px; }
+    .assignment-unit-group { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .assignment-unit-heading { margin: 0; color: var(--muted); font-size: 15px; }
     .assignment-card { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; padding: 16px 22px; border: 1px solid #dbe5ee; border-left: 4px solid var(--teal); border-radius: 12px; background: linear-gradient(115deg, #fff, #f9fcfd); box-shadow: 0 4px 12px rgba(29, 68, 103, .035); }
     .assignment-card h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; overflow-wrap: anywhere; }
     .assignment-context { margin: 0; color: var(--ink); font-size: 16px; }
@@ -559,7 +563,7 @@
       card.id = `assignment-${task.id}`;
       const content = document.createElement('div');
       addText(content, 'h2', '', task.titulo || 'Asignación sin título');
-      addText(content, 'p', 'assignment-context', task.materia || task.tema || task.curso || 'General');
+      addText(content, 'p', 'assignment-context', [task.materia || 'General', task.unidad || 'Sin unidad', task.tema].filter(Boolean).join(' · '));
       addText(content, 'p', 'assignment-meta', `${task.curso || 'Curso'} · ${task.aulaNombre || 'Aula'}${task.profesorNombre ? ` · ${task.profesorNombre}` : ''}`);
       const feedback = document.createElement('section');
       feedback.className = 'assignment-feedback';
@@ -832,7 +836,31 @@
             .flat()
             .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
           assignmentsList.replaceChildren();
-          assignments.forEach((task) => assignmentsList.append(renderAssignment(task)));
+          const subjectGroups = new Map();
+          const unitGroups = new Map();
+          assignments.forEach((task) => {
+            const subjectName = task.materia || 'General';
+            const subjectKey = `${task.aulaId || ''}/${task.materiaId || subjectName.toLocaleLowerCase()}`;
+            let subjectGroup = subjectGroups.get(subjectKey);
+            if (!subjectGroup) {
+              subjectGroup = document.createElement('section');
+              subjectGroup.className = 'assignment-subject-group';
+              addText(subjectGroup, 'h2', 'assignment-subject-heading', subjectName);
+              subjectGroups.set(subjectKey, subjectGroup);
+              assignmentsList.append(subjectGroup);
+            }
+            const unitName = String(task.unidad || '').trim() || 'Sin unidad';
+            const unitKey = `${subjectKey}\u0000${unitName.toLocaleLowerCase()}`;
+            let unitGroup = unitGroups.get(unitKey);
+            if (!unitGroup) {
+              unitGroup = document.createElement('section');
+              unitGroup.className = 'assignment-unit-group';
+              addText(unitGroup, 'h3', 'assignment-unit-heading', unitName);
+              unitGroups.set(unitKey, unitGroup);
+              subjectGroup.append(unitGroup);
+            }
+            unitGroup.append(renderAssignment(task));
+          });
           renderAssignmentAnalysis(assignments, student);
           dueCalendar.setTasks(assignments);
           const targetId = decodeURIComponent(window.location.hash.slice(1));

@@ -194,6 +194,13 @@
     .task-primary-button, .task-secondary-button { min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); font-weight: 650; cursor: pointer; }
     .task-primary-button { border-color: var(--blue); background: var(--blue); color: #fff; }
     .task-primary-button:disabled { opacity: .6; cursor: wait; }
+    .task-subject-group, .task-unit-group { display: grid; gap: 10px; }
+    .task-subject-heading { margin: 8px 0 0; font-size: 18px; }
+    .task-unit-group { padding: 12px 0 4px; border-top: 1px solid var(--line); }
+    .task-unit-heading { margin: 0; color: var(--muted); font-size: 14px; }
+    .task-inline-create { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; margin-top: 10px; }
+    .task-inline-create .task-field { min-width: 0; }
+    .task-inline-create button { min-height: 40px; }
     .task-list { display: grid; gap: 10px; }
     .task-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
     .task-card h4 { margin: 0 0 6px; font-size: 16px; }
@@ -2170,7 +2177,29 @@
         listStatus.textContent = assignedTasks.length
           ? `${assignedTasks.length} tarea(s) asignada(s).`
           : 'Aún no hay tareas para esta aula.';
+        const subjectGroups = new Map();
+        const unitGroups = new Map();
         assignedTasks.forEach((task) => {
+          const subjectName = task.materia || 'General';
+          const subjectKey = task.materiaId || subjectName.toLocaleLowerCase();
+          let subjectGroup = subjectGroups.get(subjectKey);
+          if (!subjectGroup) {
+            subjectGroup = document.createElement('section');
+            subjectGroup.className = 'task-subject-group';
+            addText(subjectGroup, 'h4', 'task-subject-heading', subjectName);
+            subjectGroups.set(subjectKey, subjectGroup);
+            taskList.append(subjectGroup);
+          }
+          const unitName = String(task.unidad || '').trim() || 'Sin unidad';
+          const unitKey = `${subjectKey}\u0000${unitName.toLocaleLowerCase()}`;
+          let unitGroup = unitGroups.get(unitKey);
+          if (!unitGroup) {
+            unitGroup = document.createElement('section');
+            unitGroup.className = 'task-unit-group';
+            addText(unitGroup, 'h5', 'task-unit-heading', unitName);
+            unitGroups.set(unitKey, unitGroup);
+            subjectGroup.append(unitGroup);
+          }
           const card = document.createElement('article');
           card.className = 'task-card';
           addText(card, 'h4', '', task.titulo || 'Tarea sin título');
@@ -2248,7 +2277,7 @@
             }
           });
           card.append(actions);
-          taskList.append(card);
+          unitGroup.append(card);
         });
       } catch (error) {
         console.error(`No se pudieron cargar las tareas del aula ${aula.id}:`, error);
@@ -2381,10 +2410,14 @@
         subjectField.className = 'task-field';
         subjectField.append(document.createTextNode('Materia'));
         const subjectSelect = document.createElement('select');
-        subjectSelect.add(new Option('General (sin materia)', ''));
-        Array.from(taskSubjects.entries())
-          .sort((left, right) => left[1].nombre.localeCompare(right[1].nombre, 'es'))
-          .forEach(([id, subject]) => subjectSelect.add(new Option(subject.nombre, id)));
+        function renderTaskSubjectOptions(selectedId = '') {
+          subjectSelect.replaceChildren(new Option('General (sin materia)', ''));
+          Array.from(taskSubjects.entries())
+            .sort((left, right) => left[1].nombre.localeCompare(right[1].nombre, 'es'))
+            .forEach(([id, subject]) => subjectSelect.add(new Option(subject.nombre, id)));
+          subjectSelect.value = selectedId;
+        }
+        renderTaskSubjectOptions();
         const legacySelectedSubject = Array.from(taskSubjects.entries()).find(([, subject]) =>
           subject.nombre.toLocaleLowerCase() === String(editingTask?.materia || '').toLocaleLowerCase()
         );
@@ -2392,6 +2425,58 @@
           || legacySelectedSubject?.[0]
           || '';
         subjectField.append(subjectSelect);
+        const newSubjectControls = document.createElement('div');
+        newSubjectControls.className = 'task-inline-create';
+        const newSubjectField = document.createElement('label');
+        newSubjectField.className = 'task-field';
+        newSubjectField.append(document.createTextNode('Agregar materia'));
+        const newSubjectInput = document.createElement('input');
+        newSubjectInput.type = 'text';
+        newSubjectInput.maxLength = 80;
+        newSubjectInput.placeholder = 'Ej. Historia';
+        newSubjectInput.setAttribute('aria-label', 'Nombre de la nueva materia');
+        newSubjectField.append(newSubjectInput);
+        const createSubjectButton = addText(newSubjectControls, 'button', 'task-secondary-button', 'Crear');
+        createSubjectButton.type = 'button';
+        newSubjectControls.prepend(newSubjectField);
+        subjectField.append(newSubjectControls);
+
+        const unitField = document.createElement('label');
+        unitField.className = 'task-field';
+        unitField.append(document.createTextNode('Unidad'));
+        const unitInput = document.createElement('input');
+        unitInput.type = 'text';
+        unitInput.maxLength = 100;
+        unitInput.placeholder = 'Ej. Unidad 1 · Números';
+        unitInput.setAttribute('aria-label', 'Unidad de la tarea');
+        unitInput.value = editingTask?.unidad || '';
+        unitInput.required = Boolean(subjectSelect.value);
+        const unitSuggestions = document.createElement('datalist');
+        unitSuggestions.id = `task-unit-options-${aula.id}`;
+        unitInput.setAttribute('list', unitSuggestions.id);
+        unitField.append(unitInput);
+        function refreshUnitSuggestions() {
+          unitSuggestions.replaceChildren();
+          const selectedSubject = taskSubjects.get(subjectSelect.value);
+          const subjectName = selectedSubject?.nombre || '';
+          const units = new Set(assignedTasks
+            .filter((task) => task.materiaId === subjectSelect.value
+              || (!task.materiaId && subjectName
+                && String(task.materia || '').toLocaleLowerCase() === subjectName.toLocaleLowerCase()))
+            .map((task) => String(task.unidad || '').trim())
+            .filter(Boolean));
+          Array.from(units).sort((left, right) => left.localeCompare(right, 'es')).forEach((unit) => {
+            const option = document.createElement('option');
+            option.value = unit;
+            unitSuggestions.append(option);
+          });
+        }
+        refreshUnitSuggestions();
+        settingsCard.append(unitSuggestions);
+        subjectSelect.addEventListener('change', () => {
+          refreshUnitSuggestions();
+          unitInput.required = Boolean(subjectSelect.value);
+        });
 
         const assignField = document.createElement('div');
         assignField.className = 'task-field';
@@ -2477,7 +2562,7 @@
         const includeInAverageLabel = document.createElement('span');
         includeInAverageLabel.textContent = 'Incluir la calificación en el promedio';
         includeInAverageField.append(includeInAverageInput, includeInAverageLabel);
-        settingsCard.append(courseField, subjectField, assignField, pointsField, dueDateField, closeField, topicField, includeInAverageField);
+        settingsCard.append(courseField, subjectField, unitField, assignField, pointsField, dueDateField, closeField, topicField, includeInAverageField);
 
         const actionsCard = document.createElement('section');
         actionsCard.className = 'task-composer-card';
@@ -2490,6 +2575,44 @@
         const formStatus = addText(actionsCard, 'p', 'task-form-status', '');
         formStatus.setAttribute('role', 'status');
         actionsCard.append(actions, formStatus);
+        createSubjectButton.addEventListener('click', async () => {
+          const subjectName = newSubjectInput.value.trim();
+          if (!subjectName) {
+            formStatus.textContent = 'Escribe el nombre de la materia.';
+            newSubjectInput.focus();
+            return;
+          }
+          const existingSubject = Array.from(taskSubjects.entries()).find(([, subject]) =>
+            subject.nombre.toLocaleLowerCase() === subjectName.toLocaleLowerCase()
+          );
+          if (existingSubject) {
+            renderTaskSubjectOptions(existingSubject[0]);
+            refreshUnitSuggestions();
+            formStatus.textContent = 'Esa materia ya existe y quedó seleccionada.';
+            newSubjectInput.value = '';
+            return;
+          }
+          createSubjectButton.disabled = true;
+          formStatus.textContent = 'Creando materia...';
+          try {
+            const subjectId = `materia-${encodeURIComponent(subjectName.toLocaleLowerCase())}`;
+            await setDoc(doc(db, 'Aulas', aula.id, 'materias', subjectId), {
+              nombre: subjectName,
+              profesorDocId: session.teacherDocId,
+              creadoEn: serverTimestamp()
+            }, { merge: true });
+            taskSubjects.set(subjectId, { nombre: subjectName });
+            renderTaskSubjectOptions(subjectId);
+            refreshUnitSuggestions();
+            newSubjectInput.value = '';
+            formStatus.textContent = `Materia ${subjectName} creada y seleccionada.`;
+          } catch (error) {
+            console.error(`No se pudo crear la materia ${subjectName} del aula ${aula.id}:`, error);
+            formStatus.textContent = 'No se pudo crear la materia. Revisa los permisos de Firestore.';
+          } finally {
+            createSubjectButton.disabled = false;
+          }
+        });
         sidebar.append(settingsCard, actionsCard);
         composer.append(main, sidebar);
         tasksPage.replaceChildren(composer);
@@ -2553,6 +2676,7 @@
               tema: topicInput.value.trim(),
               materiaId: selectedSubject ? subjectSelect.value : '',
               materia: selectedSubject?.nombre || '',
+              unidad: unitInput.value.trim(),
               considerarEnPromedio: includeInAverageInput.checked,
               adjuntos: attachmentItems,
               alumnosAsignados,

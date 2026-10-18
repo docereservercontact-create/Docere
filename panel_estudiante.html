@@ -372,6 +372,10 @@
     .calendar-day-assignment-link { display: block; margin-top: 4px; color: var(--accent); font-weight: 650; overflow-wrap: anywhere; }
 
     .pending-list { display: grid; gap: 10px; }
+    .pending-subject-group, .pending-unit-group { display: grid; gap: 8px; }
+    .pending-subject-heading { margin: 8px 0 0; color: var(--text-primary); font-size: 14px; }
+    .pending-unit-group { padding: 9px 0 2px; border-top: 1px solid var(--border); }
+    .pending-unit-heading { margin: 0; color: var(--text-secondary); font-size: 12px; }
     .pending-task { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 11px; border: 1px solid var(--border); border-radius: 9px; background: #f8fafc; }
     .pending-task-name { grid-column: 1 / -1; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
     .pending-task-due { color: var(--text-secondary); font-size: 11px; line-height: 1.4; }
@@ -1826,16 +1830,37 @@
             ? 'No se pudieron verificar algunas entregas. Recarga cuando Storage esté disponible.'
             : '¡Muy bien! No tienes tareas pendientes de entrega.');
         } else {
+          const subjectGroups = new Map();
+          const unitGroups = new Map();
           pendingTasks.forEach((task) => {
+            const subjectName = task.materia || 'General';
+            const subjectKey = `${task.aulaId || ''}/${task.materiaId || subjectName.toLocaleLowerCase()}`;
+            let subjectGroup = subjectGroups.get(subjectKey);
+            if (!subjectGroup) {
+              subjectGroup = document.createElement('section');
+              subjectGroup.className = 'pending-subject-group';
+              addWallText(subjectGroup, 'h3', 'pending-subject-heading', subjectName);
+              subjectGroups.set(subjectKey, subjectGroup);
+              pendingTasksList.append(subjectGroup);
+            }
+            const unitName = String(task.unidad || '').trim() || 'Sin unidad';
+            const unitKey = `${subjectKey}\u0000${unitName.toLocaleLowerCase()}`;
+            let unitGroup = unitGroups.get(unitKey);
+            if (!unitGroup) {
+              unitGroup = document.createElement('section');
+              unitGroup.className = 'pending-unit-group';
+              addWallText(unitGroup, 'h4', 'pending-unit-heading', unitName);
+              unitGroups.set(unitKey, unitGroup);
+              subjectGroup.append(unitGroup);
+            }
             const item = document.createElement('article');
             item.className = 'pending-task';
             addWallText(item, 'strong', 'pending-task-name', task.titulo || 'Tarea sin título');
-            addWallText(item, 'span', 'pending-task-due', `Materia: ${task.materia || 'General'}`);
             addWallText(item, 'span', 'pending-task-due', `Entrega: ${formatTaskDeadline(task.fechaEntrega)}`);
             const link = addWallText(item, 'a', 'pending-task-link', 'Ver');
             link.href = `asignaciones.html#assignment-${encodeURIComponent(task.id)}`;
             link.setAttribute('aria-label', `Ver la tarea ${task.titulo || 'sin título'}`);
-            pendingTasksList.append(item);
+            unitGroup.append(item);
           });
         }
 
