@@ -653,7 +653,9 @@
     function getValidClassMeetingUrl(classroom) {
       try {
         const url = new URL(String(classroom.enlaceClase || '').trim());
-        return url.protocol === 'https:' ? url.href : '';
+        return url.protocol === 'https:' && url.hostname === 'meet.google.com' && url.pathname !== '/'
+          ? url.href
+          : '';
       } catch {
         return '';
       }

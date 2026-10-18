@@ -70,12 +70,18 @@
     .classroom-header h2 { position: relative; z-index: 1; margin: 0 0 5px; font-size: clamp(22px, 3vw, 30px); line-height: 1.25; overflow-wrap: anywhere; }
     .classroom-header p { position: relative; z-index: 1; margin: 0; color: rgba(255,255,255,.88); font-size: 13px; font-weight: 600; }
     .student-count { position: relative; z-index: 1; flex: 0 0 auto; padding: 5px 8px; border-radius: 20px; background: rgba(255,255,255,.18); color: #fff; font-size: 11px; font-weight: 650; white-space: nowrap; }
-    .class-meeting-settings { position: relative; z-index: 1; display: grid; flex: 1 1 320px; gap: 6px; max-width: 420px; }
-    .class-meeting-settings label, .class-meeting-status { color: rgba(255,255,255,.9); font-size: 12px; }
-    .class-meeting-settings input { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid rgba(255,255,255,.5); border-radius: 5px; background: rgba(255,255,255,.96); color: #17212b; font: inherit; }
-    .class-meeting-settings button { justify-self: start; min-height: 36px; padding: 0 12px; border: 0; border-radius: 5px; background: #fff; color: #243b53; font-weight: 650; cursor: pointer; }
-    .class-meeting-settings button:disabled { cursor: wait; opacity: .7; }
-    .class-meeting-status { min-height: 16px; margin: 0; }
+    .meeting-link-dialog { width: min(92vw, 500px); margin: auto; padding: 22px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); box-shadow: 0 20px 50px rgba(15, 23, 42, .25); }
+    .meeting-link-dialog::backdrop { background: rgba(15, 23, 42, .55); }
+    .meeting-link-dialog h2 { margin: 0 0 6px; font-size: 19px; }
+    .meeting-link-dialog > p { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+    .meeting-link-form { display: grid; gap: 10px; }
+    .meeting-link-form label { font-size: 13px; font-weight: 650; }
+    .meeting-link-form input { width: 100%; min-height: 42px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
+    .meeting-link-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .meeting-link-actions button { min-height: 38px; padding: 0 13px; border: 0; border-radius: 5px; background: var(--blue); color: #fff; font-weight: 650; cursor: pointer; }
+    .meeting-link-actions button[type="button"] { border: 1px solid var(--line); background: #fff; color: var(--ink); }
+    .meeting-link-actions button:disabled { cursor: wait; opacity: .65; }
+    .meeting-link-status { min-height: 18px; margin: 0; color: var(--muted); font-size: 12px; }
     .class-tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--line); }
     .class-tab { flex: 0 0 auto; min-height: 48px; padding: 0 12px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #475569; font-size: 12px; font-weight: 650; cursor: pointer; }
     .class-tab:hover { background: #f8fafc; }
@@ -2807,53 +2813,6 @@
       addText(banner, 'span', 'student-count', `${aula.alumnos.length} alumno${aula.alumnos.length === 1 ? '' : 's'}`);
       banner.prepend(bannerTitle);
 
-      const meetingSettings = document.createElement('div');
-      meetingSettings.className = 'class-meeting-settings';
-      const meetingLabel = addText(meetingSettings, 'label', '', 'Enlace de la clase para esta aula');
-      const meetingInput = document.createElement('input');
-      meetingInput.type = 'url';
-      meetingInput.inputMode = 'url';
-      meetingInput.placeholder = 'https://...';
-      meetingInput.value = aula.enlaceClase || '';
-      meetingInput.setAttribute('aria-label', `Enlace de clase para ${aula.nombre || 'esta aula'}`);
-      meetingLabel.htmlFor = `meeting-url-${aula.id}`;
-      meetingInput.id = meetingLabel.htmlFor;
-      const saveMeetingButton = addText(meetingSettings, 'button', '', 'Guardar enlace');
-      saveMeetingButton.type = 'button';
-      const meetingStatus = addText(meetingSettings, 'p', 'class-meeting-status', '');
-      meetingStatus.setAttribute('role', 'status');
-      saveMeetingButton.addEventListener('click', async () => {
-        const meetingUrl = meetingInput.value.trim();
-        if (meetingUrl) {
-          try {
-            const parsedUrl = new URL(meetingUrl);
-            if (parsedUrl.protocol !== 'https:') {
-              meetingStatus.textContent = 'El enlace debe usar HTTPS.';
-              return;
-            }
-          } catch (error) {
-            meetingStatus.textContent = 'Escribe un enlace válido que comience con https://.';
-            return;
-          }
-        }
-
-        saveMeetingButton.disabled = true;
-        meetingStatus.textContent = 'Guardando enlace...';
-        try {
-          await updateDoc(doc(db, 'Aulas', aula.id), {
-            enlaceClase: meetingUrl,
-            enlaceClaseActualizadoEn: serverTimestamp()
-          });
-          aula.enlaceClase = meetingUrl;
-          meetingStatus.textContent = meetingUrl ? 'Enlace guardado para esta aula.' : 'Enlace eliminado de esta aula.';
-        } catch (error) {
-          console.error(`No se pudo guardar el enlace de clase del aula ${aula.id}:`, error);
-          meetingStatus.textContent = 'No se pudo guardar el enlace. Revisa la conexión y los permisos de Firestore.';
-        } finally {
-          saveMeetingButton.disabled = false;
-        }
-      });
-      banner.append(meetingSettings);
       classroom.append(banner);
 
       const tabs = document.createElement('div');
@@ -2863,9 +2822,76 @@
       const content = document.createElement('section');
       content.className = 'tab-content';
       content.setAttribute('role', 'tabpanel');
+      const meetingDialog = document.createElement('dialog');
+      meetingDialog.className = 'meeting-link-dialog';
+      meetingDialog.setAttribute('aria-labelledby', `meeting-title-${aula.id}`);
+      const meetingTitle = addText(meetingDialog, 'h2', '', 'Enlace de Google Meet');
+      meetingTitle.id = `meeting-title-${aula.id}`;
+      addText(meetingDialog, 'p', '', `Configura el enlace que usarán los alumnos del grupo ${aula.nombre || 'de esta aula'}.`);
+      const meetingForm = document.createElement('form');
+      meetingForm.className = 'meeting-link-form';
+      const meetingLabel = addText(meetingForm, 'label', '', 'Enlace de la reunión');
+      const meetingInput = document.createElement('input');
+      meetingInput.type = 'url';
+      meetingInput.inputMode = 'url';
+      meetingInput.placeholder = 'https://meet.google.com/abc-defg-hij';
+      meetingInput.value = aula.enlaceClase || '';
+      meetingInput.autocomplete = 'url';
+      meetingInput.required = true;
+      meetingInput.setAttribute('aria-label', `Enlace de Google Meet para ${aula.nombre || 'esta aula'}`);
+      meetingLabel.htmlFor = `meeting-url-${aula.id}`;
+      meetingInput.id = meetingLabel.htmlFor;
+      const meetingStatus = addText(meetingForm, 'p', 'meeting-link-status', '');
+      meetingStatus.setAttribute('role', 'status');
+      const meetingActions = document.createElement('div');
+      meetingActions.className = 'meeting-link-actions';
+      const saveMeetingButton = addText(meetingActions, 'button', '', 'Guardar para este grupo');
+      saveMeetingButton.type = 'submit';
+      const closeMeetingButton = addText(meetingActions, 'button', '', 'Cancelar');
+      closeMeetingButton.type = 'button';
+      closeMeetingButton.addEventListener('click', () => meetingDialog.close());
+      meetingForm.append(meetingInput, meetingStatus, meetingActions);
+      meetingForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!meetingInput.reportValidity()) return;
+        let parsedUrl;
+        try {
+          parsedUrl = new URL(meetingInput.value.trim());
+        } catch {
+          meetingStatus.textContent = 'Escribe un enlace válido de Google Meet.';
+          return;
+        }
+        if (parsedUrl.protocol !== 'https:' || parsedUrl.hostname !== 'meet.google.com' || parsedUrl.pathname === '/') {
+          meetingStatus.textContent = 'Usa un enlace de reunión de Google Meet, por ejemplo https://meet.google.com/abc-defg-hij.';
+          return;
+        }
+
+        saveMeetingButton.disabled = true;
+        meetingStatus.textContent = 'Guardando enlace para este grupo...';
+        try {
+          const meetingUrl = parsedUrl.href;
+          await updateDoc(doc(db, 'Aulas', aula.id), {
+            enlaceClase: meetingUrl,
+            enlaceClaseActualizadoEn: serverTimestamp()
+          });
+          aula.enlaceClase = meetingUrl;
+          meetingStatus.textContent = 'Enlace guardado. Los alumnos de este grupo ya pueden entrar a la reunión.';
+        } catch (error) {
+          console.error(`No se pudo guardar el enlace de Google Meet del aula ${aula.id}:`, error);
+          meetingStatus.textContent = 'No se pudo guardar el enlace. Revisa la conexión y los permisos de Firestore.';
+        } finally {
+          saveMeetingButton.disabled = false;
+        }
+      });
+      meetingDialog.append(meetingForm);
+      meetingDialog.addEventListener('click', (event) => {
+        if (event.target === meetingDialog) meetingDialog.close();
+      });
+      classroom.append(meetingDialog);
       const tabOptions = [
         { id: 'padlet', label: 'Padlet' },
         { id: 'pizarras', label: 'Pizarras' },
+        { id: 'meeting-link', label: 'Enlace de clase' },
         { id: 'publications', label: 'Eventos' },
         { id: 'study-materials', label: 'Material de estudio' },
         { id: 'attendance', label: 'Lista de asistencias' },
@@ -2913,6 +2939,12 @@
         button.setAttribute('role', 'tab');
         button.textContent = label;
         button.addEventListener('click', () => {
+          if (id === 'meeting-link') {
+            meetingInput.value = aula.enlaceClase || '';
+            meetingStatus.textContent = '';
+            meetingDialog.showModal();
+            return;
+          }
           selectTab(id).catch((error) => {
             console.error(`No se pudo abrir la sección ${id} del aula ${aula.id}:`, error);
             content.replaceChildren();
