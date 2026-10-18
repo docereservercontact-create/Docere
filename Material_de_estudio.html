@@ -594,6 +594,7 @@
     import { collection, getDocs, getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
     import { firebaseConfig } from './portal-auth.js';
+    import { bindStudentClassMeetingButton } from './student-class-meeting.js';
 
     const studyMaterialsAppName = 'studentStudyMaterials';
     const studyMaterialsApp = getApps().find((firebaseApp) => firebaseApp.name === studyMaterialsAppName)
@@ -845,32 +846,11 @@
 
     loadStudyVideos();
 
-    const classEntryButton = document.getElementById('btnIngresarClase');
-    const classMeetingUrl = 'https://us05web.zoom.us/j/3748692842?pwd=w3a0SbHHfhjyhOa3kc7uJWQ19B9EQd.1';
-    classEntryButton.addEventListener('click', async () => {
-      classEntryButton.disabled = true;
-      const classWindow = window.open('about:blank', '_blank');
-      try {
-        const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
-        const absenceStatus = await getStudentAbsenceStatus(session);
-        if (absenceStatus.isSuspended) {
-          classWindow?.close();
-          alert(getSuspensionMessage(absenceStatus));
-          return;
-        }
-        if (classWindow) {
-          classWindow.opener = null;
-          classWindow.location.href = classMeetingUrl;
-        } else {
-          window.location.assign(classMeetingUrl);
-        }
-      } catch (error) {
-        console.error('No se pudo verificar la asistencia antes de entrar a clase:', error);
-        classWindow?.close();
-        alert('No se pudo verificar tu estado de asistencia. Inténtalo de nuevo.');
-      } finally {
-        classEntryButton.disabled = false;
-      }
+    bindStudentClassMeetingButton({
+      button: document.getElementById('btnIngresarClase'),
+      db,
+      getStudentAbsenceStatus,
+      getSuspensionMessage
     });
   </script>
 

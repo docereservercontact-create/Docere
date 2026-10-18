@@ -349,6 +349,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
+    import { bindStudentClassMeetingButton } from './student-class-meeting.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -362,8 +363,6 @@
 
     const message = document.getElementById('accessMessage');
     const pizarrasList = document.getElementById('pizarrasList');
-    const classEntryButton = document.getElementById('btnIngresarClase');
-    const classMeetingUrl = 'https://us05web.zoom.us/j/6267570247?pwd=4RUncd21Wu6AkiuX6d9rpm5W6RuxNS.1';
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -417,30 +416,11 @@
       }
     });
 
-    classEntryButton.addEventListener('click', async () => {
-      classEntryButton.disabled = true;
-      const classWindow = window.open('about:blank', '_blank');
-      try {
-        const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
-        const absenceStatus = await getStudentAbsenceStatus(session);
-        if (absenceStatus.isSuspended) {
-          classWindow?.close();
-          alert(getSuspensionMessage(absenceStatus));
-          return;
-        }
-        if (classWindow) {
-          classWindow.opener = null;
-          classWindow.location.href = classMeetingUrl;
-        } else {
-          window.location.assign(classMeetingUrl);
-        }
-      } catch (error) {
-        console.error('No se pudo verificar la asistencia antes de entrar a clase:', error);
-        classWindow?.close();
-        alert('No se pudo verificar tu estado de asistencia. Inténtalo de nuevo.');
-      } finally {
-        classEntryButton.disabled = false;
-      }
+    bindStudentClassMeetingButton({
+      button: document.getElementById('btnIngresarClase'),
+      db,
+      getStudentAbsenceStatus,
+      getSuspensionMessage
     });
 
     try {

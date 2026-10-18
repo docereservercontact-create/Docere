@@ -946,6 +946,7 @@
     import { getMetadata, getStorage, listAll, ref } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
     import { auth, authApp } from './portal-auth.js';
+    import { bindStudentClassMeetingButton } from './student-class-meeting.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -974,7 +975,6 @@
     const notificationList = document.getElementById('notificationList');
     const notificationToast = document.getElementById('notificationToast');
     const classEntryButton = document.getElementById('btnIngresarClase');
-    const classMeetingUrl = 'meet.google.com/abx-rmgq-zvf';
     const app = initializeApp(firebaseConfig, 'studentAnnouncementWall');
     const db = getFirestore(app);
     const authenticatedDb = getFirestore(authApp);
@@ -1910,50 +1910,25 @@
       return Math.min(100, Math.round((attendedHours / courseHours) * 100));
     }
 
-    classEntryButton.addEventListener('click', async () => {
-      classEntryButton.disabled = true;
-      classEntryButton.setAttribute('aria-busy', 'true');
-      const classWindow = window.open('about:blank', '_blank');
-
-      try {
-        const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
-        const absenceStatus = await getStudentAbsenceStatus(session);
-        if (absenceStatus.isSuspended) {
-          classWindow?.close();
-          alert(getSuspensionMessage(absenceStatus));
-          return;
-        }
-
-        if (!isUnamAdmissionStudent(session)) {
-          if (classWindow) {
-            classWindow.opener = null;
-            classWindow.location.href = classMeetingUrl;
-          } else {
-            window.location.assign(classMeetingUrl);
+    bindStudentClassMeetingButton({
+      button: classEntryButton,
+      db,
+      getStudentAbsenceStatus,
+      getSuspensionMessage,
+      beforeOpen: async (student) => {
+        if (!isUnamAdmissionStudent(student)) return true;
+        try {
+          const progress = await getStudentProgress(student);
+          if (progress >= 100) {
+            alert('Ya no tienes horas disponibles. Comunícate con un asesor de ventas o con tu profesor asignado.');
+            return false;
           }
-          return;
+          return true;
+        } catch (error) {
+          console.error('No se pudo verificar el avance antes de entrar a clase:', error);
+          alert('No se pudo verificar tu avance. Inténtalo de nuevo o comunícate con un asesor de ventas o con tu profesor asignado.');
+          return false;
         }
-
-        const progress = await getStudentProgress(session);
-        if (progress >= 100) {
-          classWindow?.close();
-          alert('Ya no tienes horas disponibles. Comunícate con un asesor de ventas o con tu profesor asignado.');
-          return;
-        }
-
-        if (classWindow) {
-          classWindow.opener = null;
-          classWindow.location.href = classMeetingUrl;
-        } else {
-          window.location.assign(classMeetingUrl);
-        }
-      } catch (error) {
-        console.error('No se pudo verificar el avance antes de entrar a clase:', error);
-        classWindow?.close();
-        alert('No se pudo verificar tu avance. Inténtalo de nuevo o comunícate con un asesor de ventas o con tu profesor asignado.');
-      } finally {
-        classEntryButton.disabled = false;
-        classEntryButton.removeAttribute('aria-busy');
       }
     });
 
