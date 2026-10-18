@@ -2827,11 +2827,12 @@
         if (meetingUrl) {
           try {
             const parsedUrl = new URL(meetingUrl);
-            if (parsedUrl.protocol !== 'https:') throw new Error('El enlace debe usar HTTPS.');
+            if (parsedUrl.protocol !== 'https:') {
+              meetingStatus.textContent = 'El enlace debe usar HTTPS.';
+              return;
+            }
           } catch (error) {
-            meetingStatus.textContent = error.message === 'El enlace debe usar HTTPS.'
-              ? error.message
-              : 'Escribe un enlace válido que comience con https://.';
+            meetingStatus.textContent = 'Escribe un enlace válido que comience con https://.';
             return;
           }
         }
