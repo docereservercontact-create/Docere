@@ -208,11 +208,12 @@
         const countedExams = exams.filter((exam) => exam.countsForAverage);
         const gradedCountedExams = countedExams.filter((exam) => exam.score !== null);
         const average = gradedCountedExams.length
-          ? gradedCountedExams.reduce((sum, exam) => sum + exam.score, 0) / gradedCountedExams.length
+          ? gradedCountedExams.reduce((sum, exam) => sum + (exam.score / exam.maxScore) * 10, 0)
+            / gradedCountedExams.length
           : null;
         averageElement.textContent = average === null
           ? '—'
-          : new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(average);
+          : `${new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(average)} / 10`;
         const excludedCount = exams.length - countedExams.length;
         averageCount.textContent = countedExams.length
           ? `${gradedCountedExams.length} de ${countedExams.length} exámenes que cuentan calificados · ${excludedCount} excluido(s)`

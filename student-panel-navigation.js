@@ -39,8 +39,11 @@
     ['Material_de_estudio.html', 'Material de Estudio'],
     ['https://www.bidi.unam.mx/', 'Libreria', true]
   ];
-  navLinks.replaceChildren();
   const currentPage = window.location.pathname.split('/').pop() || 'panel_estudiante.html';
+  if (currentPage === 'panel_estudiante.html') {
+    links.splice(2, 0, ['#pagos', 'Pagos']);
+  }
+  navLinks.replaceChildren();
   links.forEach(([href, label, external]) => {
     const listItem = document.createElement('li');
     const link = document.createElement('a');

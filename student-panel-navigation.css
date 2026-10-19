@@ -11,13 +11,13 @@
 .student-nav-container {
   position: relative;
   display: flex;
-  width: min(100%, 1360px);
+  width: min(100%, 1600px);
   min-height: 68px;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 12px;
   margin: 0 auto;
-  padding: 10px 20px;
+  padding: 8px 12px;
 }
 
 .student-brand {
@@ -40,7 +40,7 @@
   flex: 1 1 auto;
   align-items: center;
   justify-content: center;
-  gap: clamp(12px, 1.6vw, 24px);
+  gap: clamp(6px, .55vw, 10px);
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -49,10 +49,10 @@
 
 .student-nav-links a {
   display: block;
-  padding: 8px 0;
+  padding: 7px 5px;
   border-radius: 8px;
   color: #475569;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.35;
   text-decoration: none;
@@ -226,35 +226,13 @@
   height: 21px;
 }
 
-@media (min-width: 1101px) {
-  .student-nav-container {
-    flex-wrap: wrap;
-    row-gap: 2px;
-  }
-
-  .student-brand {
-    order: 1;
-  }
-
-  .student-nav-actions {
-    order: 2;
-  }
-
+@media (min-width: 1401px) {
   .student-nav-links {
-    flex: 1 0 100%;
-    flex-wrap: wrap;
-    order: 3;
-    justify-content: space-evenly;
-    gap: 6px 20px;
-    padding-top: 2px;
-  }
-
-  .student-nav-links a {
-    padding: 8px 10px;
+    flex-wrap: nowrap;
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1400px) {
   .student-nav-container {
     justify-content: space-between;
     gap: 12px;
