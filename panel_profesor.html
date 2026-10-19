@@ -89,6 +89,43 @@
     .tab-content { min-height: 330px; padding: 18px; }
     .tab-content[hidden] { display: none; }
     .announcements { display: grid; gap: 14px; }
+    .teacher-announcement-layout { display: grid; grid-template-columns: minmax(235px, 275px) minmax(0, 1fr) minmax(230px, 290px); align-items: start; gap: 14px; min-width: 0; }
+    .teacher-evaluation-calendar, .teacher-announcement-main, .teacher-dashboard-sidebar { display: grid; min-width: 0; gap: 14px; }
+    .teacher-evaluation-calendar { position: sticky; top: 82px; }
+    .teacher-evaluation-calendar .student-due-calendar { margin: 0; padding: 12px; }
+    .teacher-evaluation-calendar .student-due-calendar-header { display: grid; gap: 8px; }
+    .teacher-evaluation-calendar .student-due-calendar-header h2 { font-size: 15px; }
+    .teacher-evaluation-calendar .student-due-calendar-month-nav { justify-content: space-between; gap: 6px; }
+    .teacher-evaluation-calendar .student-due-calendar-month { min-width: 0; font-size: 12px; }
+    .teacher-evaluation-calendar .student-due-calendar-nav { width: 30px; height: 30px; flex: 0 0 30px; }
+    .teacher-evaluation-calendar .student-due-calendar-grid { gap: 2px; }
+    .teacher-evaluation-calendar .student-due-calendar-weekday { padding: 5px 0; font-size: 10px; }
+    .teacher-evaluation-calendar .student-due-calendar-day { min-height: 36px; font-size: 11px; }
+    .teacher-evaluation-calendar .student-due-calendar-details { padding: 9px; }
+    .teacher-evaluation-calendar .student-due-calendar-details p,
+    .teacher-evaluation-calendar .student-due-calendar-task-label { font-size: 11px; }
+    .teacher-evaluation-calendar .student-due-calendar-task-meta { font-size: 10px; }
+    .teacher-pending-undated { display: grid; gap: 7px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .teacher-pending-undated h3 { margin: 0; font-size: 13px; }
+    .teacher-pending-undated-list { display: grid; max-height: 180px; gap: 6px; overflow-y: auto; }
+    .teacher-pending-undated-item { display: grid; gap: 2px; padding: 7px; border: 1px solid var(--line); border-radius: 5px; }
+    .teacher-pending-undated-item strong { font-size: 11px; overflow-wrap: anywhere; }
+    .teacher-pending-undated-item span, .teacher-evaluation-status { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
+    .teacher-dashboard-sidebar { position: sticky; top: 82px; }
+    .teacher-sidebar-card { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .teacher-sidebar-card h3 { margin: 0; font-size: 15px; }
+    .teacher-upcoming-events { display: grid; max-height: 300px; gap: 8px; overflow-y: auto; padding: 8px; border: 1px dashed var(--line); border-radius: 6px; }
+    .teacher-upcoming-event { display: grid; gap: 3px; padding: 9px; border: 1px solid var(--line); border-radius: 5px; background: #fff; }
+    .teacher-upcoming-event strong { color: var(--blue); font-size: 12px; overflow-wrap: anywhere; }
+    .teacher-upcoming-event span, .teacher-sidebar-empty { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .teacher-create-event { width: 100%; min-height: 36px; padding: 0 10px; border: 1px solid var(--blue); border-radius: 5px; background: #fff; color: var(--blue); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+    .teacher-create-event:hover { background: #edf3fb; }
+    .teacher-ranking-table-wrap { max-height: 280px; overflow: auto; }
+    .teacher-ranking-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .teacher-ranking-table th, .teacher-ranking-table td { padding: 7px 5px; border-bottom: 1px solid var(--line); text-align: left; }
+    .teacher-ranking-table th:last-child, .teacher-ranking-table td:last-child { text-align: right; white-space: nowrap; }
+    .teacher-ranking-table td:nth-child(2) { overflow-wrap: anywhere; }
+    .teacher-ranking-table tr:last-child td { border-bottom: 0; }
     .announcement-form { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
     .announcement-form input, .announcement-form select { min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
     .editor-toolbar { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -174,18 +211,35 @@
     .attendance-history .state-absent { color: var(--red); font-weight: 650; }
     .attendance-history .state-late { color: #a15c00; font-weight: 650; }
     .attendance-history .state-justified { color: #475569; font-weight: 650; }
-    .grades-page { display: grid; gap: 14px; }
+    .grades-page { display: grid; min-width: 0; gap: 14px; }
+    .grades-list { min-width: 0; }
     .grades-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
     .grades-average { display: inline-flex; align-items: baseline; gap: 8px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: #f8fbfd; color: var(--muted); font-size: 13px; }
     .grades-average strong { color: var(--ink); font-size: 18px; }
     .grades-table-wrap { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; border: 1px solid var(--line); border-radius: 8px; }
-    .grades-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; white-space: nowrap; }
+    .grades-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
     .grades-table th, .grades-table td { padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: left; }
+    .grades-table th:not(:first-child), .grades-table td:not(:first-child) { text-align: center; }
     .grades-table th { background: #f1f5f9; font-weight: 700; }
-    .grades-table th:first-child, .grades-table td:first-child { position: sticky; left: 0; z-index: 2; box-shadow: 1px 0 0 var(--line); }
-    .grades-table th:first-child { z-index: 3; background: #f1f5f9; }
+    .grades-student-header { display: grid; justify-items: center; gap: 3px; }
+    .grades-student-average { color: var(--muted); font-size: 11px; font-weight: 500; }
+    .grades-table th:first-child, .grades-table td:first-child { position: sticky; left: 0; z-index: 1; }
+    .grades-table th:first-child { background: #f1f5f9; }
     .grades-table td:first-child { background: #fff; font-weight: 650; }
-    .grades-table .grades-average-cell { color: var(--green); font-weight: 750; }
+    .grades-table .grades-subject-row th, .grades-table .grades-subject-row td { background: #eef4fb; font-weight: 750; }
+    .grades-table .grades-subject-row th:first-child { z-index: 2; }
+    .grades-table .grades-unit-row th, .grades-table .grades-unit-row td { background: #f8fafc; }
+    .grades-table .grades-unit-row th { padding-left: 24px; }
+    .grades-table .grades-task-row th { padding-left: 42px; background: #fff; font-weight: 550; }
+    .grades-table .grades-task-row td { background: #fff; }
+    .grades-table .grades-not-submitted { color: var(--red); font-weight: 650; }
+    .grades-table td[data-feedback]:hover, .grades-table td[data-feedback]:focus-visible { outline: 2px solid #a9c4ff; outline-offset: -2px; }
+    .grades-feedback-tooltip { position: fixed; z-index: 200; width: min(320px, calc(100vw - 24px)); max-height: min(220px, calc(100vh - 24px)); overflow: auto; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); box-shadow: 0 8px 24px rgba(15, 23, 42, .2); text-align: left; white-space: normal; pointer-events: none; }
+    .grades-feedback-tooltip[hidden] { display: none; }
+    .grades-feedback-tooltip strong { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; }
+    .grades-feedback-tooltip-body { overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
+    .grades-feedback-tooltip-body > :first-child { margin-top: 0; }
+    .grades-feedback-tooltip-body > :last-child { margin-bottom: 0; }
     .grades-table tr:last-child td { border-bottom: 0; }
     .tab-placeholder { padding: 26px 18px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); text-align: center; }
     .students { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 8px; padding: 0; }
@@ -292,6 +346,11 @@
     .study-video-item a { min-width: 0; color: var(--blue); font-size: 13px; overflow-wrap: anywhere; }
     .study-video-delete { flex: 0 0 auto; min-height: 32px; padding: 0 10px; border: 1px solid #f3b4b0; border-radius: 5px; background: #fff; color: var(--red); font-weight: 600; cursor: pointer; }
     .study-video-status { min-height: 18px; margin: 0; color: var(--muted); font-size: 13px; }
+    @media (max-width: 1200px) {
+      .teacher-announcement-layout { grid-template-columns: minmax(0, 1fr); }
+      .teacher-evaluation-calendar { position: static; }
+      .teacher-dashboard-sidebar { position: static; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
+    }
     @media (max-width: 960px) {
       .panel-layout { grid-template-columns: minmax(0, 1fr); }
       .class-sidebar { padding: 14px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -335,6 +394,8 @@
       .study-section-form button,
       .study-video-form button { width: 100%; }
       .announcement-card-header { flex-wrap: wrap; }
+      .teacher-announcement-layout { grid-template-columns: minmax(0, 1fr); }
+      .teacher-dashboard-sidebar { position: static; }
       .footer-columns { grid-template-columns: 1fr; gap: 20px; }
       footer { padding: 32px 16px 16px; }
       .footer-top { gap: 24px; margin-bottom: 24px; }
@@ -830,9 +891,27 @@
         : 'Publicado recientemente';
     }
 
-    async function renderAnnouncements(aula) {
+    async function renderAnnouncements(aula, onCreateEvent) {
       const announcements = document.createElement('section');
-      announcements.className = 'announcements';
+      announcements.className = 'teacher-announcement-layout';
+      const evaluationCalendarPanel = document.createElement('aside');
+      evaluationCalendarPanel.className = 'teacher-evaluation-calendar';
+      evaluationCalendarPanel.setAttribute('aria-label', 'Tareas pendientes de evaluar');
+      const evaluationCalendarStatus = addText(evaluationCalendarPanel, 'p', 'teacher-evaluation-status', 'Cargando tareas pendientes de evaluar...');
+      evaluationCalendarStatus.setAttribute('role', 'status');
+      const evaluationCalendarContainer = document.createElement('div');
+      const undatedTasks = document.createElement('section');
+      undatedTasks.className = 'teacher-pending-undated';
+      addText(undatedTasks, 'h3', '', 'Pendientes sin fecha');
+      const undatedTasksList = document.createElement('div');
+      undatedTasksList.className = 'teacher-pending-undated-list';
+      undatedTasks.append(undatedTasksList);
+      evaluationCalendarPanel.append(evaluationCalendarContainer, undatedTasks);
+      const announcementMain = document.createElement('div');
+      announcementMain.className = 'teacher-announcement-main';
+      const dashboardSidebar = document.createElement('aside');
+      dashboardSidebar.className = 'teacher-dashboard-sidebar';
+      dashboardSidebar.setAttribute('aria-label', 'Resumen del aula');
       const form = document.createElement('form');
       form.className = 'announcement-form';
       const titleInput = document.createElement('input');
@@ -869,6 +948,32 @@
       publishButton.type = 'submit';
       publishButton.textContent = 'Publicar anuncio';
 
+      const eventsCard = document.createElement('section');
+      eventsCard.className = 'teacher-sidebar-card';
+      addText(eventsCard, 'h3', '', 'Próximos eventos');
+      const upcomingEvents = document.createElement('div');
+      upcomingEvents.className = 'teacher-upcoming-events';
+      upcomingEvents.setAttribute('aria-live', 'polite');
+      addText(upcomingEvents, 'p', 'teacher-sidebar-empty', 'Cargando eventos...');
+      eventsCard.append(upcomingEvents);
+      const createEventButton = addText(eventsCard, 'button', 'teacher-create-event', 'Crear evento');
+      createEventButton.type = 'button';
+      createEventButton.addEventListener('click', () => {
+        if (typeof onCreateEvent === 'function') {
+          onCreateEvent().catch((error) => {
+            console.error(`No se pudo abrir el formulario de eventos del aula ${aula.id}:`, error);
+          });
+        }
+      });
+      const rankingCard = document.createElement('section');
+      rankingCard.className = 'teacher-sidebar-card';
+      addText(rankingCard, 'h3', '', 'Ranking de estudiantes');
+      const rankingContent = document.createElement('div');
+      rankingContent.className = 'teacher-ranking-table-wrap';
+      addText(rankingContent, 'p', 'teacher-sidebar-empty', 'Calculando promedios...');
+      rankingCard.append(rankingContent);
+      dashboardSidebar.append(eventsCard, rankingCard);
+
       commands.forEach(({ command, value, label, title, style }) => {
         const button = document.createElement('button');
         button.type = 'button';
@@ -888,8 +993,183 @@
       form.append(titleInput, toolbar, editor, publishButton, editorStatus);
       const announcementList = document.createElement('div');
       announcementList.className = 'announcement-list';
-      announcements.append(form, announcementList);
+      announcementMain.append(form, announcementList);
+      announcements.append(evaluationCalendarPanel, announcementMain, dashboardSidebar);
       let editingAnnouncementId = null;
+      let evaluationDataPromise;
+
+      function loadEvaluationData() {
+        if (!evaluationDataPromise) {
+          evaluationDataPromise = (async () => {
+            const taskSnapshot = await getDocs(collection(db, 'Aulas', aula.id, 'tareas'));
+            const tasks = taskSnapshot.docs.map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }));
+            const feedbackSnapshots = await Promise.all(tasks.map((task) =>
+              getDocs(collection(db, 'Aulas', aula.id, 'tareas', task.id, 'calificaciones'))
+            ));
+            return { tasks, feedbackSnapshots };
+          })();
+        }
+        return evaluationDataPromise;
+      }
+
+      async function loadUpcomingEvents() {
+        upcomingEvents.replaceChildren();
+        try {
+          const snapshot = await getDocs(collection(db, 'Aulas', aula.id, 'publicaciones'));
+          const today = getLocalDateString();
+          const records = snapshot.docs
+            .map((eventDoc) => ({ id: eventDoc.id, ...eventDoc.data() }))
+            .filter((record) => typeof record.fecha === 'string'
+              && /^\d{4}-\d{2}-\d{2}$/.test(record.fecha)
+              && !Number.isNaN(new Date(`${record.fecha}T12:00:00`).getTime())
+              && record.fecha >= today)
+            .sort((left, right) => left.fecha.localeCompare(right.fecha))
+            .slice(0, 5);
+          if (!records.length) {
+            addText(upcomingEvents, 'p', 'teacher-sidebar-empty', 'No hay próximos eventos.');
+            return;
+          }
+          records.forEach((record) => {
+            const eventCard = document.createElement('article');
+            eventCard.className = 'teacher-upcoming-event';
+            addText(eventCard, 'strong', '', record.titulo || 'Evento');
+            const date = new Intl.DateTimeFormat('es-MX', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric'
+            }).format(new Date(`${record.fecha}T12:00:00`));
+            addText(eventCard, 'span', '', `Fecha: ${date}`);
+            if (record.lugar) addText(eventCard, 'span', '', record.lugar);
+            upcomingEvents.append(eventCard);
+          });
+        } catch (error) {
+          console.error(`No se pudieron cargar los próximos eventos del aula ${aula.id}:`, error);
+          addText(upcomingEvents, 'p', 'teacher-sidebar-empty', 'No se pudieron cargar los eventos.');
+        }
+      }
+
+      function renderPendingEvaluationCalendar(tasks, feedbackSnapshots) {
+        const pendingTasks = tasks.map((task, taskIndex) => {
+          const assignedStudents = Array.isArray(task.alumnosAsignados)
+            ? task.alumnosAsignados
+            : Array.isArray(aula.alumnos) ? aula.alumnos : [];
+          const evaluatedStudentKeys = new Set();
+          feedbackSnapshots[taskIndex].docs.forEach((feedbackDoc) => {
+            const feedback = feedbackDoc.data();
+            if (feedback.calificacion == null || String(feedback.calificacion).trim() === '') return;
+            const score = Number(feedback.calificacion);
+            const maxScore = Number(feedback.puntosMaximos ?? task.puntos ?? 100);
+            if (!Number.isFinite(score) || !Number.isFinite(maxScore)
+                || maxScore <= 0 || score < 0 || score > maxScore) return;
+            if (feedback.estudianteId != null && feedback.estudianteColeccion) {
+              evaluatedStudentKeys.add(`${feedback.estudianteColeccion}/${feedback.estudianteId}`);
+              return;
+            }
+            const assignedStudent = assignedStudents.find((student) =>
+              feedbackDoc.id === `${student.coleccion}_${student.id}`
+            );
+            if (assignedStudent) evaluatedStudentKeys.add(`${assignedStudent.coleccion}/${assignedStudent.id}`);
+          });
+          const uniqueAssignees = new Map(assignedStudents
+            .filter((student) => student?.id != null && student.coleccion)
+            .map((student) => [`${student.coleccion}/${student.id}`, student]));
+          const assignedCount = uniqueAssignees.size;
+          const evaluatedCount = Array.from(uniqueAssignees.keys())
+            .filter((studentKey) => evaluatedStudentKeys.has(studentKey)).length;
+          const pendingCount = assignedCount - evaluatedCount;
+          return pendingCount > 0 ? { ...task, assignedCount, pendingCount } : null;
+        }).filter(Boolean);
+        const tasksWithDates = pendingTasks.filter((task) => getTaskDeadlineDate(task.fechaEntrega));
+        const tasksWithoutDates = pendingTasks.filter((task) => !getTaskDeadlineDate(task.fechaEntrega));
+        createStudentDueCalendar(evaluationCalendarContainer, null, {
+          title: 'Por evaluar',
+          gridLabel: 'Fechas de entrega de tareas pendientes de evaluar',
+          emptyDayMessage: 'No hay tareas pendientes de evaluar para este día.',
+          countLabel: 'tarea(s) por evaluar'
+        }).setTasks(tasksWithDates.map((task) => ({
+          ...task,
+          tema: `${task.materia || 'General'} · faltan ${task.pendingCount} de ${task.assignedCount} alumno(s)`
+        })));
+        undatedTasksList.replaceChildren();
+        if (tasksWithoutDates.length) {
+          tasksWithoutDates.forEach((task) => {
+            const item = document.createElement('article');
+            item.className = 'teacher-pending-undated-item';
+            addText(item, 'strong', '', task.titulo || 'Tarea sin título');
+            addText(item, 'span', '', `${task.materia || 'General'} · faltan ${task.pendingCount} de ${task.assignedCount} alumno(s)`);
+            undatedTasksList.append(item);
+          });
+        } else {
+          addText(undatedTasksList, 'p', 'teacher-evaluation-status', 'No hay tareas pendientes sin fecha.');
+        }
+        const pendingStudentCount = pendingTasks.reduce((total, task) => total + task.pendingCount, 0);
+        evaluationCalendarStatus.textContent = pendingTasks.length
+          ? `${pendingTasks.length} tarea(s) pendiente(s) · ${pendingStudentCount} evaluación(es) faltante(s).`
+          : 'Todas las tareas asignadas ya tienen evaluación.';
+      }
+
+      async function loadDashboardInsights() {
+        rankingContent.replaceChildren();
+        try {
+          const { tasks, feedbackSnapshots } = await loadEvaluationData();
+          renderPendingEvaluationCalendar(tasks, feedbackSnapshots);
+          const studentScores = new Map();
+          feedbackSnapshots.forEach((snapshot, taskIndex) => {
+            if (tasks[taskIndex].considerarEnPromedio === false) return;
+            snapshot.docs.forEach((feedbackDoc) => {
+              const feedback = feedbackDoc.data();
+              const score = Number(feedback.calificacion);
+              const maxScore = Number(feedback.puntosMaximos ?? tasks[taskIndex].puntos ?? 100);
+              if (feedback.estudianteId == null || !feedback.estudianteColeccion
+                  || !Number.isFinite(score) || !Number.isFinite(maxScore)
+                  || maxScore <= 0 || score < 0 || score > maxScore) {
+                console.error(`Se omitió una calificación inválida del ranking (${feedbackDoc.ref.path}).`);
+                return;
+              }
+              const studentKey = `${feedback.estudianteColeccion}/${feedback.estudianteId}`;
+              const aggregate = studentScores.get(studentKey) || {
+                name: feedback.estudianteNombre || 'Alumno',
+                total: 0,
+                count: 0
+              };
+              aggregate.name = feedback.estudianteNombre || aggregate.name;
+              aggregate.total += score;
+              aggregate.count += 1;
+              studentScores.set(studentKey, aggregate);
+            });
+          });
+          const rankedStudents = Array.from(studentScores.values())
+            .map((student) => ({ ...student, average: student.total / student.count }))
+            .sort((left, right) => right.average - left.average || left.name.localeCompare(right.name, 'es'));
+          if (!rankedStudents.length) {
+            addText(rankingContent, 'p', 'teacher-sidebar-empty', 'Aún no hay calificaciones para mostrar el ranking.');
+            return;
+          }
+          const table = document.createElement('table');
+          table.className = 'teacher-ranking-table';
+          const head = document.createElement('thead');
+          const headerRow = document.createElement('tr');
+          ['#', 'Alumno', 'Prom.'].forEach((label) => addText(headerRow, 'th', '', label));
+          head.append(headerRow);
+          const body = document.createElement('tbody');
+          rankedStudents.forEach((student, index) => {
+            const row = document.createElement('tr');
+            addText(row, 'td', '', String(index + 1));
+            addText(row, 'td', '', student.name);
+            addText(row, 'td', '', new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(student.average));
+            body.append(row);
+          });
+          table.append(head, body);
+          rankingContent.append(table);
+        } catch (error) {
+          console.error(`No se pudieron cargar las evaluaciones del aula ${aula.id}:`, error);
+          evaluationCalendarStatus.textContent = 'No se pudieron consultar las tareas pendientes de evaluar.';
+          evaluationCalendarContainer.replaceChildren();
+          undatedTasksList.replaceChildren();
+          addText(undatedTasksList, 'p', 'teacher-evaluation-status', 'No se pudieron cargar las tareas.');
+          addText(rankingContent, 'p', 'teacher-sidebar-empty', 'No se pudo cargar el ranking.');
+        }
+      }
 
       function resetAnnouncementEditor() {
         editingAnnouncementId = null;
@@ -1000,7 +1280,7 @@
         }
       });
 
-      await loadAnnouncements();
+      await Promise.all([loadAnnouncements(), loadUpcomingEvents(), loadDashboardInsights()]);
       return announcements;
     }
 
@@ -3173,7 +3453,15 @@
             }
             const student = students.get(studentKey);
             student.nombre = feedback.estudianteNombre || student.nombre;
-            student.grades.set(task.id, { score, maxScore, includeInAverage });
+            const feedbackText = new DOMParser().parseFromString(feedback.comentario || '', 'text/html')
+              .body.textContent.trim();
+            student.grades.set(task.id, {
+              score,
+              maxScore,
+              includeInAverage,
+              notSubmitted: feedbackText.toLocaleLowerCase() === 'tarea no entregada.',
+              comentario: sanitizeAnnouncementHtml(feedback.comentario || '')
+            });
             gradeCount += 1;
             if (includeInAverage) {
               includedGradeCount += 1;
@@ -3193,17 +3481,13 @@
         const formatGrade = (value) => new Intl.NumberFormat('es-MX', {
           maximumFractionDigits: 2
         }).format(value);
-        const averages = allStudents.map((student) => {
+        const getStudentAverage = (student) => {
           const includedGrades = Array.from(student.grades.values())
             .filter((grade) => grade.includeInAverage);
-          const totalScore = includedGrades
-            .reduce((sum, grade) => sum + grade.score, 0);
-          return {
-            student,
-            totalScore,
-            average: includedGrades.length ? totalScore / includedGrades.length : null
-          };
-        });
+          return includedGrades.length
+            ? includedGrades.reduce((sum, grade) => sum + grade.score, 0) / includedGrades.length
+            : null;
+        };
         const classAverageCard = document.createElement('div');
         classAverageCard.className = 'grades-average';
         classAverageCard.append(document.createTextNode('Promedio general'));
@@ -3217,38 +3501,136 @@
           : 'Aún no hay calificaciones asignadas; se muestran todas las asignaciones y alumnos del aula.';
         const wrapper = document.createElement('div');
         wrapper.className = 'grades-table-wrap';
+        wrapper.tabIndex = 0;
+        wrapper.setAttribute('role', 'region');
+        wrapper.setAttribute('aria-label', 'Tabla completa de calificaciones; desplázate horizontalmente para ver todas las asignaciones');
+        const feedbackTooltip = document.createElement('div');
+        feedbackTooltip.className = 'grades-feedback-tooltip';
+        feedbackTooltip.hidden = true;
+        feedbackTooltip.setAttribute('role', 'tooltip');
+        const tooltipTitle = addText(feedbackTooltip, 'strong', '', 'Retroalimentación');
+        const tooltipBody = document.createElement('div');
+        tooltipBody.className = 'grades-feedback-tooltip-body';
+        feedbackTooltip.append(tooltipBody);
+        document.body.append(feedbackTooltip);
+        const hideFeedbackTooltip = () => {
+          feedbackTooltip.hidden = true;
+        };
+        const tooltipCleanupObserver = new MutationObserver(() => {
+          if (gradesPage.isConnected) return;
+          hideFeedbackTooltip();
+          feedbackTooltip.remove();
+          tooltipCleanupObserver.disconnect();
+        });
+        tooltipCleanupObserver.observe(document.body, { childList: true, subtree: true });
+        const showFeedbackTooltip = (cell, grade) => {
+          tooltipTitle.textContent = grade.notSubmitted ? 'Justificación' : 'Retroalimentación';
+          tooltipBody.innerHTML = grade.comentario || '<p>Sin justificación registrada.</p>';
+          feedbackTooltip.hidden = false;
+          const cellBounds = cell.getBoundingClientRect();
+          const tooltipBounds = feedbackTooltip.getBoundingClientRect();
+          const left = Math.max(12, Math.min(
+            cellBounds.left + cellBounds.width / 2 - tooltipBounds.width / 2,
+            window.innerWidth - tooltipBounds.width - 12
+          ));
+          const top = cellBounds.bottom + tooltipBounds.height + 12 <= window.innerHeight
+            ? cellBounds.bottom + 8
+            : Math.max(12, cellBounds.top - tooltipBounds.height - 8);
+          feedbackTooltip.style.left = `${left}px`;
+          feedbackTooltip.style.top = `${top}px`;
+        };
+        wrapper.addEventListener('scroll', hideFeedbackTooltip);
         const table = document.createElement('table');
         table.className = 'grades-table';
         const head = document.createElement('thead');
         const headerRow = document.createElement('tr');
-        addText(headerRow, 'th', '', 'Alumno');
-        tasks.forEach((task) => addText(headerRow, 'th', '', task.considerarEnPromedio === false
-          ? `${task.titulo || 'Tarea sin título'} (No cuenta)`
-          : task.titulo || 'Tarea sin título'));
-        addText(headerRow, 'th', '', 'Promedio');
+        addText(headerRow, 'th', '', 'Materia / unidad / asignación');
+        allStudents.forEach((student) => {
+          const header = document.createElement('th');
+          const studentHeader = document.createElement('div');
+          studentHeader.className = 'grades-student-header';
+          addText(studentHeader, 'span', '', student.nombre);
+          const average = getStudentAverage(student);
+          addText(studentHeader, 'span', 'grades-student-average', average === null
+            ? 'Promedio: —'
+            : `Promedio: ${formatGrade(average)}`);
+          header.append(studentHeader);
+          headerRow.append(header);
+        });
         head.append(headerRow);
         const body = document.createElement('tbody');
+        const subjectGroups = new Map();
+        tasks.forEach((task) => {
+          const subjectName = String(task.materia || 'General').trim() || 'General';
+          const subjectKey = task.materiaId || subjectName.toLocaleLowerCase();
+          let subjectGroup = subjectGroups.get(subjectKey);
+          if (!subjectGroup) {
+            subjectGroup = { name: subjectName, units: new Map() };
+            subjectGroups.set(subjectKey, subjectGroup);
+          }
+          const unitName = String(task.unidad || '').trim() || 'Sin unidad';
+          const unitKey = unitName.toLocaleLowerCase();
+          if (!subjectGroup.units.has(unitKey)) {
+            subjectGroup.units.set(unitKey, { name: unitName, tasks: [] });
+          }
+          subjectGroup.units.get(unitKey).tasks.push(task);
+        });
 
-        averages.forEach(({ student, average }) => {
+        const appendGroupRow = (label, className) => {
           const row = document.createElement('tr');
-          addText(row, 'td', '', student.nombre);
-          tasks.forEach((task) => {
-            const grade = student.grades.get(task.id);
-            const taskHasAssigneeList = Array.isArray(task.alumnosAsignados);
-            const studentIsAssigned = !taskHasAssigneeList || task.alumnosAsignados.some((assigned) =>
-              `${assigned.coleccion}/${assigned.id}` === student.key
-            );
-            addText(row, 'td', '', grade
-              ? `${formatGrade(grade.score)} / ${formatGrade(grade.maxScore)}`
-              : studentIsAssigned ? '—' : 'No asignada');
-          });
-          addText(row, 'td', 'grades-average-cell', average === null ? '—' : formatGrade(average));
+          row.className = className;
+          addText(row, 'th', '', label).scope = 'row';
+          allStudents.forEach(() => row.append(document.createElement('td')));
           body.append(row);
+        };
+        subjectGroups.forEach((subjectGroup) => {
+          appendGroupRow(subjectGroup.name, 'grades-subject-row');
+          subjectGroup.units.forEach((unitGroup) => {
+            appendGroupRow(unitGroup.name, 'grades-unit-row');
+            unitGroup.tasks.forEach((task) => {
+              const row = document.createElement('tr');
+              row.className = 'grades-task-row';
+              addText(row, 'th', '', task.considerarEnPromedio === false
+                ? `${task.titulo || 'Tarea sin título'} (No cuenta)`
+                : task.titulo || 'Tarea sin título').scope = 'row';
+              allStudents.forEach((student) => {
+                const grade = student.grades.get(task.id);
+                const taskHasAssigneeList = Array.isArray(task.alumnosAsignados);
+                const studentIsAssigned = !taskHasAssigneeList || task.alumnosAsignados.some((assigned) =>
+                  `${assigned.coleccion}/${assigned.id}` === student.key
+                );
+                const cell = document.createElement('td');
+                if (grade?.notSubmitted) {
+                  cell.className = 'grades-not-submitted';
+                  cell.textContent = 'No entregada';
+                  cell.setAttribute('aria-label', `${student.nombre}: tarea no entregada`);
+                } else if (grade) {
+                  cell.textContent = formatGrade(grade.score);
+                  cell.setAttribute('aria-label', `${student.nombre}: ${formatGrade(grade.score)} de ${formatGrade(grade.maxScore)} puntos`);
+                } else {
+                  cell.textContent = studentIsAssigned ? '—' : 'No asignada';
+                }
+                if (grade) {
+                  cell.dataset.feedback = 'true';
+                  cell.tabIndex = 0;
+                  cell.setAttribute('aria-describedby', feedbackTooltip.id || 'grades-feedback-tooltip');
+                  feedbackTooltip.id = 'grades-feedback-tooltip';
+                  cell.addEventListener('pointerenter', () => showFeedbackTooltip(cell, grade));
+                  cell.addEventListener('pointerleave', hideFeedbackTooltip);
+                  cell.addEventListener('focus', () => showFeedbackTooltip(cell, grade));
+                  cell.addEventListener('blur', hideFeedbackTooltip);
+                }
+                row.append(cell);
+              });
+              body.append(row);
+            });
+          });
         });
 
         table.append(head, body);
         wrapper.append(table);
         gradesList.append(wrapper);
+        gradesPage.addEventListener('remove', hideFeedbackTooltip, { once: true });
       } catch (error) {
         console.error(`No se pudieron cargar las calificaciones del aula ${aula.id}:`, error);
         statusText.textContent = 'No se pudieron cargar las calificaciones. Revisa la conexión y los permisos de Firestore.';
@@ -3419,7 +3801,7 @@
         });
         content.replaceChildren();
         if (selectedId === 'padlet') {
-          content.append(await renderAnnouncements(aula));
+          content.append(await renderAnnouncements(aula, () => selectTab('publications')));
         } else if (selectedId === 'pizarras') {
           content.append(await renderPizarras(aula));
         } else if (selectedId === 'publications') {
