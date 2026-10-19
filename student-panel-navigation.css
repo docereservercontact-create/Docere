@@ -226,7 +226,7 @@
   height: 21px;
 }
 
-@media (max-width: 1500px) and (min-width: 1101px) {
+@media (min-width: 1101px) {
   .student-nav-container {
     flex-wrap: wrap;
     row-gap: 2px;
@@ -244,8 +244,8 @@
     flex: 1 0 100%;
     flex-wrap: wrap;
     order: 3;
-    justify-content: center;
-    gap: 4px 20px;
+    justify-content: space-evenly;
+    gap: 6px 20px;
     padding-top: 2px;
   }
 
