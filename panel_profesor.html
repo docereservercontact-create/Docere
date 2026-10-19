@@ -279,6 +279,7 @@
     .task-subject-heading { margin: 8px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 18px; }
     .task-unit-group { display: grid; width: 100%; gap: 10px; margin: 0; padding: 4px 0 2px; }
     .task-unit-heading { display: flex; width: 100%; min-height: 30px; box-sizing: border-box; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 4px 0; color: var(--muted); font: inherit; font-size: 14px; font-weight: 600; line-height: 20px; text-align: left; cursor: pointer; list-style: none; }
+    .task-unit-count { margin-left: auto; font-size: 13px; font-weight: 500; white-space: nowrap; }
     .task-unit-heading::marker { content: ""; }
     .task-unit-heading::-webkit-details-marker { display: none; }
     .task-unit-heading::after { width: 8px; height: 8px; flex: 0 0 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; content: ""; transform: rotate(45deg) translateY(-2px); }
@@ -286,6 +287,26 @@
     .task-inline-create { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; margin-top: 10px; }
     .task-inline-create .task-field { min-width: 0; }
     .task-inline-create button { min-height: 40px; }
+    .practice-exam-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; width: min(100%, 756px); align-items: end; gap: 8px; }
+    .practice-exam-form .task-field { min-width: 0; }
+    .practice-exam-form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    @media (max-width: 620px) {
+      .practice-exam-form { grid-template-columns: minmax(0, 1fr); }
+    }
+    .task-card.practice-exam-card { display: block; padding: 0; border: 1px solid #dbe5ee; border-left: 4px solid #dbe5ee; border-radius: 12px; background: #fff; }
+    .practice-exam-summary { display: flex; min-height: 76px; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 28px; color: var(--ink); font-size: 17px; font-weight: 600; cursor: pointer; list-style: none; }
+    .practice-exam-summary::-webkit-details-marker { display: none; }
+    .practice-exam-summary::marker { content: ""; }
+    .practice-exam-summary::after { width: 9px; height: 9px; flex: 0 0 9px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); content: ""; transform: rotate(45deg) translateY(-2px); transition: transform .15s ease; }
+    .practice-exam-card[open] > .practice-exam-summary::after { transform: rotate(225deg) translateY(-2px); }
+    .practice-exam-content { padding: 0 28px 22px; }
+    .practice-exam-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+    .practice-exam-delete { color: var(--red); }
+    .practice-exam-students { display: grid; gap: 28px; margin-top: 12px; }
+    .practice-exam-student { display: grid; grid-template-columns: minmax(0, 1fr) 120px; align-items: end; gap: 8px; }
+    .practice-exam-student .task-field { min-width: 0; }
+    .practice-exam-student button { min-height: 42px; }
+    .practice-exam-student .attendance-status { grid-column: 1 / -1; }
     .task-list { display: grid; gap: 10px; }
     .task-card { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 12px 24px; padding: 16px 20px; border: 1px solid #dbe5ee; border-left: 4px solid #10a6a1; border-radius: 12px; background: linear-gradient(115deg, #fff, #f9fcfd); box-shadow: 0 4px 12px rgba(29, 68, 103, .035); }
     .task-card-main { min-width: 0; }
@@ -838,14 +859,15 @@
     }
 
     async function notifyStudents(students, notification) {
+      const { notificationDocId, ...notificationData } = notification;
       const recipients = (Array.isArray(students) ? students : [])
         .filter((student) => student?.id && student?.coleccion);
       for (let offset = 0; offset < recipients.length; offset += 450) {
         const batch = writeBatch(db);
         recipients.slice(offset, offset + 450).forEach((student) => {
-          const notificationId = `${notification.tipo}_${notification.aulaId}_${notification.id}`;
+          const notificationId = notificationDocId || `${notification.tipo}_${notification.aulaId}_${notification.id}`;
           batch.set(doc(db, 'Notificaciones', getStudentNotificationKey(student), 'items', notificationId), {
-            ...notification,
+            ...notificationData,
             estudianteId: student.id,
             estudianteColeccion: student.coleccion,
             leida: false,
@@ -1017,14 +1039,7 @@
 
       function loadEvaluationData() {
         if (!evaluationDataPromise) {
-          evaluationDataPromise = (async () => {
-            const taskSnapshot = await getDocs(collection(db, 'Aulas', aula.id, 'tareas'));
-            const tasks = taskSnapshot.docs.map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }));
-            const feedbackSnapshots = await Promise.all(tasks.map((task) =>
-              getDocs(collection(db, 'Aulas', aula.id, 'tareas', task.id, 'calificaciones'))
-            ));
-            return { tasks, feedbackSnapshots };
-          })();
+          evaluationDataPromise = loadClassroomEvaluationData(aula);
         }
         return evaluationDataPromise;
       }
@@ -1100,20 +1115,20 @@
         const tasksWithoutDates = pendingTasks.filter((task) => !getTaskDeadlineDate(task.fechaEntrega));
         createStudentDueCalendar(evaluationCalendarContainer, null, {
           title: 'Por evaluar',
-          gridLabel: 'Fechas de entrega de tareas pendientes de evaluar',
-          emptyDayMessage: 'No hay tareas pendientes de evaluar para este día.',
-          countLabel: 'tarea(s) por evaluar'
+          gridLabel: 'Fechas de evaluaciones pendientes',
+          emptyDayMessage: 'No hay evaluaciones pendientes para este día.',
+          countLabel: 'evaluación(es) por revisar'
         }).setTasks(tasksWithDates.map((task) => ({
           ...task,
-          tema: `${task.materia || 'General'} · faltan ${task.pendingCount} de ${task.assignedCount} alumno(s)`
+          tema: `${task.tipoEvaluacion === 'simulacro' ? 'Examen simulacro' : task.materia || 'General'} · faltan ${task.pendingCount} de ${task.assignedCount} alumno(s)`
         })));
         undatedTasksList.replaceChildren();
         if (tasksWithoutDates.length) {
           tasksWithoutDates.forEach((task) => {
             const item = document.createElement('article');
             item.className = 'teacher-pending-undated-item';
-            addText(item, 'strong', '', task.titulo || 'Tarea sin título');
-            addText(item, 'span', '', `${task.materia || 'General'} · faltan ${task.pendingCount} de ${task.assignedCount} alumno(s)`);
+            addText(item, 'strong', '', task.titulo || (task.tipoEvaluacion === 'simulacro' ? 'Examen simulacro' : 'Tarea sin título'));
+            addText(item, 'span', '', `${task.tipoEvaluacion === 'simulacro' ? 'Examen simulacro' : task.materia || 'General'} · faltan ${task.pendingCount} de ${task.assignedCount} alumno(s)`);
             undatedTasksList.append(item);
           });
         } else {
@@ -1121,8 +1136,8 @@
         }
         const pendingStudentCount = pendingTasks.reduce((total, task) => total + task.pendingCount, 0);
         evaluationCalendarStatus.textContent = pendingTasks.length
-          ? `${pendingTasks.length} tarea(s) pendiente(s) · ${pendingStudentCount} evaluación(es) faltante(s).`
-          : 'Todas las tareas asignadas ya tienen evaluación.';
+          ? `${pendingTasks.length} asignación(es) pendiente(s) · ${pendingStudentCount} evaluación(es) faltante(s).`
+          : 'Todas las asignaciones ya tienen evaluación.';
       }
 
       async function loadDashboardInsights() {
@@ -1132,6 +1147,7 @@
           renderPendingEvaluationCalendar(tasks, feedbackSnapshots);
           const studentScores = new Map();
           feedbackSnapshots.forEach((snapshot, taskIndex) => {
+            const evaluationType = tasks[taskIndex].tipoEvaluacion === 'simulacro' ? 'practiceExams' : 'assignments';
             if (tasks[taskIndex].considerarEnPromedio === false) return;
             snapshot.docs.forEach((feedbackDoc) => {
               const feedback = feedbackDoc.data();
@@ -1146,38 +1162,50 @@
               const studentKey = `${feedback.estudianteColeccion}/${feedback.estudianteId}`;
               const aggregate = studentScores.get(studentKey) || {
                 name: feedback.estudianteNombre || 'Alumno',
-                total: 0,
-                count: 0
+                assignments: { total: 0, count: 0 },
+                practiceExams: { total: 0, count: 0 }
               };
               aggregate.name = feedback.estudianteNombre || aggregate.name;
-              aggregate.total += score;
-              aggregate.count += 1;
+              aggregate[evaluationType].total += score;
+              aggregate[evaluationType].count += 1;
               studentScores.set(studentKey, aggregate);
             });
           });
-          const rankedStudents = Array.from(studentScores.values())
-            .map((student) => ({ ...student, average: student.total / student.count }))
-            .sort((left, right) => right.average - left.average || left.name.localeCompare(right.name, 'es'));
-          if (!rankedStudents.length) {
+          const students = Array.from(studentScores.values());
+          const rankingCategories = [
+            { key: 'assignments', label: 'Promedio de asignaciones' },
+            { key: 'practiceExams', label: 'Promedio de exámenes simulacros' }
+          ];
+          const populatedCategories = rankingCategories.filter(({ key }) =>
+            students.some((student) => student[key].count)
+          );
+          if (!populatedCategories.length) {
             addText(rankingContent, 'p', 'teacher-sidebar-empty', 'Aún no hay calificaciones para mostrar el ranking.');
             return;
           }
-          const table = document.createElement('table');
-          table.className = 'teacher-ranking-table';
-          const head = document.createElement('thead');
-          const headerRow = document.createElement('tr');
-          ['#', 'Alumno', 'Prom.'].forEach((label) => addText(headerRow, 'th', '', label));
-          head.append(headerRow);
-          const body = document.createElement('tbody');
-          rankedStudents.forEach((student, index) => {
-            const row = document.createElement('tr');
-            addText(row, 'td', '', String(index + 1));
-            addText(row, 'td', '', student.name);
-            addText(row, 'td', '', new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(student.average));
-            body.append(row);
+          populatedCategories.forEach(({ key, label }) => {
+            addText(rankingContent, 'h4', '', label);
+            const rankedStudents = students
+              .filter((student) => student[key].count)
+              .map((student) => ({ ...student, average: student[key].total / student[key].count }))
+              .sort((left, right) => right.average - left.average || left.name.localeCompare(right.name, 'es'));
+            const table = document.createElement('table');
+            table.className = 'teacher-ranking-table';
+            const head = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            ['#', 'Alumno', 'Prom.'].forEach((header) => addText(headerRow, 'th', '', header));
+            head.append(headerRow);
+            const body = document.createElement('tbody');
+            rankedStudents.forEach((student, index) => {
+              const row = document.createElement('tr');
+              addText(row, 'td', '', String(index + 1));
+              addText(row, 'td', '', student.name);
+              addText(row, 'td', '', new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(student.average));
+              body.append(row);
+            });
+            table.append(head, body);
+            rankingContent.append(table);
           });
-          table.append(head, body);
-          rankingContent.append(table);
         } catch (error) {
           console.error(`No se pudieron cargar las evaluaciones del aula ${aula.id}:`, error);
           evaluationCalendarStatus.textContent = 'No se pudieron consultar las tareas pendientes de evaluar.';
@@ -1375,6 +1403,7 @@
       let editingPizarraId = null;
       const subjects = new Map();
       const boardsBySubject = new Map();
+      let editingPizarraWasPublished = false;
 
       function getSubjectDocumentId(subjectName) {
         return `materia-${encodeURIComponent(subjectName.trim().toLocaleLowerCase())}`;
@@ -1391,6 +1420,7 @@
 
       function resetForm() {
         editingPizarraId = null;
+        editingPizarraWasPublished = false;
         nameInput.value = '';
         urlInput.value = '';
         publishInput.checked = true;
@@ -1602,6 +1632,7 @@
               editButton.type = 'button';
               editButton.addEventListener('click', () => {
                 editingPizarraId = record.id;
+                editingPizarraWasPublished = record.publicado === true;
                 const subjectEntry = record.materiaId && subjects.has(record.materiaId)
                   ? record.materiaId
                   : subjectId;
@@ -1677,20 +1708,47 @@
             }),
             actualizadoEn: serverTimestamp()
           };
+          let pizarraRef;
           if (editingPizarraId) {
-            await updateDoc(doc(db, 'Aulas', aula.id, 'pizarras', editingPizarraId), {
+            pizarraRef = doc(db, 'Aulas', aula.id, 'pizarras', editingPizarraId);
+            await updateDoc(pizarraRef, {
               ...pizarraData,
               materia: deleteField()
             });
           } else {
-            await setDoc(doc(collection(db, 'Aulas', aula.id, 'pizarras')), {
+            pizarraRef = doc(collection(db, 'Aulas', aula.id, 'pizarras'));
+            await setDoc(pizarraRef, {
               ...pizarraData,
               creadoEn: serverTimestamp()
             });
           }
+          const notifyForPublishedBoard = publishInput.checked;
+          const notificationType = editingPizarraWasPublished ? 'Pizarra actualizada' : 'Pizarra disponible';
+          const boardName = pizarraData.nombre;
+          const subjectName = selectedSubject.nombre;
+          const isEditing = Boolean(editingPizarraId);
           resetForm();
-          formStatus.textContent = 'Pizarra guardada correctamente.';
           await loadPizarras();
+          if (notifyForPublishedBoard) {
+            try {
+              await notifyStudents(aula.alumnos, {
+                id: pizarraRef.id,
+                notificationDocId: doc(collection(db, 'Aulas', aula.id, 'pizarras')).id,
+                aulaId: aula.id,
+                aulaNombre: aula.nombre || 'Aula',
+                titulo: boardName,
+                materia: subjectName,
+                tipo: 'pizarra',
+                tipoTexto: notificationType
+              });
+              formStatus.textContent = `${isEditing ? 'Pizarra actualizada' : 'Pizarra publicada'} y notificaciones enviadas a los alumnos.`;
+            } catch (notificationError) {
+              console.error(`La pizarra ${pizarraRef.id} se guardó, pero no se pudieron guardar todas las notificaciones:`, notificationError);
+              formStatus.textContent = 'La pizarra se guardó, pero no se pudieron enviar las notificaciones a los alumnos.';
+            }
+          } else {
+            formStatus.textContent = 'Pizarra guardada correctamente.';
+          }
         } catch (error) {
           console.error(`No se pudo guardar la pizarra del aula ${aula.id}:`, error);
           const reason = error.code || error.message || 'Error desconocido';
@@ -2810,6 +2868,326 @@
       return page;
     }
 
+    async function loadClassroomEvaluationData(aula) {
+      const [tasksSnapshot, examsSnapshot] = await Promise.all([
+        getDocs(collection(db, 'Aulas', aula.id, 'tareas')),
+        getDocs(collection(db, 'Aulas', aula.id, 'examenesSimulacros'))
+      ]);
+      const evaluations = [
+        ...tasksSnapshot.docs.map((taskDoc) => ({
+          ...taskDoc.data(),
+          id: taskDoc.id,
+          collectionName: 'tareas'
+        })),
+        ...examsSnapshot.docs.map((examDoc) => ({
+          ...examDoc.data(),
+          id: examDoc.id,
+          collectionName: 'examenesSimulacros',
+          tipoEvaluacion: 'simulacro'
+        }))
+      ].sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+      const feedbackSnapshots = await Promise.all(evaluations.map((evaluation) =>
+        getDocs(collection(db, 'Aulas', aula.id, evaluation.collectionName, evaluation.id, 'calificaciones'))
+      ));
+      return { tasks: evaluations, feedbackSnapshots };
+    }
+
+    async function renderPracticeExams(aula) {
+      const page = document.createElement('section');
+      page.className = 'tasks-page';
+      const toolbar = document.createElement('div');
+      toolbar.className = 'tasks-toolbar';
+      addText(toolbar, 'h3', '', 'Exámenes simulacros');
+      const form = document.createElement('form');
+      form.className = 'practice-exam-form';
+      const titleField = document.createElement('label');
+      titleField.className = 'task-field';
+      titleField.append(document.createTextNode('Nombre del examen'));
+      const titleInput = document.createElement('input');
+      titleInput.type = 'text';
+      titleInput.maxLength = 160;
+      titleInput.required = true;
+      titleInput.placeholder = 'Ej. Simulacro de admisión 1';
+      titleField.append(titleInput);
+      const pointsField = document.createElement('label');
+      pointsField.className = 'task-field';
+      pointsField.append(document.createTextNode('Puntos máximos'));
+      const pointsInput = document.createElement('input');
+      pointsInput.type = 'number';
+      pointsInput.min = '1';
+      pointsInput.max = '10000';
+      pointsInput.step = '1';
+      pointsInput.value = '100';
+      pointsInput.required = true;
+      pointsField.append(pointsInput);
+      const createButton = addText(form, 'button', 'task-primary-button', 'Crear examen');
+      createButton.type = 'submit';
+      const cancelEditButton = addText(form, 'button', 'task-secondary-button', 'Cancelar edición');
+      cancelEditButton.type = 'button';
+      cancelEditButton.hidden = true;
+      const formActions = document.createElement('div');
+      formActions.className = 'practice-exam-form-actions';
+      formActions.append(createButton, cancelEditButton);
+      let editingExamId = null;
+      let editingExamMaxPoints = null;
+      const statusText = addText(page, 'p', 'attendance-status', 'Cargando exámenes simulacros...');
+      statusText.setAttribute('role', 'status');
+      statusText.setAttribute('aria-live', 'polite');
+      const examList = document.createElement('div');
+      examList.className = 'task-list';
+      form.append(titleField, pointsField, formActions);
+      page.append(toolbar, form, statusText, examList);
+
+      function resetExamForm() {
+        editingExamId = null;
+        editingExamMaxPoints = null;
+        form.reset();
+        pointsInput.value = '100';
+        createButton.textContent = 'Crear examen';
+        cancelEditButton.hidden = true;
+        statusText.textContent = '';
+      }
+
+      async function loadExams() {
+        examList.replaceChildren();
+        const snapshot = await getDocs(collection(db, 'Aulas', aula.id, 'examenesSimulacros'));
+        const exams = snapshot.docs
+          .map((examDoc) => ({ id: examDoc.id, ...examDoc.data() }))
+          .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
+        if (!exams.length) {
+          statusText.textContent = 'Aún no hay exámenes simulacros asignados.';
+          return;
+        }
+
+        for (const exam of exams) {
+          const card = document.createElement('details');
+          card.className = 'task-card practice-exam-card';
+          const summary = addText(card, 'summary', 'practice-exam-summary', exam.titulo || 'Examen simulacro');
+          const examDetails = document.createElement('div');
+          examDetails.className = 'task-card-main practice-exam-content';
+          const actions = document.createElement('div');
+          actions.className = 'practice-exam-actions';
+          const editButton = addText(actions, 'button', 'task-secondary-button', 'Modificar');
+          editButton.type = 'button';
+          editButton.addEventListener('click', () => {
+            editingExamId = exam.id;
+            editingExamMaxPoints = Number(exam.puntos ?? 100);
+            titleInput.value = exam.titulo || '';
+            pointsInput.value = String(exam.puntos ?? 100);
+            createButton.textContent = 'Guardar cambios';
+            cancelEditButton.hidden = false;
+            statusText.textContent = `Modificando "${exam.titulo || 'Examen simulacro'}". Las calificaciones actuales se conservarán.`;
+            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            titleInput.focus();
+          });
+          const deleteButton = addText(actions, 'button', 'task-secondary-button practice-exam-delete', 'Eliminar');
+          deleteButton.type = 'button';
+          deleteButton.addEventListener('click', async () => {
+            if (!confirm(`¿Eliminar el examen "${exam.titulo || 'Examen simulacro'}" y todas sus calificaciones? Esta acción no se puede deshacer.`)) return;
+            editButton.disabled = true;
+            deleteButton.disabled = true;
+            statusText.textContent = 'Eliminando examen y calificaciones...';
+            try {
+              const feedbackSnapshot = await getDocs(collection(
+                db,
+                'Aulas',
+                aula.id,
+                'examenesSimulacros',
+                exam.id,
+                'calificaciones'
+              ));
+              for (let offset = 0; offset < feedbackSnapshot.docs.length; offset += 450) {
+                const batch = writeBatch(db);
+                feedbackSnapshot.docs.slice(offset, offset + 450).forEach((feedbackDoc) => batch.delete(feedbackDoc.ref));
+                await batch.commit();
+              }
+              await deleteDoc(doc(db, 'Aulas', aula.id, 'examenesSimulacros', exam.id));
+              if (editingExamId === exam.id) resetExamForm();
+              await loadExams();
+            } catch (error) {
+              console.error(`No se pudo eliminar el examen simulacro ${exam.id} del aula ${aula.id}:`, error);
+              statusText.textContent = 'No se pudo eliminar el examen o sus calificaciones. Revisa los permisos de Firestore e inténtalo de nuevo.';
+              editButton.disabled = false;
+              deleteButton.disabled = false;
+            }
+          });
+          addText(examDetails, 'p', '', [
+            exam.materia || 'General',
+            exam.unidad || null,
+            `${exam.puntos ?? 100} puntos`
+          ].filter(Boolean).join(' · '));
+          const studentsList = document.createElement('div');
+          studentsList.className = 'practice-exam-students';
+          const assignedStudents = Array.isArray(exam.alumnosAsignados) ? exam.alumnosAsignados : [];
+          const feedbackSnapshot = await getDocs(collection(
+            db,
+            'Aulas',
+            aula.id,
+            'examenesSimulacros',
+            exam.id,
+            'calificaciones'
+          ));
+          const feedbackByStudent = new Map(feedbackSnapshot.docs.map((feedbackDoc) => [feedbackDoc.id, feedbackDoc.data()]));
+          assignedStudents.forEach((student) => {
+            const row = document.createElement('form');
+            row.className = 'practice-exam-student';
+            const studentName = student.nombre || student.email || student.correo || 'Alumno';
+            const studentField = document.createElement('label');
+            studentField.className = 'task-field';
+            studentField.append(document.createTextNode(studentName));
+            const gradeInput = document.createElement('input');
+            gradeInput.type = 'number';
+            gradeInput.min = '0';
+            gradeInput.max = String(Number(exam.puntos ?? 100));
+            gradeInput.step = '0.01';
+            gradeInput.required = true;
+            gradeInput.setAttribute('aria-label', `Calificación de ${studentName}`);
+            const feedbackId = `${student.coleccion}_${student.id}`;
+            const previousFeedback = feedbackByStudent.get(feedbackId);
+            if (previousFeedback?.calificacion != null) gradeInput.value = String(previousFeedback.calificacion);
+            studentField.append(gradeInput);
+            const saveGradeButton = addText(row, 'button', 'task-secondary-button', 'Guardar calificación');
+            saveGradeButton.type = 'submit';
+            const gradeStatus = addText(row, 'span', 'attendance-status', '');
+            gradeStatus.setAttribute('role', 'status');
+            row.append(studentField, saveGradeButton, gradeStatus);
+            row.addEventListener('submit', async (event) => {
+              event.preventDefault();
+              const score = Number(gradeInput.value);
+              const maxScore = Number(exam.puntos ?? 100);
+              if (!Number.isFinite(score) || score < 0 || score > maxScore) {
+                gradeStatus.textContent = `Ingresa una calificación entre 0 y ${maxScore}.`;
+                return;
+              }
+              saveGradeButton.disabled = true;
+              gradeStatus.textContent = 'Guardando...';
+              try {
+                await setDoc(doc(
+                  db,
+                  'Aulas',
+                  aula.id,
+                  'examenesSimulacros',
+                  exam.id,
+                  'calificaciones',
+                  feedbackId
+                ), {
+                  estudianteId: student.id,
+                  estudianteColeccion: student.coleccion,
+                  estudianteNombre: studentName,
+                  calificacion: score,
+                  puntosMaximos: maxScore,
+                  comentario: '',
+                  actualizadoEn: serverTimestamp()
+                });
+                gradeStatus.textContent = 'Calificación guardada.';
+              } catch (error) {
+                console.error(`No se pudo guardar la calificación del alumno ${student.id} en el examen ${exam.id}:`, error);
+                gradeStatus.textContent = 'No se pudo guardar la calificación.';
+              } finally {
+                saveGradeButton.disabled = false;
+              }
+            });
+            studentsList.append(row);
+          });
+          if (!assignedStudents.length) {
+            addText(studentsList, 'p', 'attendance-status', 'Este examen no tiene alumnos asignados.');
+          }
+          examDetails.append(studentsList, actions);
+          card.append(examDetails);
+          examList.append(card);
+        }
+        statusText.textContent = `${exams.length} examen(es) simulacro(s). Las calificaciones se registran manualmente.`;
+      }
+
+      try {
+        await loadExams();
+      } catch (error) {
+        console.error(`No se pudieron cargar los exámenes simulacros del aula ${aula.id}:`, error);
+        statusText.textContent = 'No se pudieron cargar los exámenes simulacros. Revisa los permisos de Firestore.';
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const examId = editingExamId;
+        const title = titleInput.value.trim();
+        const points = Number(pointsInput.value);
+        const students = (Array.isArray(aula.alumnos) ? aula.alumnos : [])
+          .filter((student) => student?.id != null && student.coleccion)
+          .map((student) => ({
+            id: student.id,
+            coleccion: student.coleccion,
+            nombre: student.nombre || '',
+            email: String(student.email || student.correo || '').trim().toLowerCase()
+          }));
+        if (!title) {
+          statusText.textContent = 'Escribe el nombre del examen simulacro.';
+          return;
+        }
+        if (!examId && !students.length) {
+          statusText.textContent = 'No hay alumnos asignados a esta aula.';
+          return;
+        }
+        if (!Number.isInteger(points) || points < 1 || points > 10000) {
+          statusText.textContent = 'Ingresa un puntaje entero entre 1 y 10000.';
+          return;
+        }
+        createButton.disabled = true;
+        cancelEditButton.disabled = true;
+        statusText.textContent = examId ? 'Guardando cambios...' : 'Creando y asignando el examen simulacro...';
+        try {
+          const examData = {
+            titulo: title,
+            puntos: points,
+            actualizadoEn: serverTimestamp()
+          };
+          if (examId) {
+            const feedbackSnapshot = await getDocs(collection(
+              db,
+              'Aulas',
+              aula.id,
+              'examenesSimulacros',
+              examId,
+              'calificaciones'
+            ));
+            const highestExistingGrade = feedbackSnapshot.docs.reduce((highest, feedbackDoc) => {
+              const score = Number(feedbackDoc.data().calificacion);
+              return Number.isFinite(score) ? Math.max(highest, score) : highest;
+            }, 0);
+            if (feedbackSnapshot.size && points !== editingExamMaxPoints) {
+              statusText.textContent = 'No se puede cambiar el puntaje máximo después de guardar calificaciones. Las demás modificaciones se pueden guardar sin cambiarlo.';
+              return;
+            }
+            if (points < highestExistingGrade) {
+              statusText.textContent = `El puntaje máximo no puede ser menor que una calificación ya guardada (${highestExistingGrade}).`;
+              return;
+            }
+            await updateDoc(doc(db, 'Aulas', aula.id, 'examenesSimulacros', examId), examData);
+          } else {
+            await setDoc(doc(collection(db, 'Aulas', aula.id, 'examenesSimulacros')), {
+              ...examData,
+              materiaId: '',
+              materia: 'General',
+              unidad: '',
+              alumnosAsignados: students,
+              considerarEnPromedio: true,
+              creadoEn: serverTimestamp()
+            });
+          }
+          resetExamForm();
+          await loadExams();
+        } catch (error) {
+          console.error(`No se pudo ${examId ? 'actualizar' : 'crear'} un examen simulacro en el aula ${aula.id}:`, error);
+          statusText.textContent = `No se pudo ${examId ? 'actualizar' : 'crear'} el examen simulacro. Revisa los permisos de Firestore.`;
+        } finally {
+          createButton.disabled = false;
+          cancelEditButton.disabled = false;
+        }
+      });
+
+      cancelEditButton.addEventListener('click', resetExamForm);
+      return page;
+    }
+
     async function renderTasks(aula) {
       const tasksPage = document.createElement('section');
       tasksPage.className = 'tasks-page';
@@ -2857,12 +3235,17 @@
           const unitKey = `${subjectKey}\u0000${unitName.toLocaleLowerCase()}`;
           let unitGroup = unitGroups.get(unitKey);
           if (!unitGroup) {
-            unitGroup = document.createElement('details');
-            unitGroup.className = 'task-unit-group';
-            addText(unitGroup, 'summary', 'task-unit-heading', unitName);
+            const element = document.createElement('details');
+            element.className = 'task-unit-group';
+            const heading = addText(element, 'summary', 'task-unit-heading', '');
+            addText(heading, 'span', '', unitName);
+            const headingCount = addText(heading, 'span', 'task-unit-count', '');
+            unitGroup = { element, count: 0, headingCount };
             unitGroups.set(unitKey, unitGroup);
-            subjectGroup.append(unitGroup);
+            subjectGroup.append(unitGroup.element);
           }
+          unitGroup.count += 1;
+          unitGroup.headingCount.textContent = `${unitGroup.count} ${unitGroup.count === 1 ? 'tarea' : 'tareas'}`;
           const card = document.createElement('article');
           card.className = 'task-card';
           const mainDetails = document.createElement('div');
@@ -2948,7 +3331,7 @@
             }
           });
           card.append(actions);
-          unitGroup.append(card);
+          unitGroup.element.append(card);
         });
       } catch (error) {
         console.error(`No se pudieron cargar las tareas del aula ${aula.id}:`, error);
@@ -3466,13 +3849,7 @@
       gradesPage.append(summary, gradesList);
 
       try {
-        const tasksSnapshot = await getDocs(collection(db, 'Aulas', aula.id, 'tareas'));
-        const tasks = tasksSnapshot.docs
-          .map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }))
-          .sort((left, right) => (right.creadoEn?.toMillis?.() || 0) - (left.creadoEn?.toMillis?.() || 0));
-        const feedbackSnapshots = await Promise.all(tasks.map((task) =>
-          getDocs(collection(db, 'Aulas', aula.id, 'tareas', task.id, 'calificaciones'))
-        ));
+        const { tasks, feedbackSnapshots } = await loadClassroomEvaluationData(aula);
         const students = new Map();
         (Array.isArray(aula.alumnos) ? aula.alumnos : []).forEach((student) => {
           if (student.id == null || !student.coleccion) return;
@@ -3484,8 +3861,10 @@
           });
         });
         let gradeCount = 0;
-        let includedGradeCount = 0;
-        let includedScoreTotal = 0;
+        const includedGradeTotals = {
+          assignments: { count: 0, score: 0 },
+          practiceExams: { count: 0, score: 0 }
+        };
 
         feedbackSnapshots.forEach((snapshot, taskIndex) => {
           const task = tasks[taskIndex];
@@ -3514,17 +3893,19 @@
             student.nombre = feedback.estudianteNombre || student.nombre;
             const feedbackText = new DOMParser().parseFromString(feedback.comentario || '', 'text/html')
               .body.textContent.trim();
-            student.grades.set(task.id, {
+            student.grades.set(`${task.collectionName}/${task.id}`, {
               score,
               maxScore,
               includeInAverage,
+              evaluationType: task.tipoEvaluacion === 'simulacro' ? 'practiceExams' : 'assignments',
               notSubmitted: feedbackText.toLocaleLowerCase() === 'tarea no entregada.',
               comentario: sanitizeAnnouncementHtml(feedback.comentario || '')
             });
             gradeCount += 1;
             if (includeInAverage) {
-              includedGradeCount += 1;
-              includedScoreTotal += score;
+              const evaluationType = task.tipoEvaluacion === 'simulacro' ? 'practiceExams' : 'assignments';
+              includedGradeTotals[evaluationType].count += 1;
+              includedGradeTotals[evaluationType].score += score;
             }
           });
         });
@@ -3540,23 +3921,29 @@
         const formatGrade = (value) => new Intl.NumberFormat('es-MX', {
           maximumFractionDigits: 2
         }).format(value);
-        const getStudentAverage = (student) => {
+        const getStudentAverage = (student, evaluationType) => {
           const includedGrades = Array.from(student.grades.values())
-            .filter((grade) => grade.includeInAverage);
+            .filter((grade) => grade.includeInAverage && grade.evaluationType === evaluationType);
           return includedGrades.length
             ? includedGrades.reduce((sum, grade) => sum + grade.score, 0) / includedGrades.length
             : null;
         };
-        const classAverageCard = document.createElement('div');
-        classAverageCard.className = 'grades-average';
-        classAverageCard.append(document.createTextNode('Promedio general'));
-        addText(classAverageCard, 'strong', '', includedGradeCount
-          ? formatGrade(includedScoreTotal / includedGradeCount)
-          : '—');
-        summary.append(classAverageCard);
+        [
+          { key: 'assignments', label: 'Promedio de asignaciones' },
+          { key: 'practiceExams', label: 'Promedio de exámenes simulacros' }
+        ].forEach(({ key, label }) => {
+          const totals = includedGradeTotals[key];
+          const averageCard = document.createElement('div');
+          averageCard.className = 'grades-average';
+          averageCard.append(document.createTextNode(label));
+          addText(averageCard, 'strong', '', totals.count
+            ? formatGrade(totals.score / totals.count)
+            : '—');
+          summary.append(averageCard);
+        });
 
         statusText.textContent = gradeCount
-          ? `${gradeCount} calificación(es) asignada(s); ${includedGradeCount} considerada(s) en el promedio.`
+          ? `${gradeCount} calificación(es) asignada(s); ${includedGradeTotals.assignments.count} considerada(s) en el promedio de asignaciones y ${includedGradeTotals.practiceExams.count} en el de exámenes simulacros.`
           : 'Aún no hay calificaciones asignadas; se muestran todas las asignaciones y alumnos del aula.';
         const wrapper = document.createElement('div');
         wrapper.className = 'grades-table-wrap';
@@ -3609,10 +3996,14 @@
           const studentHeader = document.createElement('div');
           studentHeader.className = 'grades-student-header';
           addText(studentHeader, 'span', '', student.nombre);
-          const average = getStudentAverage(student);
-          addText(studentHeader, 'span', 'grades-student-average', average === null
-            ? 'Promedio: —'
-            : `Promedio: ${formatGrade(average)}`);
+          const assignmentAverage = getStudentAverage(student, 'assignments');
+          const practiceExamAverage = getStudentAverage(student, 'practiceExams');
+          addText(studentHeader, 'span', 'grades-student-average', assignmentAverage === null
+            ? 'Asignaciones: —'
+            : `Asignaciones: ${formatGrade(assignmentAverage)}`);
+          addText(studentHeader, 'span', 'grades-student-average', practiceExamAverage === null
+            ? 'Simulacros: —'
+            : `Simulacros: ${formatGrade(practiceExamAverage)}`);
           header.append(studentHeader);
           headerRow.append(header);
         });
@@ -3649,11 +4040,14 @@
             unitGroup.tasks.forEach((task) => {
               const row = document.createElement('tr');
               row.className = 'grades-task-row';
+              const evaluationTitle = task.tipoEvaluacion === 'simulacro'
+                ? `Examen simulacro: ${task.titulo || 'Sin título'}`
+                : task.titulo || 'Tarea sin título';
               addText(row, 'th', '', task.considerarEnPromedio === false
-                ? `${task.titulo || 'Tarea sin título'} (No cuenta)`
-                : task.titulo || 'Tarea sin título').scope = 'row';
+                ? `${evaluationTitle} (No cuenta)`
+                : evaluationTitle).scope = 'row';
               allStudents.forEach((student) => {
-                const grade = student.grades.get(task.id);
+                const grade = student.grades.get(`${task.collectionName}/${task.id}`);
                 const taskHasAssigneeList = Array.isArray(task.alumnosAsignados);
                 const studentIsAssigned = !taskHasAssigneeList || task.alumnosAsignados.some((assigned) =>
                   `${assigned.coleccion}/${assigned.id}` === student.key
@@ -3696,57 +4090,6 @@
       }
 
       return gradesPage;
-    }
-
-    async function renderClassroomCalendar(aula) {
-      const page = document.createElement('section');
-      const statusText = addText(page, 'p', 'attendance-status', 'Cargando asignaciones y eventos...');
-      statusText.setAttribute('role', 'status');
-      statusText.setAttribute('aria-live', 'polite');
-      const calendarContainer = document.createElement('div');
-      page.append(calendarContainer);
-
-      try {
-        const [tasksSnapshot, eventsSnapshot] = await Promise.all([
-          getDocs(collection(db, 'Aulas', aula.id, 'tareas')),
-          getDocs(collection(db, 'Aulas', aula.id, 'publicaciones'))
-        ]);
-        const hasValidDate = (value) => {
-          if (!value) return false;
-          const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
-          return !Number.isNaN(date.getTime());
-        };
-        const tasks = tasksSnapshot.docs
-          .map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }))
-          .filter((task) => hasValidDate(task.fechaEntrega))
-          .map((task) => ({
-            ...task,
-            tema: `Asignación · ${task.materia || task.tema || 'General'}`,
-            aulaNombre: aula.nombre || 'Aula'
-          }));
-        const events = eventsSnapshot.docs
-          .map((eventDoc) => ({ id: eventDoc.id, ...eventDoc.data() }))
-          .filter((event) => typeof event.fecha === 'string' && hasValidDate(new Date(`${event.fecha}T12:00:00`)))
-          .map((event) => ({
-            ...event,
-            fechaEntrega: new Date(`${event.fecha}T12:00:00`),
-            titulo: event.titulo || 'Evento',
-            tema: `Evento${event.lugar ? ` · ${event.lugar}` : ''}`,
-            aulaNombre: aula.nombre || 'Aula'
-          }));
-
-        statusText.textContent = `${tasks.length} asignación(es) con fecha y ${events.length} evento(s).`;
-        createStudentDueCalendar(calendarContainer, null, {
-          title: 'Calendario de actividades',
-          gridLabel: 'Fechas de actividades',
-          emptyDayMessage: 'No hay asignaciones ni eventos para este día.',
-          countLabel: 'actividad(es)'
-        }).setTasks([...tasks, ...events]);
-      } catch (error) {
-        console.error(`No se pudo cargar el calendario de actividades del aula ${aula.id}:`, error);
-        statusText.textContent = 'No se pudieron cargar las asignaciones y eventos. Revisa los permisos de Firestore.';
-      }
-      return page;
     }
 
     function showClassroom(aula, index) {
@@ -3849,7 +4192,7 @@
         { id: 'attendance', label: 'Lista de asistencias' },
         { id: 'grades', label: 'Lista de calificaciones' },
         { id: 'tasks', label: 'Tareas' },
-        { id: 'calendar', label: 'Calendario de actividades' }
+        { id: 'practice-exams', label: 'Exámenes simulacros' }
       ];
 
       async function selectTab(selectedId) {
@@ -3873,8 +4216,8 @@
           content.append(await renderGrades(aula));
         } else if (selectedId === 'tasks') {
           content.append(await renderTasks(aula));
-        } else if (selectedId === 'calendar') {
-          content.append(await renderClassroomCalendar(aula));
+        } else if (selectedId === 'practice-exams') {
+          content.append(await renderPracticeExams(aula));
         } else {
           const message = document.createElement('p');
           message.className = 'tab-placeholder';

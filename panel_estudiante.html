@@ -1101,9 +1101,12 @@
         const item = document.createElement('button');
         item.type = 'button';
         item.className = `notification-item ${notification.leida ? 'is-read' : 'is-unread'}`;
+        const notificationContext = notification.tipo === 'pizarra'
+          ? `${notification.tipoTexto} · ${notification.materia || 'Materia'} · ${notification.aulaNombre || 'Aula'}`
+          : `${notification.tipoTexto} · ${notification.aulaNombre || 'Aula'}`;
         item.append(
           addWallText(item, 'strong', '', notification.titulo || 'Nueva actividad'),
-          addWallText(item, 'span', '', `${notification.tipoTexto} · ${notification.aulaNombre || 'Aula'}`),
+          addWallText(item, 'span', '', notificationContext),
           addWallText(item, 'span', 'notification-read-state', notification.leida ? 'Leída' : 'No leída')
         );
         item.addEventListener('click', async () => {
@@ -1152,14 +1155,18 @@
     }
 
     function showNotificationToast(notification) {
-      notificationToast.textContent = `${notification.tipoTexto} en ${notification.aulaNombre}: ${notification.titulo || 'Actividad'}`;
+      notificationToast.textContent = notification.tipo === 'pizarra'
+        ? `${notification.tipoTexto} en ${notification.aulaNombre || 'Aula'}: ${notification.titulo || 'Pizarra'} · ${notification.materia || 'Materia'}`
+        : `${notification.tipoTexto} en ${notification.aulaNombre}: ${notification.titulo || 'Actividad'}`;
       notificationToast.hidden = false;
       clearTimeout(notificationToastTimer);
       notificationToastTimer = setTimeout(() => { notificationToast.hidden = true; }, 6000);
       if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
         try {
           const browserNotification = new Notification(notification.tipoTexto, {
-            body: `${notification.titulo || 'Actividad'} · ${notification.aulaNombre}`,
+            body: notification.tipo === 'pizarra'
+              ? `${notification.titulo || 'Pizarra'} · ${notification.materia || 'Materia'} · ${notification.aulaNombre || 'Aula'}`
+              : `${notification.titulo || 'Actividad'} · ${notification.aulaNombre}`,
             tag: `${notification.tipo}-${notification.aulaId || ''}-${notification.id}`
           });
           browserNotification.onclick = () => {
@@ -1178,21 +1185,6 @@
           console.error('No se pudo mostrar la notificación del navegador:', error);
         }
       }
-    }
-
-    async function saveStudentNotification(student, notification) {
-      const notificationDocId = `${notification.tipo}_${notification.aulaId || 'portal'}_${notification.id}`;
-      await setDoc(doc(db, 'Notificaciones', getStudentNotificationKey(student), 'items', notificationDocId), {
-        ...notification,
-        leida: false,
-        creadoEn: serverTimestamp()
-      });
-    }
-
-    function addNotification(notification, student) {
-      saveStudentNotification(student, notification).catch((error) => {
-        console.error(`No se pudo guardar la notificación ${notification.tipo}/${notification.id}:`, error);
-      });
     }
 
     function subscribeStudentNotificationHistory() {
@@ -1580,13 +1572,27 @@
           .filter((classroom) => isStudentInClassroom(classroom, student));
         const feedbackRecords = [];
         for (const classroom of classrooms) {
-          const tasksSnapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'tareas'));
-          const assignedTasks = tasksSnapshot.docs
-            .map((taskDoc) => ({ id: taskDoc.id, ...taskDoc.data() }))
+          const [tasksSnapshot, examsSnapshot] = await Promise.all([
+            getDocs(collection(db, 'Aulas', classroom.id, 'tareas')),
+            getDocs(collection(db, 'Aulas', classroom.id, 'examenesSimulacros'))
+          ]);
+          const assignedEvaluations = [
+            ...tasksSnapshot.docs.map((taskDoc) => ({
+              ...taskDoc.data(),
+              id: taskDoc.id,
+              collectionName: 'tareas'
+            })),
+            ...examsSnapshot.docs.map((examDoc) => ({
+              ...examDoc.data(),
+              id: examDoc.id,
+              collectionName: 'examenesSimulacros',
+              tipoEvaluacion: 'simulacro'
+            }))
+          ]
             .filter((task) => isTaskAssignedToStudent(task, student));
-          const feedbackSnapshots = await Promise.all(assignedTasks.map((task) => {
+          const feedbackSnapshots = await Promise.all(assignedEvaluations.map((task) => {
             const feedbackId = `${student.coleccion}_${student.id}`;
-            return getDoc(doc(db, 'Aulas', classroom.id, 'tareas', task.id, 'calificaciones', feedbackId))
+            return getDoc(doc(db, 'Aulas', classroom.id, task.collectionName, task.id, 'calificaciones', feedbackId))
               .then((snapshot) => ({ task, snapshot }));
           }));
           feedbackSnapshots.forEach(({ task, snapshot }) => {
@@ -1607,7 +1613,9 @@
         feedbackRecords.forEach((feedback) => {
           const card = document.createElement('article');
           card.className = 'student-feedback-card';
-          addWallText(card, 'strong', '', feedback.task.titulo || 'Asignación');
+          addWallText(card, 'strong', '', feedback.task.tipoEvaluacion === 'simulacro'
+            ? `Examen simulacro: ${feedback.task.titulo || 'Sin título'}`
+            : feedback.task.titulo || 'Asignación');
           addWallText(card, 'span', 'student-feedback-meta', `${feedback.classroom.nombre || 'Aula'} · ${feedback.classroom.curso || feedback.task.curso || 'Curso'}`);
           addWallText(card, 'span', 'student-feedback-grade', `Calificación: ${feedback.calificacion} / ${feedback.puntosMaximos ?? feedback.task.puntos ?? 100}`);
           if (feedback.comentario) {
@@ -1656,56 +1664,6 @@
       return date
         ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
         : 'Sin fecha de entrega';
-    }
-
-    function subscribeStudentClassNotifications(classrooms, student) {
-      const unsubscribeAll = [];
-      const notificationSources = [
-        {
-          collectionName: 'pizarras',
-          tipo: 'pizarra',
-          tipoTexto: 'Nueva pizarra',
-          isVisible: (pizarra) => pizarra.publicado === true
-        }
-      ];
-
-      classrooms.forEach((classroom) => {
-        notificationSources.forEach((source) => {
-          let initialSnapshot = true;
-          const knownVisibility = new Map();
-          const unsubscribe = onSnapshot(
-            collection(authenticatedDb, 'Aulas', classroom.id, source.collectionName),
-            (snapshot) => {
-              if (initialSnapshot) {
-                snapshot.docs.forEach((entry) => knownVisibility.set(entry.id, source.isVisible(entry.data())));
-                initialSnapshot = false;
-                return;
-              }
-              snapshot.docChanges().forEach((change) => {
-                const data = change.doc.data();
-                const visible = change.type !== 'removed' && source.isVisible(data);
-                const wasVisible = knownVisibility.get(change.doc.id) === true;
-                knownVisibility.set(change.doc.id, visible);
-                if (!visible || wasVisible || !['added', 'modified'].includes(change.type)) return;
-                addNotification({
-                  id: change.doc.id,
-                  aulaId: classroom.id,
-                  aulaNombre: classroom.nombre || 'Aula',
-                  titulo: data.titulo || data.nombre || (source.tipo === 'pizarra' ? 'Pizarra nueva' : ''),
-                  tipo: source.tipo,
-                  tipoTexto: source.tipoTexto
-                }, student);
-              });
-            },
-            (error) => {
-              console.error(`No se pudieron escuchar ${source.collectionName} del aula ${classroom.id}:`, error);
-            }
-          );
-          unsubscribeAll.push(unsubscribe);
-        });
-      });
-
-      window.addEventListener('pagehide', () => unsubscribeAll.forEach((unsubscribe) => unsubscribe()), { once: true });
     }
 
     function getLocalStudentSession() {
@@ -1988,8 +1946,6 @@
           announcementWall.replaceChildren();
           return;
         }
-
-        subscribeStudentClassNotifications(classrooms, session);
 
         const classroomResults = await Promise.all(classrooms.map(async (classroom) => {
           try {
