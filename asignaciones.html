@@ -36,10 +36,14 @@
     .assignment-analysis-metric span { color: var(--muted); font-size: 12px; }
     .assignment-analysis-status { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
     .assignment-list { display: grid; gap: 14px; }
-    .assignment-subject-group { display: grid; gap: 10px; }
-    .assignment-subject-heading { margin: 12px 0 0; font-size: 20px; }
-    .assignment-unit-group { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
-    .assignment-unit-heading { margin: 0; color: var(--muted); font-size: 15px; }
+    .assignment-subject-group { display: grid; gap: 8px; }
+    .assignment-subject-heading { margin: 12px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 20px; }
+    .assignment-unit-group { display: grid; width: 100%; gap: 10px; margin: 0; padding: 4px 0 2px; }
+    .assignment-unit-heading { display: flex; width: 100%; min-height: 30px; box-sizing: border-box; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 4px 0; color: var(--muted); font: inherit; font-size: 14px; font-weight: 650; line-height: 20px; text-align: left; cursor: pointer; list-style: none; }
+    .assignment-unit-heading::marker { content: ""; }
+    .assignment-unit-heading::-webkit-details-marker { display: none; }
+    .assignment-unit-heading::after { width: 9px; height: 9px; flex: 0 0 9px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; content: ""; transform: rotate(45deg) translateY(-2px); }
+    .assignment-unit-group[open] > .assignment-unit-heading::after { transform: rotate(225deg) translateY(-2px); }
     .assignment-card { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; padding: 16px 22px; border: 1px solid #dbe5ee; border-left: 4px solid var(--teal); border-radius: 12px; background: linear-gradient(115deg, #fff, #f9fcfd); box-shadow: 0 4px 12px rgba(29, 68, 103, .035); }
     .assignment-card h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; overflow-wrap: anywhere; }
     .assignment-context { margin: 0; color: var(--ink); font-size: 16px; }
@@ -55,7 +59,9 @@
     .assignment-feedback[hidden] { display: none; }
     .assignment-feedback-title { color: #1d4ed8; font-size: 12px; font-weight: 750; }
     .assignment-feedback-grade { font-size: 14px; font-weight: 700; }
-    .assignment-feedback-comment { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+    .assignment-feedback-comment { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+    .assignment-feedback-comment > :first-child { margin-top: 0; }
+    .assignment-feedback-comment > :last-child { margin-bottom: 0; }
     .assignment-submit { min-height: 46px; margin-top: 4px; padding: 0 16px; border: 0; border-radius: 9px; background: linear-gradient(110deg, #2479df, #118f9a); box-shadow: 0 5px 12px rgba(28, 120, 168, .17); color: #fff; font-size: 15px; font-weight: 650; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
     .assignment-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(28, 120, 168, .22); }
     .assignment-submit:disabled { opacity: .65; cursor: wait; }
@@ -223,7 +229,7 @@
     }
 
     function sanitizeRichHtml(html) {
-      const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'H2', 'H3', 'UL', 'OL', 'LI', 'BLOCKQUOTE']);
+      const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'H2', 'H3', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'SPAN', 'FONT']);
       const blockedTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'SVG', 'MATH']);
       const parsed = new DOMParser().parseFromString(html, 'text/html');
 
@@ -231,7 +237,12 @@
         if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || '');
         if (node.nodeType !== Node.ELEMENT_NODE || blockedTags.has(node.tagName)) return document.createDocumentFragment();
         const fragment = document.createDocumentFragment();
-        const target = allowedTags.has(node.tagName) ? document.createElement(node.tagName.toLowerCase()) : fragment;
+        const isColorTag = node.tagName === 'SPAN' || node.tagName === 'FONT';
+        const target = allowedTags.has(node.tagName)
+          ? document.createElement(node.tagName === 'FONT' ? 'span' : node.tagName.toLowerCase())
+          : fragment;
+        const color = node.style?.color || (node.tagName === 'FONT' ? node.getAttribute('color') : '');
+        if (isColorTag && /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(color || '')) target.style.color = color;
         Array.from(node.childNodes).forEach((child) => target.append(copySafeNode(child)));
         return target;
       }
@@ -346,7 +357,10 @@
         container.hidden = false;
         addText(container, 'span', 'assignment-feedback-title', 'Calificación y retroalimentación');
         addText(container, 'span', 'assignment-feedback-grade', `Calificación: ${feedback.calificacion} / ${feedback.puntosMaximos ?? task.puntos ?? 100}`);
-        if (feedback.comentario) addText(container, 'p', 'assignment-feedback-comment', feedback.comentario);
+        if (feedback.comentario) {
+          const comment = addText(container, 'div', 'assignment-feedback-comment', '');
+          comment.innerHTML = sanitizeRichHtml(feedback.comentario);
+        }
       } catch (error) {
         console.error(`No se pudo consultar la retroalimentación de la tarea ${task.id}:`, error);
         container.hidden = false;
@@ -853,9 +867,9 @@
             const unitKey = `${subjectKey}\u0000${unitName.toLocaleLowerCase()}`;
             let unitGroup = unitGroups.get(unitKey);
             if (!unitGroup) {
-              unitGroup = document.createElement('section');
+              unitGroup = document.createElement('details');
               unitGroup.className = 'assignment-unit-group';
-              addText(unitGroup, 'h3', 'assignment-unit-heading', unitName);
+              addText(unitGroup, 'summary', 'assignment-unit-heading', unitName);
               unitGroups.set(unitKey, unitGroup);
               subjectGroup.append(unitGroup);
             }
@@ -868,6 +882,7 @@
             ? document.getElementById(targetId)
             : null;
           if (targetAssignment) {
+            targetAssignment.closest('details')?.setAttribute('open', '');
             targetAssignment.scrollIntoView({ behavior: 'smooth', block: 'center' });
             targetAssignment.querySelector('.assignment-submit')?.click();
             window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);

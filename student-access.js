@@ -26,7 +26,7 @@ function studentMatchesClassroom(classroom, student) {
 }
 
 function getAttendanceState(record) {
-  if (['asistencia', 'falta', 'retardo'].includes(record.estado)) return record.estado;
+  if (['asistencia', 'falta', 'retardo', 'justificado'].includes(record.estado)) return record.estado;
   return record.presente === true ? 'asistencia' : 'falta';
 }
 

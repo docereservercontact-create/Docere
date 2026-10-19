@@ -320,7 +320,7 @@
     .attendance-class-card { padding: 18px; border: 1px solid var(--border); border-radius: 9px; }
     .attendance-class-card h3 { margin-bottom: 4px; font-size: 17px; }
     .attendance-class-course { margin-bottom: 14px; color: var(--text-secondary); font-size: 13px; }
-    .attendance-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+    .attendance-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
     .attendance-metric { padding: 12px; border-radius: 7px; background: var(--bg-primary); }
     .attendance-metric strong { display: block; font-size: 20px; }
     .attendance-metric span { color: var(--text-secondary); font-size: 12px; }
@@ -333,6 +333,7 @@
     .attendance-chart-fill.attendance-present { background: #16a34a; }
     .attendance-chart-fill.attendance-absent { background: #dc2626; }
     .attendance-chart-fill.attendance-late { background: #d97706; }
+    .attendance-chart-fill.attendance-justified { background: #64748b; }
     .attendance-table-wrap { overflow-x: auto; margin-top: 14px; border: 1px solid var(--border); border-radius: 7px; }
     .attendance-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .attendance-table th, .attendance-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
@@ -341,6 +342,7 @@
     .attendance-state-present { color: #15803d; font-weight: 650; }
     .attendance-state-absent { color: #b91c1c; font-weight: 650; }
     .attendance-state-late { color: #a16207; font-weight: 650; }
+    .attendance-state-justified { color: #475569; font-weight: 650; }
 
     /* --- GRID DE MATERIAS --- */
     .subjects-grid {
@@ -725,7 +727,7 @@
     }
 
     function getAttendanceState(record) {
-      if (['asistencia', 'falta', 'retardo'].includes(record.estado)) return record.estado;
+      if (['asistencia', 'falta', 'retardo', 'justificado'].includes(record.estado)) return record.estado;
       return record.presente === true ? 'asistencia' : 'falta';
     }
 
@@ -765,7 +767,7 @@
         return;
       }
 
-      const totals = { asistencia: 0, falta: 0, retardo: 0 };
+      const totals = { asistencia: 0, falta: 0, retardo: 0, justificado: 0 };
       records.forEach(({ estado }) => { totals[estado] += 1; });
       const recordedCount = records.length;
       const courseHours = Number(classroom.horasCursoTotal);
@@ -780,7 +782,8 @@
       [
         ['Asistencia', totals.asistencia, 'attendance-state-present'],
         ['Faltas', totals.falta, 'attendance-state-absent'],
-        ['Retardos', totals.retardo, 'attendance-state-late']
+        ['Retardos', totals.retardo, 'attendance-state-late'],
+        ['Justificados', totals.justificado, 'attendance-state-justified']
       ].forEach(([label, count, className]) => {
         const metric = document.createElement('div');
         metric.className = 'attendance-metric';
@@ -808,7 +811,8 @@
       [
         ['Asistencia', totals.asistencia, 'attendance-present'],
         ['Falta', totals.falta, 'attendance-absent'],
-        ['Retardo', totals.retardo, 'attendance-late']
+        ['Retardo', totals.retardo, 'attendance-late'],
+        ['Justificado', totals.justificado, 'attendance-justified']
       ].forEach(([label, count, className]) => {
         const row = document.createElement('div');
         row.className = 'attendance-chart-row';
@@ -840,12 +844,20 @@
         records.forEach(({ fecha, estado }) => {
           const row = document.createElement('tr');
           addAttendanceText(row, 'td', '', formatAttendanceDate(fecha));
-          const stateClass = estado === 'asistencia'
-            ? 'attendance-state-present'
-            : estado === 'falta'
-              ? 'attendance-state-absent'
-              : 'attendance-state-late';
-          const stateLabel = estado === 'asistencia' ? 'Asistencia' : estado === 'falta' ? 'Falta' : 'Retardo';
+          const stateClasses = {
+            asistencia: 'attendance-state-present',
+            falta: 'attendance-state-absent',
+            retardo: 'attendance-state-late',
+            justificado: 'attendance-state-justified'
+          };
+          const stateLabels = {
+            asistencia: 'Asistencia',
+            falta: 'Falta',
+            retardo: 'Retardo',
+            justificado: 'Justificado'
+          };
+          const stateClass = stateClasses[estado] || 'attendance-state-late';
+          const stateLabel = stateLabels[estado] || 'Retardo';
           addAttendanceText(row, 'td', stateClass, stateLabel);
           body.append(row);
         });

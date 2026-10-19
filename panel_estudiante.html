@@ -205,7 +205,9 @@
     .student-feedback-card strong { font-size: 14px; }
     .student-feedback-meta { color: var(--text-secondary); font-size: 12px; }
     .student-feedback-grade { color: #1d4ed8; font-weight: 750; }
-    .student-feedback-comment { margin: 0; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+    .student-feedback-comment { margin: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+    .student-feedback-comment > :first-child { margin-top: 0; }
+    .student-feedback-comment > :last-child { margin-bottom: 0; }
     .student-feedback-empty { padding: 15px; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-secondary); font-size: 13px; text-align: center; }
 
     .nav-actions {
@@ -372,10 +374,14 @@
     .calendar-day-assignment-link { display: block; margin-top: 4px; color: var(--accent); font-weight: 650; overflow-wrap: anywhere; }
 
     .pending-list { display: grid; gap: 10px; }
-    .pending-subject-group, .pending-unit-group { display: grid; gap: 8px; }
-    .pending-subject-heading { margin: 8px 0 0; color: var(--text-primary); font-size: 14px; }
-    .pending-unit-group { padding: 9px 0 2px; border-top: 1px solid var(--border); }
-    .pending-unit-heading { margin: 0; color: var(--text-secondary); font-size: 12px; }
+    .pending-subject-group { display: grid; gap: 6px; }
+    .pending-subject-heading { margin: 8px 0 0; padding-bottom: 6px; border-bottom: 1px solid var(--border); color: var(--text-primary); font-size: 14px; }
+    .pending-unit-group { display: grid; width: 100%; gap: 8px; margin: 0; padding: 5px 0 2px; }
+    .pending-unit-heading { display: flex; width: 100%; min-height: 30px; box-sizing: border-box; align-items: center; justify-content: space-between; gap: 8px; margin: 0; padding: 4px 0; color: var(--text-secondary); font: inherit; font-size: 14px; font-weight: 600; line-height: 20px; text-align: left; cursor: pointer; list-style: none; }
+    .pending-unit-heading::marker { content: ""; }
+    .pending-unit-heading::-webkit-details-marker { display: none; }
+    .pending-unit-heading::after { width: 7px; height: 7px; flex: 0 0 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; content: ""; transform: rotate(45deg) translateY(-2px); }
+    .pending-unit-group[open] > .pending-unit-heading::after { transform: rotate(225deg) translateY(-2px); }
     .pending-task { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 11px; border: 1px solid var(--border); border-radius: 9px; background: #f8fafc; }
     .pending-task-name { grid-column: 1 / -1; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
     .pending-task-due { color: var(--text-secondary); font-size: 11px; line-height: 1.4; }
@@ -384,12 +390,11 @@
     .pending-empty { padding: 14px 10px; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; text-align: center; }
 
     .events-placeholder { min-height: 250px; display: grid; place-items: center; padding: 18px; border: 1px dashed var(--border); border-radius: 9px; color: var(--text-secondary); font-size: 13px; line-height: 1.5; text-align: center; }
-    .events-list { display: grid; gap: 10px; }
-    .event-item { width: 100%; display: grid; gap: 6px; padding: 12px 11px; border: 1px solid var(--border); border-radius: 9px; background: #f8fafc; color: var(--text-primary); text-align: left; cursor: pointer; }
-    .event-item:hover { border-color: #c8d1e0; background: #eff6ff; }
-    .event-date { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-    .event-title { font-size: 14px; font-weight: 700; line-height: 1.4; }
-    .event-meta { color: var(--text-secondary); font-size: 12px; }
+    .events-list { display: grid; width: 100%; gap: 8px; }
+    .event-item { width: 100%; display: grid; gap: 2px; padding: 8px; border: 1px solid var(--border); border-radius: 0; background: #fff; color: var(--text-primary); text-align: left; cursor: pointer; }
+    .event-item:hover { border-color: #c8d1e0; background: #f8fafc; }
+    .event-title { color: var(--accent); font-size: 13px; font-weight: 500; line-height: 1.4; }
+    .event-date { color: var(--text-primary); font-size: 12px; font-weight: 400; }
     .event-modal-backdrop { position: fixed; inset: 0; z-index: 999; display: grid; place-items: center; padding: 20px; background: rgba(15, 23, 42, .5); }
     .event-modal { width: min(560px, 100%); max-height: min(80vh, 620px); overflow: auto; padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: #fff; box-shadow: 0 18px 48px rgba(15, 23, 42, .22); }
     .event-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -1357,7 +1362,7 @@
 
       const description = document.createElement('div');
       description.className = 'event-modal-body';
-      description.textContent = event.descripcion || 'No hay más detalles para este evento.';
+      description.innerHTML = sanitizeAnnouncement(event.descripcion || 'No hay más detalles para este evento.');
 
       modal.append(header, meta, description);
       backdrop.append(modal);
@@ -1428,16 +1433,13 @@
           const item = document.createElement('button');
           item.type = 'button';
           item.className = 'event-item';
-          const date = document.createElement('span');
-          date.className = 'event-date';
-          date.textContent = formatEventDate(event.fecha);
           const title = document.createElement('span');
           title.className = 'event-title';
           title.textContent = event.titulo;
           const meta = document.createElement('span');
-          meta.className = 'event-meta';
-          meta.textContent = event.aulaNombre || 'Aula';
-          item.append(date, title, meta);
+          meta.className = 'event-date';
+          meta.textContent = `Fecha: ${formatEventDate(event.fecha)}`;
+          item.append(title, meta);
           item.addEventListener('click', () => openEventModal(event));
           list.append(item);
         });
@@ -1608,7 +1610,10 @@
           addWallText(card, 'strong', '', feedback.task.titulo || 'Asignación');
           addWallText(card, 'span', 'student-feedback-meta', `${feedback.classroom.nombre || 'Aula'} · ${feedback.classroom.curso || feedback.task.curso || 'Curso'}`);
           addWallText(card, 'span', 'student-feedback-grade', `Calificación: ${feedback.calificacion} / ${feedback.puntosMaximos ?? feedback.task.puntos ?? 100}`);
-          if (feedback.comentario) addWallText(card, 'p', 'student-feedback-comment', feedback.comentario);
+          if (feedback.comentario) {
+            const comment = addWallText(card, 'div', 'student-feedback-comment', '');
+            comment.innerHTML = sanitizeAnnouncement(feedback.comentario);
+          }
           studentFeedbackList.append(card);
         });
         studentFeedbackStatus.textContent = `${feedbackRecords.length} calificación(es) recibida(s).`;
@@ -1847,9 +1852,9 @@
             const unitKey = `${subjectKey}\u0000${unitName.toLocaleLowerCase()}`;
             let unitGroup = unitGroups.get(unitKey);
             if (!unitGroup) {
-              unitGroup = document.createElement('section');
+              unitGroup = document.createElement('details');
               unitGroup.className = 'pending-unit-group';
-              addWallText(unitGroup, 'h4', 'pending-unit-heading', unitName);
+              addWallText(unitGroup, 'summary', 'pending-unit-heading', unitName);
               unitGroups.set(unitKey, unitGroup);
               subjectGroup.append(unitGroup);
             }
@@ -1886,7 +1891,7 @@
     }
 
     function getAttendanceState(record) {
-      if (['asistencia', 'falta', 'retardo'].includes(record.estado)) return record.estado;
+      if (['asistencia', 'falta', 'retardo', 'justificado'].includes(record.estado)) return record.estado;
       return record.presente === true ? 'asistencia' : 'falta';
     }
 

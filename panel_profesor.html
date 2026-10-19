@@ -94,8 +94,22 @@
     .editor-toolbar { display: flex; flex-wrap: wrap; gap: 5px; }
     .editor-toolbar button { min-width: 36px; min-height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); cursor: pointer; }
     .editor-toolbar button:hover { background: #edf3fb; }
-    .editor-color-label { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font-size: 12px; }
-    .editor-color-label input { width: 26px; height: 26px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+    .editor-color-control { position: relative; display: inline-flex; }
+    .editor-color-trigger { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); cursor: pointer; }
+    .editor-color-swatch { width: 16px; height: 16px; border: 1px solid rgba(15, 23, 42, .25); border-radius: 50%; }
+    .editor-color-popover { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; display: grid; width: 240px; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: 0 8px 24px rgba(15, 23, 42, .2); }
+    .editor-color-popover[hidden] { display: none; }
+    .editor-color-saturation { position: relative; height: 130px; overflow: hidden; border-radius: 5px; background-image: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(220 100% 50%)); cursor: crosshair; touch-action: none; }
+    .editor-color-saturation::after { position: absolute; top: var(--color-value, 0%); left: var(--color-saturation, 100%); width: 12px; height: 12px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #111; content: ""; transform: translate(-50%, -50%); }
+    .editor-color-hue { width: 100%; margin: 0; accent-color: var(--blue); }
+    .editor-color-details { display: flex; align-items: center; gap: 8px; }
+    .editor-color-preview { width: 30px; height: 30px; flex: 0 0 30px; border: 1px solid rgba(15, 23, 42, .25); border-radius: 50%; }
+    .editor-color-hex { width: 100%; min-width: 0; min-height: 34px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); font: inherit; text-transform: uppercase; }
+    .editor-color-hex[aria-invalid="true"] { border-color: var(--red); }
+    .editor-color-actions { display: flex; justify-content: flex-end; gap: 6px; }
+    .editor-toolbar .editor-color-apply { min-height: 36px; padding: 0 12px; border: 0; border-radius: 5px; background: var(--blue); color: #fff; font-weight: 650; cursor: pointer; }
+    .editor-toolbar .editor-color-apply:hover { background: #124bc2; }
+    .editor-color-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
     .announcement-editor { min-height: 140px; padding: 11px; border: 1px solid var(--line); border-radius: 5px; background: #fff; line-height: 1.5; }
     .announcement-editor:focus { outline: 2px solid #a9c4ff; border-color: var(--blue); }
     .announcement-editor:empty::before { color: #94a3b8; content: attr(data-placeholder); pointer-events: none; }
@@ -103,8 +117,8 @@
     .announcement-submit:disabled { opacity: .6; cursor: wait; }
     .announcement-list { display: grid; gap: 10px; }
     .publication-form { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
-    .publication-form input, .publication-form textarea { width: 100%; min-height: 42px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
-    .publication-form textarea { min-height: 120px; resize: vertical; }
+    .publication-form input { width: 100%; min-height: 42px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
+    .publication-form .announcement-editor { min-height: 120px; }
     .announcement-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
     .announcement-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
     .announcement-card h3 { margin: 0 0 4px; font-size: 16px; }
@@ -159,16 +173,17 @@
     .attendance-history .state-attended { color: var(--green); font-weight: 650; }
     .attendance-history .state-absent { color: var(--red); font-weight: 650; }
     .attendance-history .state-late { color: #a15c00; font-weight: 650; }
+    .attendance-history .state-justified { color: #475569; font-weight: 650; }
     .grades-page { display: grid; gap: 14px; }
     .grades-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
     .grades-average { display: inline-flex; align-items: baseline; gap: 8px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: #f8fbfd; color: var(--muted); font-size: 13px; }
     .grades-average strong { color: var(--ink); font-size: 18px; }
     .grades-table-wrap { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; border: 1px solid var(--line); border-radius: 8px; }
-    .grades-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+    .grades-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; white-space: nowrap; }
     .grades-table th, .grades-table td { padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: left; }
     .grades-table th { background: #f1f5f9; font-weight: 700; }
-    .grades-table th:first-child, .grades-table td:first-child { position: sticky; left: 0; z-index: 1; }
-    .grades-table th:first-child { background: #f1f5f9; }
+    .grades-table th:first-child, .grades-table td:first-child { position: sticky; left: 0; z-index: 2; box-shadow: 1px 0 0 var(--line); }
+    .grades-table th:first-child { z-index: 3; background: #f1f5f9; }
     .grades-table td:first-child { background: #fff; font-weight: 650; }
     .grades-table .grades-average-cell { color: var(--green); font-weight: 750; }
     .grades-table tr:last-child td { border-bottom: 0; }
@@ -194,30 +209,49 @@
     .task-primary-button, .task-secondary-button { min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); font-weight: 650; cursor: pointer; }
     .task-primary-button { border-color: var(--blue); background: var(--blue); color: #fff; }
     .task-primary-button:disabled { opacity: .6; cursor: wait; }
-    .task-subject-group, .task-unit-group { display: grid; gap: 10px; }
-    .task-subject-heading { margin: 8px 0 0; font-size: 18px; }
-    .task-unit-group { padding: 12px 0 4px; border-top: 1px solid var(--line); }
-    .task-unit-heading { margin: 0; color: var(--muted); font-size: 14px; }
+    .task-subject-group { display: grid; gap: 8px; }
+    .task-subject-heading { margin: 8px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 18px; }
+    .task-unit-group { display: grid; width: 100%; gap: 10px; margin: 0; padding: 4px 0 2px; }
+    .task-unit-heading { display: flex; width: 100%; min-height: 30px; box-sizing: border-box; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 4px 0; color: var(--muted); font: inherit; font-size: 14px; font-weight: 600; line-height: 20px; text-align: left; cursor: pointer; list-style: none; }
+    .task-unit-heading::marker { content: ""; }
+    .task-unit-heading::-webkit-details-marker { display: none; }
+    .task-unit-heading::after { width: 8px; height: 8px; flex: 0 0 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; content: ""; transform: rotate(45deg) translateY(-2px); }
+    .task-unit-group[open] > .task-unit-heading::after { transform: rotate(225deg) translateY(-2px); }
     .task-inline-create { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; margin-top: 10px; }
     .task-inline-create .task-field { min-width: 0; }
     .task-inline-create button { min-height: 40px; }
     .task-list { display: grid; gap: 10px; }
-    .task-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
-    .task-card h4 { margin: 0 0 6px; font-size: 16px; }
+    .task-card { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 12px 24px; padding: 16px 20px; border: 1px solid #dbe5ee; border-left: 4px solid #10a6a1; border-radius: 12px; background: linear-gradient(115deg, #fff, #f9fcfd); box-shadow: 0 4px 12px rgba(29, 68, 103, .035); }
+    .task-card-main { min-width: 0; }
+    .task-card h4 { margin: 0 0 6px; font-size: 19px; font-weight: 550; overflow-wrap: anywhere; }
     .task-card p { margin: 5px 0; color: var(--muted); font-size: 13px; }
-    .task-submissions { display: grid; gap: 7px; margin-top: 13px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #f8fbfd; }
-    .task-submissions h5 { margin: 0; color: var(--ink); font-size: 13px; }
+    .task-card-details { display: grid; align-content: start; justify-items: end; gap: 5px; text-align: right; }
+    .task-card-due-label { color: var(--ink); font-size: 15px; }
+    .task-card-due { color: var(--muted); font-size: 13px; }
+    .task-submissions { grid-column: 1 / -1; display: grid; gap: 7px; margin-top: 2px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #f8fbfd; }
+    .task-submissions-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--ink); font-size: 13px; font-weight: 700; cursor: pointer; list-style: none; }
+    .task-submissions-summary::-webkit-details-marker { display: none; }
+    .task-submissions-summary::after { width: 8px; height: 8px; flex: 0 0 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; content: ""; transform: rotate(45deg) translateY(-2px); }
+    .task-submissions[open] > .task-submissions-summary::after { transform: rotate(225deg) translateY(-2px); }
     .task-submissions-status { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
     .task-submission-list { display: grid; gap: 6px; }
     .task-submission-link { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 12px; color: var(--blue); font-size: 12px; overflow-wrap: anywhere; }
     .task-submission-link span:last-child { color: var(--muted); }
+    .task-submission-pdf { display: grid; gap: 8px; }
+    .task-submission-pdf-summary { color: var(--blue); font-size: 12px; font-weight: 650; cursor: pointer; overflow-wrap: anywhere; }
+    .task-submission-pdf-frame { width: 100%; height: min(70vh, 720px); min-height: 420px; border: 1px solid var(--line); border-radius: 6px; background: #e2e8f0; }
     .task-submission-review { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+    .task-submission-missing { margin: 0; color: var(--red); font-size: 12px; font-weight: 650; }
     .task-submission-review label { display: grid; gap: 5px; color: var(--ink); font-size: 12px; font-weight: 650; }
+    .task-submission-review .editor-toolbar button { min-width: 36px; min-height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font-weight: 400; }
+    .task-submission-review .editor-toolbar button:hover { background: #edf3fb; }
+    .task-submission-review .editor-color-trigger { min-height: 34px; }
+    .task-submission-review .editor-color-apply { min-height: 36px; padding: 0 12px; border: 0; background: var(--blue); color: #fff; }
     .task-submission-review input, .task-submission-review textarea { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 5px; font: inherit; }
     .task-submission-review textarea { min-height: 70px; resize: vertical; }
     .task-submission-review button { min-height: 34px; padding: 0 10px; border: 1px solid var(--blue); border-radius: 5px; background: var(--blue); color: #fff; font-weight: 650; cursor: pointer; }
     .task-submission-review-status { margin: 0; color: var(--muted); font-size: 12px; }
-    .task-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .task-card-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 0; }
     .task-card-actions button { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; }
     .task-card-actions .task-delete-button { border-color: #f3b4b0; color: var(--red); }
     .task-composer { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
@@ -290,6 +324,8 @@
       .task-composer { grid-template-columns: minmax(0, 1fr); }
       .task-composer-sidebar { grid-row: 1; }
       .task-composer-card { padding: 14px; }
+      .task-card { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px; }
+      .task-card-details { justify-items: start; text-align: left; }
       .tasks-toolbar { align-items: flex-start; flex-direction: column; }
       .tasks-toolbar button,
       .announcement-submit,
@@ -351,7 +387,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDoc, query, where, getDocs, onSnapshot, setDoc, updateDoc, deleteDoc, deleteField, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, query, where, getDocs, onSnapshot, setDoc, updateDoc, deleteDoc, deleteField, writeBatch, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getDownloadURL, getMetadata, getStorage, listAll, ref } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
     import { logSessionEvent } from './session-audit.js';
     import { authApp, signOutPortalUser } from './portal-auth.js';
@@ -526,6 +562,194 @@
       return element;
     }
 
+    function createEditorColorControl(editor) {
+      const control = document.createElement('div');
+      control.className = 'editor-color-control';
+      let hue = 220;
+      let saturation = 0.91;
+      let value = 0.94;
+      let savedRange = null;
+      let color = '#155eef';
+      const trigger = document.createElement('button');
+      trigger.type = 'button';
+      trigger.className = 'editor-color-trigger';
+      trigger.setAttribute('aria-haspopup', 'true');
+      trigger.setAttribute('aria-expanded', 'false');
+      trigger.setAttribute('aria-label', 'Elegir color del texto seleccionado');
+      const swatch = document.createElement('span');
+      swatch.className = 'editor-color-swatch';
+      swatch.setAttribute('aria-hidden', 'true');
+      trigger.append(swatch, document.createTextNode('Color'));
+      const popover = document.createElement('div');
+      popover.className = 'editor-color-popover';
+      popover.hidden = true;
+      popover.setAttribute('role', 'dialog');
+      popover.setAttribute('aria-label', 'Selector de color');
+      const saturationArea = document.createElement('div');
+      saturationArea.className = 'editor-color-saturation';
+      saturationArea.setAttribute('role', 'slider');
+      saturationArea.setAttribute('aria-label', 'Saturación e intensidad del color');
+      saturationArea.setAttribute('aria-valuemin', '0');
+      saturationArea.setAttribute('aria-valuemax', '100');
+      saturationArea.tabIndex = 0;
+      const hueInput = document.createElement('input');
+      hueInput.type = 'range';
+      hueInput.className = 'editor-color-hue';
+      hueInput.min = '0';
+      hueInput.max = '360';
+      hueInput.value = String(hue);
+      hueInput.setAttribute('aria-label', 'Tono del color');
+      const details = document.createElement('div');
+      details.className = 'editor-color-details';
+      const preview = document.createElement('span');
+      preview.className = 'editor-color-preview';
+      preview.setAttribute('aria-hidden', 'true');
+      const hexInput = document.createElement('input');
+      hexInput.type = 'text';
+      hexInput.className = 'editor-color-hex';
+      hexInput.value = color;
+      hexInput.maxLength = 7;
+      hexInput.setAttribute('aria-label', 'Código hexadecimal del color');
+      hexInput.autocomplete = 'off';
+      const colorStatus = document.createElement('span');
+      colorStatus.className = 'editor-color-status';
+      colorStatus.setAttribute('role', 'status');
+      const actions = document.createElement('div');
+      actions.className = 'editor-color-actions';
+      const applyButton = addText(actions, 'button', 'editor-color-apply', 'Aceptar');
+      applyButton.type = 'button';
+      const closeButton = addText(actions, 'button', '', 'Cancelar');
+      closeButton.type = 'button';
+      closeButton.style.cssText = 'min-height:36px;padding:0 12px;border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--ink);cursor:pointer';
+
+      const hsvToHex = () => {
+        const chroma = value * saturation;
+        const segment = hue / 60;
+        const secondary = chroma * (1 - Math.abs((segment % 2) - 1));
+        const offset = value - chroma;
+        const [red, green, blue] = segment < 1 ? [chroma, secondary, 0]
+          : segment < 2 ? [secondary, chroma, 0]
+            : segment < 3 ? [0, chroma, secondary]
+              : segment < 4 ? [0, secondary, chroma]
+                : segment < 5 ? [secondary, 0, chroma]
+                  : [chroma, 0, secondary];
+        return `#${[red, green, blue].map((channel) =>
+          Math.round((channel + offset) * 255).toString(16).padStart(2, '0')
+        ).join('')}`;
+      };
+      const hexToHsv = (hex) => {
+        const channels = hex.slice(1).match(/.{2}/g).map((channel) => parseInt(channel, 16) / 255);
+        const [red, green, blue] = channels;
+        const maximum = Math.max(red, green, blue);
+        const minimum = Math.min(red, green, blue);
+        const delta = maximum - minimum;
+        let nextHue = 0;
+        if (delta) {
+          if (maximum === red) nextHue = 60 * (((green - blue) / delta) % 6);
+          else if (maximum === green) nextHue = 60 * ((blue - red) / delta + 2);
+          else nextHue = 60 * ((red - green) / delta + 4);
+        }
+        return {
+          hue: (nextHue + 360) % 360,
+          saturation: maximum ? delta / maximum : 0,
+          value: maximum
+        };
+      };
+      const updateColor = (nextColor = hsvToHex()) => {
+        color = nextColor;
+        hexInput.value = color;
+        hexInput.removeAttribute('aria-invalid');
+        colorStatus.textContent = '';
+        swatch.style.backgroundColor = color;
+        preview.style.backgroundColor = color;
+        saturationArea.style.backgroundImage = `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(${hue} 100% 50%))`;
+        saturationArea.style.setProperty('--color-saturation', `${saturation * 100}%`);
+        saturationArea.style.setProperty('--color-value', `${(1 - value) * 100}%`);
+        saturationArea.setAttribute('aria-valuenow', String(Math.round(saturation * 100)));
+      };
+      const saveSelection = () => {
+        const selection = window.getSelection();
+        if (selection?.rangeCount && editor.contains(selection.anchorNode)) {
+          savedRange = selection.getRangeAt(0).cloneRange();
+        }
+      };
+      const setSaturationAndValue = (event) => {
+        const bounds = saturationArea.getBoundingClientRect();
+        saturation = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+        value = 1 - Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height));
+        updateColor();
+      };
+      saturationArea.addEventListener('pointerdown', (event) => {
+        saturationArea.setPointerCapture(event.pointerId);
+        setSaturationAndValue(event);
+      });
+      saturationArea.addEventListener('pointermove', (event) => {
+        if (saturationArea.hasPointerCapture(event.pointerId)) setSaturationAndValue(event);
+      });
+      saturationArea.addEventListener('keydown', (event) => {
+        const increment = event.shiftKey ? 0.1 : 0.02;
+        if (event.key === 'ArrowLeft') saturation = Math.max(0, saturation - increment);
+        else if (event.key === 'ArrowRight') saturation = Math.min(1, saturation + increment);
+        else if (event.key === 'ArrowUp') value = Math.min(1, value + increment);
+        else if (event.key === 'ArrowDown') value = Math.max(0, value - increment);
+        else return;
+        event.preventDefault();
+        updateColor();
+      });
+      hueInput.addEventListener('input', () => {
+        hue = Number(hueInput.value);
+        updateColor();
+      });
+      hexInput.addEventListener('input', () => {
+        if (!/^#[\da-f]{6}$/i.test(hexInput.value)) {
+          hexInput.setAttribute('aria-invalid', 'true');
+          colorStatus.textContent = 'Escribe un color hexadecimal válido.';
+          return;
+        }
+        hexInput.removeAttribute('aria-invalid');
+        colorStatus.textContent = '';
+        ({ hue, saturation, value } = hexToHsv(hexInput.value));
+        hueInput.value = String(hue);
+        updateColor(hexInput.value.toLowerCase());
+      });
+      trigger.addEventListener('pointerdown', saveSelection);
+      trigger.addEventListener('focus', saveSelection);
+      trigger.addEventListener('click', () => {
+        popover.hidden = !popover.hidden;
+        trigger.setAttribute('aria-expanded', String(!popover.hidden));
+        if (!popover.hidden) saturationArea.focus();
+      });
+      const closePopover = () => {
+        popover.hidden = true;
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.focus();
+      };
+      applyButton.addEventListener('click', () => {
+        if (!/^#[\da-f]{6}$/i.test(hexInput.value)) {
+          hexInput.setAttribute('aria-invalid', 'true');
+          hexInput.focus();
+          return;
+        }
+        editor.focus();
+        if (savedRange) {
+          const selection = window.getSelection();
+          selection?.removeAllRanges();
+          selection?.addRange(savedRange);
+        }
+        document.execCommand('foreColor', false, color);
+        savedRange = null;
+        closePopover();
+      });
+      closeButton.addEventListener('click', closePopover);
+      popover.append(saturationArea, hueInput, details, colorStatus, actions);
+      details.append(preview, hexInput);
+      control.append(trigger, popover);
+      ({ hue, saturation, value } = hexToHsv(color));
+      hueInput.value = String(hue);
+      updateColor();
+      return control;
+    }
+
     function getLocalDateString() {
       const now = new Date();
       return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -659,32 +883,7 @@
         });
         toolbar.append(button);
       });
-      const colorLabel = document.createElement('label');
-      colorLabel.className = 'editor-color-label';
-      colorLabel.append(document.createTextNode('Color'));
-      const colorInput = document.createElement('input');
-      colorInput.type = 'color';
-      colorInput.value = '#155eef';
-      colorInput.setAttribute('aria-label', 'Color del texto seleccionado');
-      let savedEditorRange = null;
-      colorInput.addEventListener('pointerdown', () => {
-        const selection = window.getSelection();
-        if (selection?.rangeCount && editor.contains(selection.anchorNode)) {
-          savedEditorRange = selection.getRangeAt(0).cloneRange();
-        }
-      });
-      colorInput.addEventListener('input', () => {
-        editor.focus();
-        if (savedEditorRange) {
-          const selection = window.getSelection();
-          selection?.removeAllRanges();
-          selection?.addRange(savedEditorRange);
-          savedEditorRange = null;
-        }
-        document.execCommand('foreColor', false, colorInput.value);
-      });
-      colorLabel.append(colorInput);
-      toolbar.append(colorLabel);
+      toolbar.append(createEditorColorControl(editor));
 
       form.append(titleInput, toolbar, editor, publishButton, editorStatus);
       const announcementList = document.createElement('div');
@@ -1214,7 +1413,7 @@
     }
 
     function attendanceStatus(studentRecord) {
-      if (['asistencia', 'falta', 'retardo'].includes(studentRecord.estado)) return studentRecord.estado;
+      if (['asistencia', 'falta', 'retardo', 'justificado'].includes(studentRecord.estado)) return studentRecord.estado;
       return studentRecord.presente === true ? 'asistencia' : 'falta';
     }
 
@@ -1246,12 +1445,41 @@
       locationInput.placeholder = 'Lugar o modalidad (opcional)';
       locationInput.setAttribute('aria-label', 'Lugar o modalidad de la publicación');
 
-      const descriptionInput = document.createElement('textarea');
-      descriptionInput.className = 'publication-description';
-      descriptionInput.rows = 5;
-      descriptionInput.required = true;
-      descriptionInput.placeholder = 'Escribe la descripción completa del evento o publicación...';
-      descriptionInput.setAttribute('aria-label', 'Descripción de la publicación');
+      const descriptionToolbar = document.createElement('div');
+      descriptionToolbar.className = 'editor-toolbar';
+      descriptionToolbar.setAttribute('aria-label', 'Formato de la descripción');
+      const descriptionCommands = [
+        { command: 'bold', label: 'B', title: 'Negrita', style: 'font-weight:700' },
+        { command: 'italic', label: 'I', title: 'Cursiva', style: 'font-style:italic' },
+        { command: 'underline', label: 'U', title: 'Subrayado', style: 'text-decoration:underline' },
+        { command: 'formatBlock', value: 'H2', label: 'Título', title: 'Título' },
+        { command: 'formatBlock', value: 'H3', label: 'Subtítulo', title: 'Subtítulo' },
+        { command: 'insertUnorderedList', label: '• Lista', title: 'Lista con viñetas' },
+        { command: 'insertOrderedList', label: '1. Lista', title: 'Lista numerada' }
+      ];
+      const descriptionEditor = document.createElement('div');
+      descriptionEditor.className = 'announcement-editor';
+      descriptionEditor.contentEditable = 'true';
+      descriptionEditor.setAttribute('role', 'textbox');
+      descriptionEditor.setAttribute('aria-label', 'Descripción de la publicación');
+      descriptionEditor.setAttribute('aria-multiline', 'true');
+      descriptionEditor.setAttribute('aria-required', 'true');
+      descriptionEditor.dataset.placeholder = 'Escribe la descripción completa del evento o publicación...';
+      descriptionCommands.forEach(({ command, value, label, title, style }) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        button.title = title;
+        button.setAttribute('aria-label', title);
+        if (style) button.style.cssText = style;
+        button.addEventListener('mousedown', (event) => event.preventDefault());
+        button.addEventListener('click', () => {
+          descriptionEditor.focus();
+          document.execCommand(command, false, value || null);
+        });
+        descriptionToolbar.append(button);
+      });
+      descriptionToolbar.append(createEditorColorControl(descriptionEditor));
 
       const formStatus = document.createElement('p');
       formStatus.className = 'attendance-status';
@@ -1261,7 +1489,7 @@
       publishButton.className = 'announcement-submit';
       publishButton.textContent = 'Guardar publicación';
 
-      form.append(titleInput, dateInput, locationInput, descriptionInput, publishButton, formStatus);
+      form.append(titleInput, dateInput, locationInput, descriptionToolbar, descriptionEditor, publishButton, formStatus);
       const publicationList = document.createElement('div');
       publicationList.className = 'announcement-list';
       publications.append(form, publicationList);
@@ -1272,7 +1500,7 @@
         titleInput.value = '';
         dateInput.value = getLocalDateString();
         locationInput.value = '';
-        descriptionInput.value = '';
+        descriptionEditor.replaceChildren();
         publishButton.textContent = 'Guardar publicación';
         formStatus.textContent = '';
       }
@@ -1312,7 +1540,7 @@
               titleInput.value = record.titulo || '';
               dateInput.value = record.fecha || getLocalDateString();
               locationInput.value = record.lugar || '';
-              descriptionInput.value = record.descripcion || '';
+              descriptionEditor.innerHTML = sanitizeAnnouncementHtml(record.descripcion || '');
               publishButton.textContent = 'Guardar cambios';
               formStatus.textContent = 'Editando publicación. Guarda los cambios para actualizarla.';
               titleInput.focus();
@@ -1349,7 +1577,7 @@
 
             const body = document.createElement('div');
             body.className = 'announcement-body';
-            body.textContent = record.descripcion || 'Sin descripción.';
+            body.innerHTML = sanitizeAnnouncementHtml(record.descripcion || 'Sin descripción.');
 
             card.append(header, meta, body);
             publicationList.append(card);
@@ -1362,11 +1590,13 @@
 
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
+        const descripcion = sanitizeAnnouncementHtml(descriptionEditor.innerHTML).trim();
+        const descriptionText = new DOMParser().parseFromString(descripcion, 'text/html').body.textContent.trim();
         const publicationData = {
           titulo: titleInput.value.trim(),
           fecha: dateInput.value,
           lugar: locationInput.value.trim(),
-          descripcion: descriptionInput.value.trim(),
+          descripcion,
           aulaId: aula.id,
           aulaNombre: aula.nombre || 'Aula',
           profesorNombre: session.nombre || 'Profesor',
@@ -1374,7 +1604,7 @@
           actualizadoEn: serverTimestamp()
         };
 
-        if (!publicationData.titulo || !publicationData.fecha || !publicationData.descripcion) {
+        if (!publicationData.titulo || !publicationData.fecha || !descriptionText) {
           formStatus.textContent = 'Completa el título, la fecha y la descripción.';
           return;
         }
@@ -1472,7 +1702,7 @@
         if (!savedSessions.length || !aula.alumnos.length) {
           addText(attendanceSummary, 'span', 'attendance-stat', 'Los porcentajes aparecerán después de guardar asistencias.');
         } else {
-          const totals = { asistencia: 0, falta: 0, retardo: 0 };
+          const totals = { asistencia: 0, falta: 0, retardo: 0, justificado: 0 };
           const assignedStudents = new Set(aula.alumnos.map((student) => `${student.coleccion}/${student.id}`));
           let totalMarks = 0;
           savedSessions.forEach((record) => {
@@ -1487,7 +1717,8 @@
           [
             ['Asistencia', totals.asistencia],
             ['Faltas', totals.falta],
-            ['Retardos', totals.retardo]
+            ['Retardos', totals.retardo],
+            ['Justificados', totals.justificado]
           ].forEach(([label, count]) => {
             addText(attendanceSummary, 'span', 'attendance-stat', `${label}: ${percent(count)}%`);
           });
@@ -1534,14 +1765,14 @@
           });
           header.append(dateHeader);
         });
-        ['% Asistencia', '% Falta', '% Retardo'].forEach((label) => addText(headerRow, 'th', '', label));
+        ['% Asistencia', '% Falta', '% Retardo', '% Justificado'].forEach((label) => addText(headerRow, 'th', '', label));
         head.append(headerRow);
         const body = document.createElement('tbody');
         aula.alumnos.forEach((student) => {
           const studentKey = `${student.coleccion}/${student.id}`;
           const row = document.createElement('tr');
           addText(row, 'td', '', student.nombre || 'Alumno');
-          const totals = { asistencia: 0, falta: 0, retardo: 0 };
+          const totals = { asistencia: 0, falta: 0, retardo: 0, justificado: 0 };
           let recordedSessions = 0;
           savedSessions.forEach((record) => {
             const attendanceRecord = record.alumnos.find((item) => `${item.coleccion}/${item.id}` === studentKey);
@@ -1550,12 +1781,22 @@
               const state = attendanceStatus(attendanceRecord);
               totals[state] += 1;
               recordedSessions += 1;
-              cell.className = `state-${state === 'asistencia' ? 'attended' : state === 'falta' ? 'absent' : 'late'}`;
+              const stateClass = {
+                asistencia: 'attended',
+                falta: 'absent',
+                retardo: 'late',
+                justificado: 'justified'
+              }[state];
+              cell.className = `state-${stateClass}`;
             }
+            const stateLabels = {
+              asistencia: 'Asistencia',
+              falta: 'Falta',
+              retardo: 'Retardo',
+              justificado: 'Justificado'
+            };
             const cellTrigger = addText(cell, 'button', 'attendance-cell-trigger', attendanceRecord
-              ? attendanceStatus(attendanceRecord) === 'asistencia'
-                ? 'Asistencia'
-                : attendanceStatus(attendanceRecord) === 'falta' ? 'Falta' : 'Retardo'
+              ? stateLabels[attendanceStatus(attendanceRecord)]
               : '—');
             cellTrigger.type = 'button';
             cellTrigger.setAttribute('aria-label', `${student.nombre || 'Alumno'}, ${record.fecha}: ${cellTrigger.textContent}. Clic para cambiar`);
@@ -1567,7 +1808,8 @@
             [
               ['asistencia', 'Asistencia'],
               ['retardo', 'Retardo'],
-              ['falta', 'Falta']
+              ['falta', 'Falta'],
+              ['justificado', 'Justificado']
             ].forEach(([value, label]) => stateSelect.add(new Option(label, value)));
             if (attendanceRecord) stateSelect.value = attendanceStatus(attendanceRecord);
             stateSelect.addEventListener('change', async () => {
@@ -1621,6 +1863,7 @@
           addText(row, 'td', 'state-attended', percent(totals.asistencia));
           addText(row, 'td', 'state-absent', percent(totals.falta));
           addText(row, 'td', 'state-late', percent(totals.retardo));
+          addText(row, 'td', 'state-justified', percent(totals.justificado));
           body.append(row);
         });
         table.append(head, body);
@@ -1646,7 +1889,8 @@
           [
             ['asistencia', 'Asistencia'],
             ['falta', 'Falta'],
-            ['retardo', 'Retardo']
+            ['retardo', 'Retardo'],
+            ['justificado', 'Justificado']
           ].forEach(([value, label]) => select.add(new Option(label, value)));
           select.value = statusByStudent.get(`${student.coleccion}/${student.id}`) || 'falta';
           select.dataset.studentKey = `${student.coleccion}/${student.id}`;
@@ -1754,6 +1998,12 @@
         : new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
     }
 
+    function getTaskDeadlineDate(value) {
+      if (!value) return null;
+      const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
     function formatDateTimeLocal(value) {
       if (!value) return '';
       const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
@@ -1767,7 +2017,19 @@
       return [...result.items, ...nestedFiles.flat()];
     }
 
-    async function loadTaskSubmissions(task, container, statusText) {
+    async function loadTaskSubmissions(task, container, statusText, summary) {
+      const assignedStudents = Array.isArray(task.alumnosAsignados) ? task.alumnosAsignados : [];
+      const evaluatedStudentKeys = new Set();
+      const hasEvaluation = (feedback) => feedback.calificacion !== null
+        && feedback.calificacion !== undefined
+        && String(feedback.calificacion).trim() !== ''
+        && Number.isFinite(Number(feedback.calificacion));
+      const updateEvaluationSummary = () => {
+        const evaluatedCount = evaluatedStudentKeys.size;
+        const pendingCount = Math.max(0, assignedStudents.length - evaluatedCount);
+        summary.textContent = `Alumnos asignados (${assignedStudents.length}) · Evaluados: ${evaluatedCount} · Pendientes: ${pendingCount}`;
+      };
+      summary.textContent = `Alumnos asignados (${assignedStudents.length}) · Consultando evaluaciones...`;
       try {
         const taskFolder = ref(storage, `entregas/${task.aulaId}/${task.id}`);
         const files = await listTaskSubmissionFiles(taskFolder);
@@ -1778,18 +2040,23 @@
         })));
 
         container.replaceChildren();
-        if (!submissions.length) {
-          statusText.textContent = 'Aún no hay entregas.';
-          return;
-        }
-
         submissions.sort((left, right) =>
           new Date(right.metadata.updated || 0).getTime() - new Date(left.metadata.updated || 0).getTime()
         );
         const submissionGroups = new Map();
+        assignedStudents.forEach((student) => {
+          const studentKey = `${student.coleccion}/${student.id}`;
+          if (!submissionGroups.has(studentKey)) {
+            submissionGroups.set(studentKey, {
+              student,
+              studentName: student.nombre || student.email || student.correo || 'Alumno',
+              files: []
+            });
+          }
+        });
         submissions.forEach((submission) => {
           const metadata = submission.metadata.customMetadata || {};
-          const rosterStudent = (Array.isArray(task.alumnosAsignados) ? task.alumnosAsignados : []).find((student) =>
+          const rosterStudent = assignedStudents.find((student) =>
             (metadata.studentId && metadata.studentCollection
               && String(student.id) === String(metadata.studentId)
               && student.coleccion === metadata.studentCollection)
@@ -1813,19 +2080,40 @@
           const studentSection = document.createElement('section');
           studentSection.className = 'task-submission-review';
           addText(studentSection, 'strong', '', group.student?.nombre || group.studentName);
+          if (!group.files.length) {
+            addText(studentSection, 'p', 'task-submission-missing', 'Sin entrega.');
+          }
           group.files.forEach(({ metadata, url }) => {
-            const link = document.createElement('a');
-            link.className = 'task-submission-link';
-            link.href = url;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
             const originalName = metadata.customMetadata?.originalName || 'entrega.pdf';
             const updatedAt = metadata.updated
               ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(metadata.updated))
               : '';
-            addText(link, 'span', '', originalName);
-            addText(link, 'span', '', updatedAt ? `Actualizada ${updatedAt}` : '');
-            studentSection.append(link);
+            const isPdf = metadata.contentType?.toLowerCase() === 'application/pdf'
+              || /\.pdf$/i.test(originalName);
+            if (isPdf) {
+              const viewer = document.createElement('details');
+              viewer.className = 'task-submission-pdf';
+              const summary = addText(viewer, 'summary', 'task-submission-pdf-summary', `Ver PDF: ${originalName}`);
+              summary.setAttribute('aria-label', `Mostrar PDF ${originalName}`);
+              const frame = document.createElement('iframe');
+              frame.className = 'task-submission-pdf-frame';
+              frame.src = url;
+              frame.title = `Vista previa de ${originalName}`;
+              frame.loading = 'lazy';
+              frame.referrerPolicy = 'no-referrer';
+              viewer.append(frame);
+              if (updatedAt) addText(viewer, 'span', 'task-submission-link', `Actualizada ${updatedAt}`);
+              studentSection.append(viewer);
+            } else {
+              const link = document.createElement('a');
+              link.className = 'task-submission-link';
+              link.href = url;
+              link.target = '_blank';
+              link.rel = 'noopener noreferrer';
+              addText(link, 'span', '', originalName);
+              addText(link, 'span', '', updatedAt ? `Actualizada ${updatedAt}` : '');
+              studentSection.append(link);
+            }
           });
 
           if (group.student) {
@@ -1843,10 +2131,37 @@
             gradeInput.step = '0.01';
             gradeInput.required = true;
             gradeInput.setAttribute('aria-label', `Calificación para ${group.student.nombre || group.studentName}`);
-            const commentInput = document.createElement('textarea');
-            commentInput.maxLength = 2000;
-            commentInput.placeholder = 'Escribe comentarios para el alumno...';
-            commentInput.setAttribute('aria-label', `Retroalimentación para ${group.student.nombre || group.studentName}`);
+            const commentEditor = document.createElement('div');
+            commentEditor.className = 'announcement-editor';
+            commentEditor.contentEditable = 'true';
+            commentEditor.setAttribute('role', 'textbox');
+            commentEditor.setAttribute('aria-label', `Retroalimentación para ${group.student.nombre || group.studentName}`);
+            commentEditor.setAttribute('aria-multiline', 'true');
+            commentEditor.dataset.placeholder = 'Escribe comentarios para el alumno...';
+            const commentToolbar = document.createElement('div');
+            commentToolbar.className = 'editor-toolbar';
+            commentToolbar.setAttribute('aria-label', 'Formato de la retroalimentación');
+            [
+              { command: 'bold', label: 'B', title: 'Negrita', style: 'font-weight:700' },
+              { command: 'italic', label: 'I', title: 'Cursiva', style: 'font-style:italic' },
+              { command: 'underline', label: 'U', title: 'Subrayado', style: 'text-decoration:underline' },
+              { command: 'formatBlock', value: 'H2', label: 'Título', title: 'Título' },
+              { command: 'formatBlock', value: 'H3', label: 'Subtítulo', title: 'Subtítulo' },
+              { command: 'insertUnorderedList', label: '• Lista', title: 'Lista con viñetas' },
+              { command: 'insertOrderedList', label: '1. Lista', title: 'Lista numerada' }
+            ].forEach(({ command, value, label, title, style }) => {
+              const button = addText(commentToolbar, 'button', '', label);
+              button.type = 'button';
+              button.title = title;
+              button.setAttribute('aria-label', title);
+              if (style) button.style.cssText = style;
+              button.addEventListener('mousedown', (event) => event.preventDefault());
+              button.addEventListener('click', () => {
+                commentEditor.focus();
+                document.execCommand(command, false, value || null);
+              });
+            });
+            commentToolbar.append(createEditorColorControl(commentEditor));
             const saveGradeButton = document.createElement('button');
             saveGradeButton.type = 'button';
             saveGradeButton.textContent = 'Guardar calificación';
@@ -1855,16 +2170,57 @@
             if (gradeSnapshot.exists()) {
               const feedback = gradeSnapshot.data();
               gradeInput.value = feedback.calificacion ?? '';
-              commentInput.value = feedback.comentario || '';
+              commentEditor.innerHTML = sanitizeAnnouncementHtml(feedback.comentario || '');
+              if (hasEvaluation(feedback)) {
+                evaluatedStudentKeys.add(`${group.student.coleccion}/${group.student.id}`);
+              }
+            } else if (!group.files.length
+                && getTaskDeadlineDate(task.fechaEntrega)?.getTime() < Date.now()) {
+              const automaticComment = 'Tarea no entregada.';
+              const automaticFeedback = {
+                estudianteId: group.student.id,
+                estudianteColeccion: group.student.coleccion,
+                estudianteNombre: group.student.nombre || group.studentName,
+                tareaId: task.id,
+                aulaId: task.aulaId,
+                calificacion: 0,
+                puntosMaximos: Number(task.puntos ?? 100),
+                comentario: automaticComment,
+                profesorDocId: session.teacherDocId,
+                actualizadoEn: serverTimestamp()
+              };
+              const result = await runTransaction(db, async (transaction) => {
+                const currentFeedback = await transaction.get(feedbackRef);
+                if (currentFeedback.exists()) {
+                  return { feedback: currentFeedback.data(), assignedAutomatically: false };
+                }
+                transaction.set(feedbackRef, automaticFeedback);
+                return { feedback: automaticFeedback, assignedAutomatically: true };
+              });
+              gradeInput.value = result.feedback.calificacion ?? '';
+              commentEditor.innerHTML = sanitizeAnnouncementHtml(result.feedback.comentario || '');
+              if (hasEvaluation(result.feedback)) {
+                evaluatedStudentKeys.add(`${group.student.coleccion}/${group.student.id}`);
+              }
+              if (result.assignedAutomatically) {
+                feedbackStatus.textContent = 'Se asignó automáticamente 0 porque la tarea venció sin entrega.';
+              }
             }
+            updateEvaluationSummary();
             gradeLabel.append(gradeInput);
-            commentLabel.append(commentInput);
+            commentLabel.append(commentToolbar, commentEditor);
             saveGradeButton.addEventListener('click', async () => {
               if (!gradeInput.reportValidity()) return;
               const grade = Number(gradeInput.value);
               const maxGrade = Number(task.puntos ?? 100);
               if (!Number.isFinite(grade) || grade < 0 || grade > maxGrade) {
                 feedbackStatus.textContent = `La calificación debe estar entre 0 y ${maxGrade}.`;
+                return;
+              }
+              const comentario = sanitizeAnnouncementHtml(commentEditor.innerHTML).trim();
+              const commentText = new DOMParser().parseFromString(comentario, 'text/html').body.textContent.trim();
+              if (commentText.length > 2000) {
+                feedbackStatus.textContent = 'La retroalimentación no puede superar los 2000 caracteres.';
                 return;
               }
               saveGradeButton.disabled = true;
@@ -1878,10 +2234,12 @@
                   aulaId: task.aulaId,
                   calificacion: grade,
                   puntosMaximos: maxGrade,
-                  comentario: commentInput.value.trim(),
+                  comentario: commentText ? comentario : '',
                   profesorDocId: session.teacherDocId,
                   actualizadoEn: serverTimestamp()
                 });
+                evaluatedStudentKeys.add(`${group.student.coleccion}/${group.student.id}`);
+                updateEvaluationSummary();
                 feedbackStatus.textContent = 'Calificación y retroalimentación guardadas.';
               } catch (error) {
                 console.error(`No se pudo guardar la calificación de ${group.student.coleccion}/${group.student.id} para la tarea ${task.id}:`, error);
@@ -1896,9 +2254,17 @@
           }
           container.append(studentSection);
         }
-        statusText.textContent = `${submissions.length} entrega(s) recibida(s).`;
+        const submittedStudents = Array.from(submissionGroups.values())
+          .filter((group) => group.files.length && group.student).length;
+        updateEvaluationSummary();
+        statusText.textContent = assignedStudents.length
+          ? `${submissions.length} archivo(s) recibido(s) · ${submittedStudents} de ${assignedStudents.length} alumno(s) entregaron.`
+          : submissions.length
+            ? `${submissions.length} entrega(s) recibida(s).`
+            : 'Aún no hay entregas.';
       } catch (error) {
         console.error(`No se pudieron cargar las entregas de la tarea ${task.id}:`, error);
+        summary.textContent = `Alumnos asignados (${assignedStudents.length}) · No se pudieron consultar las evaluaciones.`;
         statusText.textContent = error.code === 'storage/unauthorized'
           ? 'No se pudo consultar Storage. Verifica las reglas de storage.rules y que el alumno esté autenticado.'
           : 'No se pudieron consultar las entregas.';
@@ -2186,7 +2552,7 @@
           if (!subjectGroup) {
             subjectGroup = document.createElement('section');
             subjectGroup.className = 'task-subject-group';
-            addText(subjectGroup, 'h4', 'task-subject-heading', subjectName);
+            addText(subjectGroup, 'h3', 'task-subject-heading', subjectName);
             subjectGroups.set(subjectKey, subjectGroup);
             taskList.append(subjectGroup);
           }
@@ -2194,30 +2560,38 @@
           const unitKey = `${subjectKey}\u0000${unitName.toLocaleLowerCase()}`;
           let unitGroup = unitGroups.get(unitKey);
           if (!unitGroup) {
-            unitGroup = document.createElement('section');
+            unitGroup = document.createElement('details');
             unitGroup.className = 'task-unit-group';
-            addText(unitGroup, 'h5', 'task-unit-heading', unitName);
+            addText(unitGroup, 'summary', 'task-unit-heading', unitName);
             unitGroups.set(unitKey, unitGroup);
             subjectGroup.append(unitGroup);
           }
           const card = document.createElement('article');
           card.className = 'task-card';
-          addText(card, 'h4', '', task.titulo || 'Tarea sin título');
-          addText(card, 'p', '', `${task.puntos ?? 100} puntos · ${formatTaskDeadline(task.fechaEntrega)}`);
-          addText(card, 'p', '', `Materia: ${task.materia || 'General'}`);
-          if (task.tema) addText(card, 'p', '', `Tema: ${task.tema}`);
+          const mainDetails = document.createElement('div');
+          mainDetails.className = 'task-card-main';
+          addText(mainDetails, 'h4', '', task.titulo || 'Tarea sin título');
+          if (task.tema) addText(mainDetails, 'p', '', `Tema: ${task.tema}`);
           if (Array.isArray(task.alumnosAsignados)) {
-            addText(card, 'p', '', `Asignada a ${task.alumnosAsignados.length} alumno(s).`);
+            addText(mainDetails, 'p', '', `Asignada a ${task.alumnosAsignados.length} alumno(s).`);
           }
-          const submissions = document.createElement('section');
+          card.append(mainDetails);
+          const taskDetails = document.createElement('div');
+          taskDetails.className = 'task-card-details';
+          addText(taskDetails, 'span', 'task-card-due-label', 'Fecha de entrega');
+          addText(taskDetails, 'span', 'task-card-due', formatTaskDeadline(task.fechaEntrega));
+          addText(taskDetails, 'span', 'task-card-due', `${task.puntos ?? 100} puntos`);
+          card.append(taskDetails);
+          const submissions = document.createElement('details');
           submissions.className = 'task-submissions';
-          addText(submissions, 'h5', '', 'Entregas de alumnos');
+          submissions.open = false;
+          const submissionSummary = addText(submissions, 'summary', 'task-submissions-summary', '');
           const submissionStatus = addText(submissions, 'p', 'task-submissions-status', 'Consultando entregas...');
           const submissionList = document.createElement('div');
           submissionList.className = 'task-submission-list';
           submissions.append(submissionList);
           card.append(submissions);
-          loadTaskSubmissions({ ...task, aulaId: aula.id }, submissionList, submissionStatus);
+          loadTaskSubmissions({ ...task, aulaId: aula.id }, submissionList, submissionStatus, submissionSummary);
           const actions = document.createElement('div');
           actions.className = 'task-card-actions';
           const evaluationField = document.createElement('label');
@@ -2455,17 +2829,19 @@
         unitSuggestions.id = `task-unit-options-${aula.id}`;
         unitInput.setAttribute('list', unitSuggestions.id);
         unitField.append(unitInput);
-        function refreshUnitSuggestions() {
-          unitSuggestions.replaceChildren();
+        function getUnitsForSelectedSubject() {
           const selectedSubject = taskSubjects.get(subjectSelect.value);
           const subjectName = selectedSubject?.nombre || '';
-          const units = new Set(assignedTasks
+          return new Set(assignedTasks
             .filter((task) => task.materiaId === subjectSelect.value
               || (!task.materiaId && subjectName
                 && String(task.materia || '').toLocaleLowerCase() === subjectName.toLocaleLowerCase()))
             .map((task) => String(task.unidad || '').trim())
             .filter(Boolean));
-          Array.from(units).sort((left, right) => left.localeCompare(right, 'es')).forEach((unit) => {
+        }
+        function refreshUnitSuggestions() {
+          unitSuggestions.replaceChildren();
+          Array.from(getUnitsForSelectedSubject()).sort((left, right) => left.localeCompare(right, 'es')).forEach((unit) => {
             const option = document.createElement('option');
             option.value = unit;
             unitSuggestions.append(option);
@@ -2473,10 +2849,6 @@
         }
         refreshUnitSuggestions();
         settingsCard.append(unitSuggestions);
-        subjectSelect.addEventListener('change', () => {
-          refreshUnitSuggestions();
-          unitInput.required = Boolean(subjectSelect.value);
-        });
 
         const assignField = document.createElement('div');
         assignField.className = 'task-field';
@@ -2547,12 +2919,22 @@
         const topicField = document.createElement('label');
         topicField.className = 'task-field';
         topicField.append(document.createTextNode('Tema'));
-        const topicInput = document.createElement('input');
-        topicInput.type = 'text';
-        topicInput.maxLength = 80;
-        topicInput.placeholder = 'Ej. Álgebra';
-        topicInput.value = editingTask?.tema || '';
-        topicField.append(topicInput);
+        const topicSelect = document.createElement('select');
+        function refreshTopicOptions(selectedValue = '', preserveExistingTopic = false) {
+          topicSelect.replaceChildren(new Option('Selecciona una unidad', ''));
+          const units = getUnitsForSelectedSubject();
+          if (preserveExistingTopic && selectedValue && !units.has(selectedValue)) units.add(selectedValue);
+          Array.from(units).sort((left, right) => left.localeCompare(right, 'es'))
+            .forEach((unit) => topicSelect.add(new Option(unit, unit)));
+          topicSelect.value = selectedValue;
+        }
+        refreshTopicOptions(editingTask?.tema || '', true);
+        topicField.append(topicSelect);
+        subjectSelect.addEventListener('change', () => {
+          refreshUnitSuggestions();
+          refreshTopicOptions();
+          unitInput.required = Boolean(subjectSelect.value);
+        });
 
         const includeInAverageField = document.createElement('label');
         includeInAverageField.className = 'task-check-field';
@@ -2673,7 +3055,7 @@
               puntos: points,
               fechaEntrega: dueDate,
               cerrarEntregas: closeInput.checked,
-              tema: topicInput.value.trim(),
+              tema: topicSelect.value,
               materiaId: selectedSubject ? subjectSelect.value : '',
               materia: selectedSubject?.nombre || '',
               unidad: unitInput.value.trim(),
@@ -2762,7 +3144,6 @@
             grades: new Map()
           });
         });
-        const gradedTasks = [];
         let gradeCount = 0;
         let includedGradeCount = 0;
         let includedScoreTotal = 0;
@@ -2770,7 +3151,6 @@
         feedbackSnapshots.forEach((snapshot, taskIndex) => {
           const task = tasks[taskIndex];
           const includeInAverage = task.considerarEnPromedio !== false;
-          let taskHasGrades = false;
           snapshot.docs.forEach((feedbackDoc) => {
             const feedback = feedbackDoc.data();
             const studentId = feedback.estudianteId;
@@ -2794,29 +3174,26 @@
             const student = students.get(studentKey);
             student.nombre = feedback.estudianteNombre || student.nombre;
             student.grades.set(task.id, { score, maxScore, includeInAverage });
-            taskHasGrades = true;
             gradeCount += 1;
             if (includeInAverage) {
               includedGradeCount += 1;
               includedScoreTotal += score;
             }
           });
-          if (taskHasGrades) gradedTasks.push(task);
         });
 
-        if (!gradeCount) {
+        if (!tasks.length) {
           statusText.textContent = '';
-          addText(gradesList, 'p', 'tab-placeholder', 'Aún no hay calificaciones asignadas en esta aula. Las notas guardadas desde las entregas de tareas aparecerán aquí.');
+          addText(gradesList, 'p', 'tab-placeholder', 'Aún no hay asignaciones en esta aula.');
           return gradesPage;
         }
 
-        const studentsWithGrades = Array.from(students.values())
-          .filter((student) => student.grades.size > 0)
+        const allStudents = Array.from(students.values())
           .sort((left, right) => left.nombre.localeCompare(right.nombre, 'es'));
         const formatGrade = (value) => new Intl.NumberFormat('es-MX', {
           maximumFractionDigits: 2
         }).format(value);
-        const averages = studentsWithGrades.map((student) => {
+        const averages = allStudents.map((student) => {
           const includedGrades = Array.from(student.grades.values())
             .filter((grade) => grade.includeInAverage);
           const totalScore = includedGrades
@@ -2835,7 +3212,9 @@
           : '—');
         summary.append(classAverageCard);
 
-        statusText.textContent = `${gradeCount} calificación(es) asignada(s); ${includedGradeCount} considerada(s) en el promedio.`;
+        statusText.textContent = gradeCount
+          ? `${gradeCount} calificación(es) asignada(s); ${includedGradeCount} considerada(s) en el promedio.`
+          : 'Aún no hay calificaciones asignadas; se muestran todas las asignaciones y alumnos del aula.';
         const wrapper = document.createElement('div');
         wrapper.className = 'grades-table-wrap';
         const table = document.createElement('table');
@@ -2843,7 +3222,7 @@
         const head = document.createElement('thead');
         const headerRow = document.createElement('tr');
         addText(headerRow, 'th', '', 'Alumno');
-        gradedTasks.forEach((task) => addText(headerRow, 'th', '', task.considerarEnPromedio === false
+        tasks.forEach((task) => addText(headerRow, 'th', '', task.considerarEnPromedio === false
           ? `${task.titulo || 'Tarea sin título'} (No cuenta)`
           : task.titulo || 'Tarea sin título'));
         addText(headerRow, 'th', '', 'Promedio');
@@ -2853,9 +3232,15 @@
         averages.forEach(({ student, average }) => {
           const row = document.createElement('tr');
           addText(row, 'td', '', student.nombre);
-          gradedTasks.forEach((task) => {
+          tasks.forEach((task) => {
             const grade = student.grades.get(task.id);
-            addText(row, 'td', '', grade ? `${formatGrade(grade.score)} / ${formatGrade(grade.maxScore)}` : '—');
+            const taskHasAssigneeList = Array.isArray(task.alumnosAsignados);
+            const studentIsAssigned = !taskHasAssigneeList || task.alumnosAsignados.some((assigned) =>
+              `${assigned.coleccion}/${assigned.id}` === student.key
+            );
+            addText(row, 'td', '', grade
+              ? `${formatGrade(grade.score)} / ${formatGrade(grade.maxScore)}`
+              : studentIsAssigned ? '—' : 'No asignada');
           });
           addText(row, 'td', 'grades-average-cell', average === null ? '—' : formatGrade(average));
           body.append(row);
