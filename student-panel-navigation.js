@@ -30,19 +30,17 @@
   if (!navLinks) return;
   navLinks.id = 'studentNavLinks';
   navLinks.classList.add('student-nav-links');
+  const currentPage = window.location.pathname.split('/').pop() || 'panel_estudiante.html';
   const links = [
     ['panel_estudiante.html', 'Mi panel'],
     ['asignaciones.html', 'Asignaciones'],
+    [currentPage === 'panel_estudiante.html' ? '#pagos' : 'panel_estudiante.html#pagos', 'Pagos'],
     ['examenes-simulacros-estudiante.html', 'Exámenes simulacros'],
     ['mis-cursos.html', 'Mis Cursos'],
     ['Apuntes_admision.html', 'Apuntes'],
     ['Material_de_estudio.html', 'Material de Estudio'],
     ['https://www.bidi.unam.mx/', 'Libreria', true]
   ];
-  const currentPage = window.location.pathname.split('/').pop() || 'panel_estudiante.html';
-  if (currentPage === 'panel_estudiante.html') {
-    links.splice(2, 0, ['#pagos', 'Pagos']);
-  }
   navLinks.replaceChildren();
   links.forEach(([href, label, external]) => {
     const listItem = document.createElement('li');
@@ -91,16 +89,45 @@
   }
 
   if (!actions.querySelector('.notification-button')) {
-    const notificationLink = document.createElement('a');
-    notificationLink.className = 'notification-button';
-    notificationLink.href = 'panel_estudiante.html';
-    notificationLink.title = 'Notificaciones';
-    notificationLink.setAttribute('aria-label', 'Notificaciones');
+    const notificationWrapper = document.createElement('div');
+    notificationWrapper.className = 'notification-wrapper';
+    const notificationButton = document.createElement('button');
+    notificationButton.type = 'button';
+    notificationButton.className = 'notification-button';
+    notificationButton.id = 'studentNotificationButton';
+    notificationButton.title = 'Notificaciones';
+    notificationButton.setAttribute('aria-label', 'Notificaciones');
+    notificationButton.setAttribute('aria-expanded', 'false');
+    notificationButton.setAttribute('aria-controls', 'studentNotificationPanel');
     const bell = document.createElement('i');
     bell.setAttribute('data-lucide', 'bell');
-    notificationLink.append(bell);
+    const count = document.createElement('span');
+    count.className = 'notification-count';
+    count.id = 'studentNotificationCount';
+    count.hidden = true;
+    notificationButton.append(bell, count);
+    const panel = document.createElement('section');
+    panel.className = 'notification-panel';
+    panel.id = 'studentNotificationPanel';
+    panel.setAttribute('aria-label', 'Notificaciones');
+    panel.hidden = true;
+    const panelHeader = document.createElement('div');
+    panelHeader.className = 'notification-panel-header';
+    const panelTitle = document.createElement('h2');
+    panelTitle.textContent = 'Notificaciones';
+    const markReadButton = document.createElement('button');
+    markReadButton.type = 'button';
+    markReadButton.className = 'notification-mark-read';
+    markReadButton.id = 'studentNotificationMarkRead';
+    markReadButton.textContent = 'Marcar leídas';
+    const list = document.createElement('div');
+    list.className = 'notification-list';
+    list.id = 'studentNotificationList';
+    panelHeader.append(panelTitle, markReadButton);
+    panel.append(panelHeader, list);
+    notificationWrapper.append(notificationButton, panel);
     const profileLink = actions.querySelector('.user-profile');
-    profileLink ? profileLink.after(notificationLink) : actions.prepend(notificationLink);
+    profileLink ? profileLink.after(notificationWrapper) : actions.prepend(notificationWrapper);
   }
 
   if (!actions.querySelector('#btnIngresarClase')) {
@@ -116,10 +143,45 @@
     actions.append(classLink);
   }
 
+  if (!actions.querySelector('#btnCerrarSesion')) {
+    const logoutButton = document.createElement('button');
+    logoutButton.id = 'btnCerrarSesion';
+    logoutButton.type = 'button';
+    logoutButton.className = 'btn btn-outline';
+    const logoutIcon = document.createElement('i');
+    logoutIcon.setAttribute('data-lucide', 'log-out');
+    const logoutLabel = document.createElement('span');
+    logoutLabel.textContent = 'Cerrar sesión';
+    logoutButton.append(logoutIcon, logoutLabel);
+    actions.append(logoutButton);
+    logoutButton.addEventListener('click', async () => {
+      if (!confirm('¿Deseas cerrar sesión?')) return;
+      const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      try {
+        const { logSessionEvent } = await import('./session-audit.js');
+        await logSessionEvent(session, 'cierre_sesion', 'alumno');
+      } catch (error) {
+        console.error('No se pudo registrar el cierre de sesión del alumno:', error);
+      }
+      try {
+        const { signOutPortalUser } = await import('./portal-auth.js');
+        await signOutPortalUser();
+      } catch (error) {
+        console.error('No se pudo cerrar la sesión segura de Firebase:', error);
+      }
+      localStorage.removeItem('studentSession');
+      localStorage.removeItem('studentSessionLastActivity');
+      window.location.href = 'index.html';
+    });
+  }
+
   const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
   const userNameLabel = navContainer.querySelector('#userNameLabel');
   if (userNameLabel && session?.nombre) userNameLabel.textContent = session.nombre;
   if (typeof lucide !== 'undefined') lucide.createIcons();
+  import('./student-notifications.js')
+    .then(({ initializeStudentNotifications }) => initializeStudentNotifications())
+    .catch((error) => console.error('No se pudo iniciar el centro de notificaciones del alumno:', error));
 
   if (!menuButton) return;
 
@@ -142,6 +204,6 @@
   });
 
   window.addEventListener('resize', () => {
-    if (window.innerWidth > 1100) closeMenu();
+    if (window.innerWidth > 1400) closeMenu();
   });
 })();

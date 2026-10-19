@@ -20,6 +20,11 @@
   padding: 8px 12px;
 }
 
+.student-navbar .student-nav-container {
+  width: min(100%, 1600px);
+  max-width: 1600px;
+}
+
 .student-brand {
   display: inline-flex;
   flex: 0 0 auto;
@@ -80,6 +85,7 @@
 }
 
 .student-navbar .notification-button {
+  position: relative;
   display: inline-grid;
   flex: 0 0 40px;
   width: 40px;
@@ -90,6 +96,133 @@
   background: #fff;
   color: #175e75;
   text-decoration: none;
+}
+
+.student-navbar .notification-wrapper {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.student-navbar .notification-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  padding: 0 4px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.student-navbar .notification-count[hidden],
+.student-navbar .notification-panel[hidden],
+.notification-toast[hidden] {
+  display: none;
+}
+
+.student-navbar .notification-panel {
+  position: absolute;
+  z-index: 110;
+  top: calc(100% + 10px);
+  right: 0;
+  display: grid;
+  width: min(360px, calc(100vw - 28px));
+  max-height: min(440px, 70vh);
+  overflow-y: auto;
+  border: 1px solid #dce4ee;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, .18);
+}
+
+.student-navbar .notification-panel-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.student-navbar .notification-panel-header h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.student-navbar .notification-mark-read {
+  padding: 4px 7px;
+  border: 0;
+  background: transparent;
+  color: #116e82;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.student-navbar .notification-list {
+  display: grid;
+}
+
+.student-navbar .notification-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+}
+
+.student-navbar .notification-item:hover {
+  background: #f8fafc;
+}
+
+.student-navbar .notification-item.is-unread {
+  border-left: 3px solid #116e82;
+  background: #eff6ff;
+}
+
+.student-navbar .notification-item strong {
+  font-size: 13px;
+}
+
+.student-navbar .notification-item span,
+.student-navbar .notification-empty {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+}
+
+.student-navbar .notification-item .notification-read-state {
+  font-size: 10px;
+}
+
+.notification-toast {
+  position: fixed;
+  z-index: 120;
+  top: 76px;
+  right: max(16px, calc((100vw - 1160px) / 2));
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 12px 16px;
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid #116e82;
+  border-radius: 7px;
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .18);
+  font-size: 13px;
 }
 
 .student-navbar .notification-button:hover {

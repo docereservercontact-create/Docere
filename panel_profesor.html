@@ -1073,6 +1073,7 @@
               year: 'numeric'
             }).format(new Date(`${record.fecha}T12:00:00`));
             addText(eventCard, 'span', '', `Fecha: ${date}`);
+            if (record.hora) addText(eventCard, 'span', '', `Hora: ${record.hora}`);
             if (record.lugar) addText(eventCard, 'span', '', record.lugar);
             upcomingEvents.append(eventCard);
           });
@@ -1289,35 +1290,35 @@
             profesorDocId: session.teacherDocId,
             actualizadoEn: serverTimestamp()
           };
+          let savedAnnouncementId = announcementId;
           if (announcementId) {
             await updateDoc(doc(db, 'Aulas', aula.id, 'anuncios', announcementId), announcementData);
-            resetAnnouncementEditor();
-            editorStatus.textContent = 'Anuncio actualizado correctamente.';
           } else {
             const announcementRef = doc(collection(db, 'Aulas', aula.id, 'anuncios'));
+            savedAnnouncementId = announcementRef.id;
             await setDoc(announcementRef, {
               ...announcementData,
               creadoEn: serverTimestamp()
             });
-            try {
-              await notifyStudents(aula.alumnos, {
-                id: announcementRef.id,
-                aulaId: aula.id,
-                aulaNombre: aula.nombre || 'Aula',
-                titulo: announcementData.titulo,
-                tipo: 'anuncio',
-                tipoTexto: 'Nuevo anuncio'
-              });
-            } catch (notificationError) {
-              console.error(`El anuncio ${announcementRef.id} se guardó, pero no se pudieron guardar todas las notificaciones:`, notificationError);
-              resetAnnouncementEditor();
-              await loadAnnouncements();
-              editorStatus.textContent = 'El anuncio se publicó, pero no se pudieron guardar todas las notificaciones.';
-              return;
-            }
-            resetAnnouncementEditor();
-            editorStatus.textContent = 'Anuncio publicado y notificaciones enviadas a los alumnos.';
           }
+          let notificationSaved = true;
+          try {
+            await notifyStudents(aula.alumnos, {
+              id: savedAnnouncementId,
+              aulaId: aula.id,
+              aulaNombre: aula.nombre || 'Aula',
+              titulo: announcementData.titulo,
+              tipo: 'anuncio',
+              tipoTexto: announcementId ? 'Anuncio actualizado' : 'Nuevo anuncio'
+            });
+          } catch (notificationError) {
+            console.error(`El anuncio ${savedAnnouncementId} se guardó, pero no se pudieron guardar todas las notificaciones:`, notificationError);
+            notificationSaved = false;
+          }
+          resetAnnouncementEditor();
+          editorStatus.textContent = notificationSaved
+            ? announcementId ? 'Anuncio actualizado y notificaciones enviadas.' : 'Anuncio publicado y notificaciones enviadas a los alumnos.'
+            : 'El anuncio se guardó, pero no se pudieron guardar todas las notificaciones.';
           await loadAnnouncements();
         } catch (error) {
           console.error(`No se pudo guardar el anuncio en el aula ${aula.id}:`, error);
@@ -1795,6 +1796,11 @@
       dateInput.type = 'date';
       dateInput.required = true;
       dateInput.value = getLocalDateString();
+      dateInput.setAttribute('aria-label', 'Fecha del evento');
+      const timeInput = document.createElement('input');
+      timeInput.type = 'time';
+      timeInput.required = true;
+      timeInput.setAttribute('aria-label', 'Hora de inicio del evento');
 
       const locationInput = document.createElement('input');
       locationInput.type = 'text';
@@ -1846,7 +1852,7 @@
       publishButton.className = 'announcement-submit';
       publishButton.textContent = 'Guardar publicación';
 
-      form.append(titleInput, dateInput, locationInput, descriptionToolbar, descriptionEditor, publishButton, formStatus);
+      form.append(titleInput, dateInput, timeInput, locationInput, descriptionToolbar, descriptionEditor, publishButton, formStatus);
       const publicationList = document.createElement('div');
       publicationList.className = 'announcement-list';
       publications.append(form, publicationList);
@@ -1856,6 +1862,7 @@
         editingPublicationId = null;
         titleInput.value = '';
         dateInput.value = getLocalDateString();
+        timeInput.value = '';
         locationInput.value = '';
         descriptionEditor.replaceChildren();
         publishButton.textContent = 'Guardar publicación';
@@ -1896,6 +1903,7 @@
               editingPublicationId = record.id;
               titleInput.value = record.titulo || '';
               dateInput.value = record.fecha || getLocalDateString();
+              timeInput.value = record.hora || '';
               locationInput.value = record.lugar || '';
               descriptionEditor.innerHTML = sanitizeAnnouncementHtml(record.descripcion || '');
               publishButton.textContent = 'Guardar cambios';
@@ -1952,6 +1960,7 @@
         const publicationData = {
           titulo: titleInput.value.trim(),
           fecha: dateInput.value,
+          hora: timeInput.value,
           lugar: locationInput.value.trim(),
           descripcion,
           aulaId: aula.id,
@@ -1961,8 +1970,8 @@
           actualizadoEn: serverTimestamp()
         };
 
-        if (!publicationData.titulo || !publicationData.fecha || !descriptionText) {
-          formStatus.textContent = 'Completa el título, la fecha y la descripción.';
+        if (!publicationData.titulo || !publicationData.fecha || !publicationData.hora || !descriptionText) {
+          formStatus.textContent = 'Completa el título, la fecha, la hora de inicio y la descripción.';
           return;
         }
 
@@ -1970,38 +1979,45 @@
         const wasEditingPublication = Boolean(editingPublicationId);
         formStatus.textContent = editingPublicationId ? 'Guardando cambios...' : 'Guardando publicación...';
         try {
-          let notificationSaved = true;
+          let publicationId = editingPublicationId;
           if (editingPublicationId) {
             await updateDoc(doc(db, 'Aulas', aula.id, 'publicaciones', editingPublicationId), publicationData);
           } else {
             const publicationRef = doc(collection(db, 'Aulas', aula.id, 'publicaciones'));
+            publicationId = publicationRef.id;
             await setDoc(publicationRef, {
               ...publicationData,
               creadoEn: serverTimestamp()
             });
-            try {
-              await notifyStudents(aula.alumnos, {
-                id: publicationRef.id,
-                aulaId: aula.id,
-                aulaNombre: aula.nombre || 'Aula',
-                titulo: publicationData.titulo,
-                tipo: 'evento',
-                tipoTexto: 'Nuevo evento',
-                fecha: publicationData.fecha,
-                lugar: publicationData.lugar,
-                descripcion: publicationData.descripcion
-              });
-            } catch (notificationError) {
-              console.error(`La publicación ${publicationRef.id} se guardó, pero no se pudieron guardar todas las notificaciones:`, notificationError);
-              notificationSaved = false;
-            }
+          }
+          let notificationSaved = true;
+          try {
+            await notifyStudents(aula.alumnos, {
+              id: publicationId,
+              aulaId: aula.id,
+              aulaNombre: aula.nombre || 'Aula',
+              titulo: publicationData.titulo,
+              tipo: 'evento',
+              tipoTexto: wasEditingPublication ? 'Evento actualizado' : 'Nuevo evento',
+              fecha: publicationData.fecha,
+              hora: publicationData.hora,
+              lugar: publicationData.lugar,
+              descripcion: publicationData.descripcion
+            });
+          } catch (notificationError) {
+            console.error(`La publicación ${publicationId} se guardó, pero no se pudieron guardar todas las notificaciones:`, notificationError);
+            notificationSaved = false;
           }
           resetPublicationForm();
-          formStatus.textContent = wasEditingPublication
-            ? 'Cambios guardados correctamente.'
-            : notificationSaved
-              ? 'Publicación guardada y notificaciones enviadas a los alumnos.'
+          if (!notificationSaved) {
+            formStatus.textContent = wasEditingPublication
+              ? 'Los cambios se guardaron, pero no se pudieron guardar todas las notificaciones.'
               : 'La publicación se guardó, pero no se pudieron guardar todas las notificaciones.';
+          } else {
+            formStatus.textContent = wasEditingPublication
+              ? 'Cambios guardados y notificaciones enviadas a los alumnos.'
+              : 'Publicación guardada y notificaciones enviadas a los alumnos.';
+          }
           await loadPublications();
         } catch (error) {
           console.error(`No se pudo guardar la publicación del aula ${aula.id}:`, error);
@@ -2560,7 +2576,33 @@
                 evaluatedStudentKeys.add(`${group.student.coleccion}/${group.student.id}`);
               }
               if (result.assignedAutomatically) {
-                feedbackStatus.textContent = 'Se asignó automáticamente 0 porque la tarea venció sin entrega.';
+                const automaticNotificationId = crypto.randomUUID();
+                try {
+                  await notifyStudents([group.student], {
+                    id: task.id,
+                    notificationDocId: `calificacion_${task.id}_${automaticNotificationId}`,
+                    aulaId: task.aulaId,
+                    aulaNombre: aula.nombre || 'Aula',
+                    titulo: task.titulo || 'Tarea',
+                    detalle: `Calificación: 0 / ${automaticFeedback.puntosMaximos}.`,
+                    tipo: 'calificacion',
+                    tipoTexto: 'Nueva calificación'
+                  });
+                  await notifyStudents([group.student], {
+                    id: task.id,
+                    notificationDocId: `comentario_${task.id}_${automaticNotificationId}`,
+                    aulaId: task.aulaId,
+                    aulaNombre: aula.nombre || 'Aula',
+                    titulo: task.titulo || 'Tarea',
+                    detalle: `El profesor agregó un comentario: ${automaticComment}`,
+                    tipo: 'comentario',
+                    tipoTexto: 'Nuevo comentario del profesor'
+                  });
+                  feedbackStatus.textContent = 'Se asignó automáticamente 0 porque la tarea venció sin entrega y se notificó al alumno.';
+                } catch (notificationError) {
+                  console.error(`La calificación automática de la tarea ${task.id} se guardó, pero no se pudo notificar a ${group.student.coleccion}/${group.student.id}:`, notificationError);
+                  feedbackStatus.textContent = 'Se asignó automáticamente 0, pero no se pudo notificar al alumno.';
+                }
               }
             }
             updateEvaluationSummary();
@@ -2597,7 +2639,38 @@
                 });
                 evaluatedStudentKeys.add(`${group.student.coleccion}/${group.student.id}`);
                 updateEvaluationSummary();
-                feedbackStatus.textContent = 'Calificación y retroalimentación guardadas.';
+                let notificationSaved = true;
+                const notificationId = crypto.randomUUID();
+                try {
+                  await notifyStudents([group.student], {
+                    id: task.id,
+                    notificationDocId: `calificacion_${task.id}_${notificationId}`,
+                    aulaId: task.aulaId,
+                    aulaNombre: aula.nombre || 'Aula',
+                    titulo: task.titulo || 'Tarea',
+                    detalle: `Calificación: ${grade} / ${maxGrade}.`,
+                    tipo: 'calificacion',
+                    tipoTexto: 'Nueva calificación'
+                  });
+                  if (commentText) {
+                    await notifyStudents([group.student], {
+                      id: task.id,
+                      notificationDocId: `comentario_${task.id}_${notificationId}`,
+                      aulaId: task.aulaId,
+                      aulaNombre: aula.nombre || 'Aula',
+                      titulo: task.titulo || 'Tarea',
+                      detalle: `El profesor agregó un comentario: ${commentText}`,
+                      tipo: 'comentario',
+                      tipoTexto: 'Nuevo comentario del profesor'
+                    });
+                  }
+                } catch (notificationError) {
+                  notificationSaved = false;
+                  console.error(`La calificación de la tarea ${task.id} se guardó, pero no se pudieron enviar todas las notificaciones a ${group.student.coleccion}/${group.student.id}:`, notificationError);
+                }
+                feedbackStatus.textContent = notificationSaved
+                  ? 'Calificación y retroalimentación guardadas; se notificó al alumno.'
+                  : 'La calificación y retroalimentación se guardaron, pero no se pudieron enviar todas las notificaciones.';
               } catch (error) {
                 console.error(`No se pudo guardar la calificación de ${group.student.coleccion}/${group.student.id} para la tarea ${task.id}:`, error);
                 feedbackStatus.textContent = 'No se pudo guardar. Revisa los permisos y la conexión de Firestore.';
@@ -3092,7 +3165,22 @@
                   comentario: '',
                   actualizadoEn: serverTimestamp()
                 });
-                gradeStatus.textContent = 'Calificación guardada.';
+                try {
+                  await notifyStudents([student], {
+                    id: exam.id,
+                    notificationDocId: `calificacion_${exam.id}_${crypto.randomUUID()}`,
+                    aulaId: aula.id,
+                    aulaNombre: aula.nombre || 'Aula',
+                    titulo: exam.titulo || 'Examen simulacro',
+                    detalle: `Calificación: ${score} / ${maxScore}.`,
+                    tipo: 'calificacion',
+                    tipoTexto: 'Nueva calificación de examen simulacro'
+                  });
+                  gradeStatus.textContent = 'Calificación guardada y alumno notificado.';
+                } catch (notificationError) {
+                  console.error(`La calificación del alumno ${student.id} en el examen ${exam.id} se guardó, pero no se pudo notificar:`, notificationError);
+                  gradeStatus.textContent = 'La calificación se guardó, pero no se pudo notificar al alumno.';
+                }
               } catch (error) {
                 console.error(`No se pudo guardar la calificación del alumno ${student.id} en el examen ${exam.id}:`, error);
                 gradeStatus.textContent = 'No se pudo guardar la calificación.';

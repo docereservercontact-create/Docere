@@ -1108,19 +1108,20 @@
         item.append(
           addWallText(item, 'strong', '', notification.titulo || 'Nueva actividad'),
           addWallText(item, 'span', '', notificationContext),
+          ...(notification.detalle ? [addWallText(item, 'span', '', notification.detalle)] : []),
           addWallText(item, 'span', 'notification-read-state', notification.leida ? 'Leída' : 'No leída')
         );
         item.addEventListener('click', async () => {
           if (!(await markNotificationAsRead(notification))) return;
           notificationPanel.hidden = true;
           notificationButton.setAttribute('aria-expanded', 'false');
-          if (notification.tipo === 'tarea') {
+          if (['tarea', 'recordatorio_tarea', 'calificacion', 'comentario'].includes(notification.tipo)) {
             window.location.href = `asignaciones.html#assignment-${encodeURIComponent(notification.id)}`;
           } else if (notification.tipo === 'pizarra') {
             window.location.href = 'Apuntes_admision.html';
           } else if (notification.tipo === 'pago') {
             window.location.href = 'panel_estudiante.html#pagos';
-          } else if (notification.tipo === 'evento') {
+          } else if (notification.tipo === 'evento' || notification.tipo === 'recordatorio_evento') {
             openEventModal(notification);
           } else {
             const card = Array.from(announcementWall.querySelectorAll('.class-announcement'))
@@ -1158,7 +1159,7 @@
     function showNotificationToast(notification) {
       notificationToast.textContent = notification.tipo === 'pizarra'
         ? `${notification.tipoTexto} en ${notification.aulaNombre || 'Aula'}: ${notification.titulo || 'Pizarra'} · ${notification.materia || 'Materia'}`
-        : `${notification.tipoTexto} en ${notification.aulaNombre}: ${notification.titulo || 'Actividad'}`;
+        : `${notification.tipoTexto} en ${notification.aulaNombre || 'Aula'}: ${notification.titulo || 'Actividad'}${notification.detalle ? ` · ${notification.detalle}` : ''}`;
       notificationToast.hidden = false;
       clearTimeout(notificationToastTimer);
       notificationToastTimer = setTimeout(() => { notificationToast.hidden = true; }, 6000);
@@ -1172,7 +1173,7 @@
           });
           browserNotification.onclick = () => {
             window.focus();
-            if (notification.tipo === 'tarea') {
+            if (['tarea', 'recordatorio_tarea', 'calificacion', 'comentario'].includes(notification.tipo)) {
               window.location.href = `asignaciones.html#assignment-${encodeURIComponent(notification.id)}`;
             } else if (notification.tipo === 'pizarra') {
               window.location.href = 'Apuntes_admision.html';
@@ -1205,7 +1206,7 @@
           renderNotifications();
           if (!initialSnapshot) {
             snapshot.docChanges().forEach((change) => {
-              if (change.type !== 'added') return;
+              if (change.type !== 'added' && change.type !== 'modified') return;
               const notification = { notificationDocId: change.doc.id, ...change.doc.data() };
               if (!notification.leida) showNotificationToast(notification);
             });
@@ -1349,6 +1350,7 @@
       const meta = document.createElement('p');
       meta.className = 'event-modal-meta';
       const details = [formatEventDate(event.fecha)];
+      if (event.hora) details.push(`Hora: ${event.hora}`);
       if (event.lugar) details.push(event.lugar);
       if (event.aulaNombre) details.push(event.aulaNombre);
       meta.textContent = details.join(' · ');
@@ -1431,7 +1433,7 @@
           title.textContent = event.titulo;
           const meta = document.createElement('span');
           meta.className = 'event-date';
-          meta.textContent = `Fecha: ${formatEventDate(event.fecha)}`;
+          meta.textContent = `Fecha: ${formatEventDate(event.fecha)}${event.hora ? ` · Hora: ${event.hora}` : ''}`;
           item.append(title, meta);
           item.addEventListener('click', () => openEventModal(event));
           list.append(item);
