@@ -33,6 +33,7 @@
   const links = [
     ['panel_estudiante.html', 'Mi panel'],
     ['asignaciones.html', 'Asignaciones'],
+    ['examenes-simulacros-estudiante.html', 'Exámenes simulacros'],
     ['mis-cursos.html', 'Mis Cursos'],
     ['Apuntes_admision.html', 'Apuntes'],
     ['Material_de_estudio.html', 'Material de Estudio'],

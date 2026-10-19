@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Consulta tus puntajes de exámenes simulacros.">
+  <title>Exámenes simulacros | Docére</title>
+  <script src="student-session.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="student-panel-navigation.css">
+  <script src="student-panel-navigation.js" defer></script>
+  <style>
+    :root {
+      --page-bg: #f4f8fb;
+      --surface: #fff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #e2e8f0;
+      --accent: #116e82;
+    }
+
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; background: var(--page-bg); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .student-nav-container { width: min(100%, 1360px); margin: 0 auto; }
+    .page { width: min(100% - 40px, 1100px); margin: 36px auto 64px; }
+    .page-heading { margin-bottom: 22px; }
+    .page-heading h1 { margin: 0 0 7px; font-size: clamp(24px, 4vw, 32px); }
+    .page-heading p { margin: 0; color: var(--muted); line-height: 1.55; }
+    .average-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 22px; padding: 22px 24px; border: 1px solid #c9e7e7; border-radius: 14px; background: linear-gradient(115deg, #fff, #eefafa); box-shadow: 0 6px 18px rgba(17, 110, 130, .07); }
+    .average-label { color: var(--muted); font-size: 14px; font-weight: 600; }
+    .average-value { display: block; margin-top: 4px; color: #116e82; font-size: clamp(30px, 5vw, 40px); font-weight: 800; line-height: 1.1; }
+    .average-count { color: var(--muted); font-size: 13px; text-align: right; }
+    .exam-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 4px 16px rgba(15, 23, 42, .04); }
+    .exam-panel h2 { margin: 0; padding: 18px 20px; border-bottom: 1px solid var(--line); font-size: 17px; }
+    .exam-status { margin: 0; padding: 16px 20px; color: var(--muted); font-size: 14px; }
+    .table-wrap { overflow-x: auto; }
+    .exam-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .exam-table th, .exam-table td { padding: 13px 20px; border-bottom: 1px solid #eef2f7; font-size: 14px; }
+    .exam-table th { background: #f8fafc; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+    .exam-table tbody tr:last-child td { border-bottom: 0; }
+    .exam-table tbody tr:hover { background: #f8fafc; }
+    .exam-title { font-weight: 650; }
+    .exam-meta { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .exam-score { color: #116e82; font-weight: 750; white-space: nowrap; }
+    .exam-ungraded { color: var(--muted); font-weight: 500; }
+    .empty-cell { padding: 24px 20px !important; color: var(--muted); text-align: center; }
+    @media (max-width: 600px) {
+      .page { width: min(100% - 24px, 1100px); margin-top: 24px; }
+      .average-card { align-items: flex-start; flex-direction: column; gap: 10px; padding: 18px; }
+      .average-count { text-align: left; }
+      .exam-table th, .exam-table td { padding: 11px 13px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar student-navbar">
+    <div class="student-nav-container">
+      <a href="index.html" class="student-brand"><img src="logon.png" alt="Docére"></a>
+      <button class="student-menu-toggle" id="studentMenuToggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="studentNavLinks">
+        <i data-lucide="menu"></i>
+      </button>
+      <ul class="student-nav-links" id="studentNavLinks"></ul>
+      <div class="student-nav-actions">
+        <a href="perfil.html" class="user-profile" title="Ir a mi perfil">
+          <span class="avatar-wrapper"><i data-lucide="user-round"></i></span>
+          <span class="user-info"><span class="user-name" id="userNameLabel">Alumno</span><span class="user-role">Estudiante</span></span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page">
+    <header class="page-heading">
+      <h1>Exámenes simulacros</h1>
+      <p>Consulta el promedio general y el puntaje de cada examen simulacro asignado por tus profesores.</p>
+    </header>
+    <section class="average-card" aria-labelledby="averageTitle">
+      <div>
+        <span class="average-label" id="averageTitle">Promedio general de exámenes simulacros</span>
+        <strong class="average-value" id="practiceAverage">—</strong>
+      </div>
+      <span class="average-count" id="practiceAverageCount">Calculando promedio...</span>
+    </section>
+    <section class="exam-panel" aria-labelledby="examListTitle">
+      <h2 id="examListTitle">Puntajes por examen</h2>
+      <p class="exam-status" id="examStatus" role="status" aria-live="polite">Cargando tus exámenes...</p>
+      <div class="table-wrap">
+        <table class="exam-table">
+          <thead>
+            <tr><th scope="col">Examen</th><th scope="col">Aula</th><th scope="col">Puntaje</th></tr>
+          </thead>
+          <tbody id="examTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { collection, doc, getDoc, getDocs, getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { firebaseConfig } from './portal-auth.js';
+
+    const appName = 'studentPracticeExams';
+    const app = getApps().find((firebaseApp) => firebaseApp.name === appName)
+      || initializeApp(firebaseConfig, appName);
+    const db = getFirestore(app);
+    const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+    const averageElement = document.getElementById('practiceAverage');
+    const averageCount = document.getElementById('practiceAverageCount');
+    const examStatus = document.getElementById('examStatus');
+    const examTableBody = document.getElementById('examTableBody');
+    if (student?.nombre) document.getElementById('userNameLabel').textContent = student.nombre;
+
+    function isStudentInClassroom(classroom) {
+      return Array.isArray(classroom.alumnos) && classroom.alumnos.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && String(assignedStudent.email || assignedStudent.correo || '').toLowerCase()
+          === String(student.email).toLowerCase())
+      );
+    }
+
+    function isExamAssigned(exam) {
+      if (!Array.isArray(exam.alumnosAsignados)) return true;
+      return exam.alumnosAsignados.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && String(assignedStudent.email || assignedStudent.correo || '').toLowerCase()
+          === String(student.email).toLowerCase())
+      );
+    }
+
+    function appendEmptyMessage(message) {
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 3;
+      cell.className = 'empty-cell';
+      cell.textContent = message;
+      row.append(cell);
+      examTableBody.append(row);
+    }
+
+    function formatScore(score, maxScore) {
+      const formattedScore = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(score);
+      const formattedMaxScore = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(maxScore);
+      return `${formattedScore} / ${formattedMaxScore}`;
+    }
+
+    async function loadPracticeExams() {
+      examTableBody.replaceChildren();
+      if (!student?.id || !student?.coleccion) {
+        examStatus.textContent = 'Inicia sesión para consultar tus exámenes simulacros.';
+        averageCount.textContent = 'No hay sesión de alumno activa.';
+        appendEmptyMessage('Inicia sesión para ver tus exámenes.');
+        return;
+      }
+
+      try {
+        const classroomsSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomsSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter(isStudentInClassroom);
+        const examsByClassroom = await Promise.all(classrooms.map(async (classroom) => {
+          const examsSnapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'examenesSimulacros'));
+          const exams = examsSnapshot.docs
+            .map((examDoc) => ({ id: examDoc.id, ...examDoc.data() }))
+            .filter(isExamAssigned);
+          return Promise.all(exams.map(async (exam) => {
+            const gradeId = `${student.coleccion}_${student.id}`;
+            const gradeSnapshot = await getDoc(doc(
+              db,
+              'Aulas',
+              classroom.id,
+              'examenesSimulacros',
+              exam.id,
+              'calificaciones',
+              gradeId
+            ));
+            const feedback = gradeSnapshot.exists() ? gradeSnapshot.data() : null;
+            const score = feedback?.calificacion === '' || feedback?.calificacion == null
+              ? null
+              : Number(feedback.calificacion);
+            const maxScore = Number(feedback?.puntosMaximos ?? exam.puntos ?? 100);
+            const hasValidScore = Number.isFinite(score) && Number.isFinite(maxScore)
+              && maxScore > 0 && score >= 0 && score <= maxScore;
+            if (score !== null && !hasValidScore) {
+              console.error(`Se omitió un puntaje inválido para el examen simulacro ${exam.id} (${classroom.id}).`);
+            }
+            return {
+              id: exam.id,
+              title: exam.titulo || 'Examen simulacro',
+              classroom: classroom.nombre || 'Aula',
+              countsForAverage: exam.considerarEnPromedio !== false,
+              score: hasValidScore ? score : null,
+              maxScore
+            };
+          }));
+        }));
+        const exams = examsByClassroom.flat().sort((left, right) =>
+          left.title.localeCompare(right.title, 'es')
+        );
+        if (!exams.length) {
+          examStatus.textContent = 'Aún no tienes exámenes simulacros asignados.';
+          averageElement.textContent = '—';
+          averageCount.textContent = '0 exámenes calificados';
+          appendEmptyMessage('Cuando te asignen un examen simulacro, aparecerá aquí.');
+          return;
+        }
+
+        const countedExams = exams.filter((exam) => exam.countsForAverage);
+        const gradedCountedExams = countedExams.filter((exam) => exam.score !== null);
+        const average = gradedCountedExams.length
+          ? gradedCountedExams.reduce((sum, exam) => sum + exam.score, 0) / gradedCountedExams.length
+          : null;
+        averageElement.textContent = average === null
+          ? '—'
+          : new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(average);
+        const excludedCount = exams.length - countedExams.length;
+        averageCount.textContent = countedExams.length
+          ? `${gradedCountedExams.length} de ${countedExams.length} exámenes que cuentan calificados · ${excludedCount} excluido(s)`
+          : `Ningún examen cuenta para el promedio · ${excludedCount} excluido(s)`;
+        exams.forEach((exam) => {
+          const row = document.createElement('tr');
+          const titleCell = document.createElement('td');
+          const title = document.createElement('span');
+          title.className = 'exam-title';
+          title.textContent = exam.title;
+          const subtitle = document.createElement('span');
+          subtitle.className = 'exam-meta';
+          subtitle.textContent = exam.countsForAverage
+            ? 'Cuenta para el promedio'
+            : 'No cuenta para el promedio';
+          titleCell.append(title, subtitle);
+          const classroomCell = document.createElement('td');
+          classroomCell.textContent = exam.classroom;
+          const scoreCell = document.createElement('td');
+          scoreCell.className = exam.score === null ? 'exam-ungraded' : 'exam-score';
+          scoreCell.textContent = exam.score === null ? 'Sin calificar' : formatScore(exam.score, exam.maxScore);
+          row.append(titleCell, classroomCell, scoreCell);
+          examTableBody.append(row);
+        });
+        examStatus.textContent = `${exams.length} examen(es) simulacro(s) asignado(s).`;
+      } catch (error) {
+        console.error('No se pudieron cargar los exámenes simulacros del alumno:', error);
+        examStatus.textContent = 'No se pudieron cargar los exámenes simulacros. Revisa la conexión y los permisos de Firestore.';
+        averageElement.textContent = '—';
+        averageCount.textContent = 'No se pudo calcular el promedio.';
+        examTableBody.replaceChildren();
+        appendEmptyMessage('No se pudo consultar la lista de exámenes.');
+      }
+    }
+
+    loadPracticeExams();
+  </script>
+</body>
+</html>

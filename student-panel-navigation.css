@@ -226,6 +226,34 @@
   height: 21px;
 }
 
+@media (max-width: 1500px) and (min-width: 1101px) {
+  .student-nav-container {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .student-brand {
+    order: 1;
+  }
+
+  .student-nav-actions {
+    order: 2;
+  }
+
+  .student-nav-links {
+    flex: 1 0 100%;
+    flex-wrap: wrap;
+    order: 3;
+    justify-content: center;
+    gap: 4px 20px;
+    padding-top: 2px;
+  }
+
+  .student-nav-links a {
+    padding: 8px 10px;
+  }
+}
+
 @media (max-width: 1100px) {
   .student-nav-container {
     justify-content: space-between;

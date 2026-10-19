@@ -1617,7 +1617,7 @@
             ? `Examen simulacro: ${feedback.task.titulo || 'Sin título'}`
             : feedback.task.titulo || 'Asignación');
           addWallText(card, 'span', 'student-feedback-meta', `${feedback.classroom.nombre || 'Aula'} · ${feedback.classroom.curso || feedback.task.curso || 'Curso'}`);
-          addWallText(card, 'span', 'student-feedback-grade', `Calificación: ${feedback.calificacion} / ${feedback.puntosMaximos ?? feedback.task.puntos ?? 100}`);
+          addWallText(card, 'span', 'student-feedback-grade', `Calificación: ${feedback.calificacion} / ${feedback.puntosMaximos ?? feedback.task.puntos ?? 100}${feedback.task.tipoEvaluacion === 'simulacro' && feedback.task.considerarEnPromedio === false ? ' · No cuenta para el promedio' : ''}`);
           if (feedback.comentario) {
             const comment = addWallText(card, 'div', 'student-feedback-comment', '');
             comment.innerHTML = sanitizeAnnouncement(feedback.comentario);

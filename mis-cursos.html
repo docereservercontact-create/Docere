@@ -302,6 +302,35 @@
       margin-top: 18px;
     }
 
+    .course-grades-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+    .course-grades-section h3 { margin-bottom: 6px; font-size: 18px; }
+    .course-grades-status { margin-bottom: 14px; color: var(--text-secondary); font-size: 13px; }
+    .course-grade-list { display: grid; gap: 12px; }
+    .course-grade-table-card { overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04); }
+    .course-grade-table-card h4 { margin: 0; padding: 16px 18px; border-bottom: 1px solid var(--border); font-size: 15px; }
+    .course-grade-table-wrap { overflow-x: auto; }
+    .course-grade-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .course-grade-table th, .course-grade-table td { padding: 12px 18px; border-bottom: 1px solid #eef2f7; font-size: 13px; }
+    .course-grade-table th { background: #f8fafc; color: var(--text-secondary); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+    .course-grade-table tbody tr:last-child td { border-bottom: 0; }
+    .course-grade-table tbody tr:hover { background: #f8fafc; }
+    .course-grade-table .course-grade-row-overall td { background: #f0f7ff; font-weight: 650; }
+    .course-grade-table .course-grade-score { color: #1d4ed8; font-size: 14px; font-weight: 750; white-space: nowrap; }
+    .course-grade-unit-toggle { padding: 0; border: 0; background: none; color: #1d4ed8; font: inherit; font-weight: 650; text-align: left; cursor: pointer; }
+    .course-grade-unit-toggle:hover { text-decoration: underline; }
+    .course-grade-detail-row td { padding: 0; background: #f8fafc; }
+    .course-grade-detail-wrap { padding: 12px 16px 14px; }
+    .course-grade-detail-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .course-grade-detail-table th, .course-grade-detail-table td { padding: 9px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+    .course-grade-detail-table th { color: var(--text-secondary); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .course-grade-detail-table tr:last-child td { border-bottom: 0; }
+    .course-grade-excluded { display: inline-flex; margin-left: 8px; padding: 3px 8px; border-radius: 999px; background: #fff7ed; color: #b45309; font-size: 10px; font-weight: 700; white-space: nowrap; }
+    .course-grade-delivery { display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 650; white-space: nowrap; }
+    .course-grade-delivery.submitted { background: #dcfce7; color: #166534; }
+    .course-grade-delivery.missing { background: #fee2e2; color: #991b1b; }
+    .course-grade-delivery.unknown { background: #fef3c7; color: #92400e; }
+    .course-grade-empty { margin: 0; color: var(--text-secondary); font-size: 13px; }
+
     .access-restriction { margin: 0 0 18px; color: #b91c1c; font-weight: 600; line-height: 1.5; }
 
     .attendance-analysis {
@@ -537,6 +566,11 @@
         <i data-lucide="chart-no-axes-column-increasing"></i>
         <span>Ver análisis de asistencias</span>
       </button>
+      <section class="course-grades-section" aria-labelledby="courseGradesTitle">
+        <h3 id="courseGradesTitle">Promedios por materia</h3>
+        <p class="course-grades-status" id="courseGradesStatus" role="status">Cargando promedios...</p>
+        <div class="course-grade-list" id="courseGradeList"></div>
+      </section>
     </section>
     <section class="attendance-analysis" id="attendanceAnalysis" aria-labelledby="attendanceAnalysisTitle" hidden>
       <h2 id="attendanceAnalysisTitle">Análisis de mis asistencias</h2>
@@ -550,6 +584,8 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getFirestore, doc, getDoc, collection, query, where, limit, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStorage, ref, listAll, getMetadata } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+    import { auth as portalAuth, authApp } from './portal-auth.js';
     import { ABSENCE_SUSPENSION_PERCENT, getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
     import { logSessionEvent } from './session-audit.js';
     import { bindStudentClassMeetingButton } from './student-class-meeting.js';
@@ -567,9 +603,12 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const storage = getStorage(authApp);
 
     const session = JSON.parse(localStorage.getItem('studentSession') || 'null');
     if (session?.nombre) document.getElementById('userNameLabel').textContent = session.nombre;
+    const courseGradesStatus = document.getElementById('courseGradesStatus');
+    const courseGradeList = document.getElementById('courseGradeList');
 
     bindStudentClassMeetingButton({
       button: document.getElementById('btnIngresarClase'),
@@ -724,6 +763,364 @@
         (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
         || (student.email && assignedStudent.email === student.email)
       );
+    }
+
+    function studentIsAssigned(evaluation, student) {
+      if (!Array.isArray(evaluation.alumnosAsignados)) return true;
+      return evaluation.alumnosAsignados.some((assignedStudent) =>
+        (assignedStudent.id === student.id && assignedStudent.coleccion === student.coleccion)
+        || (student.email && String(assignedStudent.email || assignedStudent.correo || '').toLowerCase() === String(student.email).toLowerCase())
+      );
+    }
+
+    function getCourseSubmissionUser(student) {
+      return new Promise((resolve) => {
+        const fallbackUser = {
+          uid: String(student?.id || student?.email || 'student-local-user'),
+          email: String(student?.email || ''),
+          displayName: student?.nombre || 'Alumno'
+        };
+        const unsubscribe = onAuthStateChanged(portalAuth, (user) => {
+          unsubscribe();
+          const sessionEmail = fallbackUser.email.trim().toLowerCase();
+          const userEmail = String(user?.email || '').trim().toLowerCase();
+          if (!user || (sessionEmail && userEmail && userEmail !== sessionEmail)) {
+            resolve(fallbackUser);
+            return;
+          }
+          resolve({
+            ...fallbackUser,
+            uid: String(user.uid || fallbackUser.uid),
+            email: user.email || fallbackUser.email,
+            displayName: user.displayName || fallbackUser.displayName
+          });
+        }, (error) => {
+          console.error('No se pudo consultar la sesión segura para verificar entregas:', error);
+          unsubscribe();
+          resolve(fallbackUser);
+        });
+      });
+    }
+
+    async function hasCourseTaskSubmission(task, student) {
+      const user = await getCourseSubmissionUser(student);
+      const studentId = user?.uid || String(student?.id || student?.email || 'student-local-user');
+      const folder = ref(storage, `entregas/${task.aulaId}/${task.id}/${studentId}`);
+      const folderHasFiles = async (currentFolder) => {
+        const result = await listAll(currentFolder);
+        if (result.items.length) return true;
+        const nestedResults = await Promise.all(result.prefixes.map(folderHasFiles));
+        return nestedResults.some(Boolean);
+      };
+      let listingError = null;
+      try {
+        if (await folderHasFiles(folder)) return true;
+      } catch (error) {
+        listingError = error;
+      }
+
+      try {
+        await getMetadata(ref(storage, `entregas/${task.aulaId}/${task.id}/${studentId}.pdf`));
+        return true;
+      } catch (error) {
+        if (error.code !== 'storage/object-not-found') {
+          if (!listingError) throw error;
+        }
+      }
+
+      if (listingError) throw listingError;
+      return false;
+    }
+
+    function renderCourseGradeTable(title, headers, rows, emptyMessage) {
+      const card = document.createElement('article');
+      card.className = 'course-grade-table-card';
+      const heading = document.createElement('h4');
+      heading.textContent = title;
+      const tableWrap = document.createElement('div');
+      tableWrap.className = 'course-grade-table-wrap';
+      const table = document.createElement('table');
+      table.className = 'course-grade-table';
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      headers.forEach((header) => {
+        const cell = document.createElement('th');
+        cell.scope = 'col';
+        cell.textContent = header;
+        headerRow.append(cell);
+      });
+      thead.append(headerRow);
+      const tbody = document.createElement('tbody');
+      if (!rows.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = headers.length;
+        cell.className = 'course-grade-empty';
+        cell.textContent = emptyMessage;
+        row.append(cell);
+        tbody.append(row);
+      } else {
+        rows.forEach((data, rowIndex) => {
+          const { values, overall = false, evaluations } = data;
+          const row = document.createElement('tr');
+          if (overall) row.className = 'course-grade-row-overall';
+          values.forEach((value, columnIndex) => {
+            const cell = document.createElement('td');
+            if (columnIndex === 1 && evaluations?.length) {
+              const button = document.createElement('button');
+              button.type = 'button';
+              button.className = 'course-grade-unit-toggle';
+              button.textContent = `${value} · Ver tareas`;
+              button.setAttribute('aria-expanded', 'false');
+              cell.append(button);
+            } else {
+              cell.textContent = value;
+              if (columnIndex === values.length - 1) cell.className = 'course-grade-score';
+            }
+            row.append(cell);
+          });
+          tbody.append(row);
+
+          if (!evaluations?.length) return;
+          const detailsRow = document.createElement('tr');
+          detailsRow.className = 'course-grade-detail-row';
+          detailsRow.hidden = true;
+          const detailsCell = document.createElement('td');
+          detailsCell.colSpan = headers.length;
+          const detailsWrap = document.createElement('div');
+          detailsWrap.className = 'course-grade-detail-wrap';
+          const detailsTable = document.createElement('table');
+          detailsTable.className = 'course-grade-detail-table';
+          const detailsHead = document.createElement('thead');
+          const detailsHeaderRow = document.createElement('tr');
+          ['Tarea', 'Estado de entrega', 'Calificación'].forEach((label) => {
+            const header = document.createElement('th');
+            header.scope = 'col';
+            header.textContent = label;
+            detailsHeaderRow.append(header);
+          });
+          detailsHead.append(detailsHeaderRow);
+          const detailsBody = document.createElement('tbody');
+          detailsTable.append(detailsHead, detailsBody);
+          detailsWrap.append(detailsTable);
+          detailsCell.append(detailsWrap);
+          detailsRow.append(detailsCell);
+          tbody.append(detailsRow);
+
+          const toggle = row.querySelector('.course-grade-unit-toggle');
+          const detailsId = `course-grade-details-${rowIndex}`;
+          detailsRow.id = detailsId;
+          toggle.setAttribute('aria-controls', detailsId);
+          toggle.addEventListener('click', async () => {
+            const willOpen = detailsRow.hidden;
+            detailsRow.hidden = !willOpen;
+            toggle.textContent = `${values[1]} · ${willOpen ? 'Ocultar tareas' : 'Ver tareas'}`;
+            toggle.setAttribute('aria-expanded', String(willOpen));
+            if (!willOpen || data.detailsLoaded || data.detailsPromise) return;
+
+            const loadingRow = document.createElement('tr');
+            const loadingCell = document.createElement('td');
+            loadingCell.colSpan = 3;
+            loadingCell.textContent = 'Consultando entregas...';
+            loadingRow.append(loadingCell);
+            detailsBody.append(loadingRow);
+            data.detailsPromise = Promise.all(evaluations.map(async (evaluation) => {
+              try {
+                return { evaluation, submitted: await hasCourseTaskSubmission(evaluation, data.student) };
+              } catch (error) {
+                console.error(`No se pudo verificar la entrega de la tarea ${evaluation.id}:`, error);
+                return { evaluation, error };
+              }
+            }));
+            const results = await data.detailsPromise;
+            detailsBody.replaceChildren();
+            results.forEach(({ evaluation, submitted, error }) => {
+              const detail = document.createElement('tr');
+              const taskCell = document.createElement('td');
+              const taskTitle = document.createElement('span');
+              taskTitle.textContent = evaluation.title;
+              taskCell.append(taskTitle);
+              if (!evaluation.includeInAverage) {
+                const excludedLabel = document.createElement('span');
+                excludedLabel.className = 'course-grade-excluded';
+                excludedLabel.textContent = 'No cuenta para el promedio';
+                taskCell.append(excludedLabel);
+              }
+              const statusCell = document.createElement('td');
+              const status = document.createElement('span');
+              status.className = `course-grade-delivery ${error ? 'unknown' : submitted ? 'submitted' : 'missing'}`;
+              status.textContent = error ? 'No se pudo verificar' : submitted ? 'Entregada' : 'No entregada';
+              statusCell.append(status);
+              const gradeCell = document.createElement('td');
+              gradeCell.textContent = evaluation.score === null
+                ? 'Sin calificar'
+                : `${evaluation.score} / ${evaluation.maxScore}`;
+              detail.append(taskCell, statusCell, gradeCell);
+              detailsBody.append(detail);
+            });
+            data.detailsLoaded = true;
+            data.detailsPromise = null;
+          });
+        });
+      }
+      table.append(thead, tbody);
+      tableWrap.append(table);
+      card.append(heading, tableWrap);
+      courseGradeList.append(card);
+    }
+
+    async function loadCourseGradeAverages(student, user) {
+      courseGradesStatus.textContent = 'Consultando tus calificaciones...';
+      courseGradeList.replaceChildren();
+      if (!student?.id || !student?.coleccion) {
+        courseGradesStatus.textContent = 'No se pudo identificar tu inscripción para consultar los promedios.';
+        return;
+      }
+
+      try {
+        const classroomsSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomsSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => studentMatchesClassroom(classroom, student));
+        const subjects = new Map();
+        const practiceExamScores = [];
+        const feedbackId = `${student.coleccion}_${student.id}`;
+
+        for (const classroom of classrooms) {
+          const [tasksSnapshot, examsSnapshot] = await Promise.all([
+            getDocs(collection(db, 'Aulas', classroom.id, 'tareas')),
+            getDocs(collection(db, 'Aulas', classroom.id, 'examenesSimulacros'))
+          ]);
+          const evaluations = [
+            ...tasksSnapshot.docs.map((taskDoc) => ({
+              ...taskDoc.data(),
+              id: taskDoc.id,
+              collectionName: 'tareas',
+              evaluationType: 'assignments'
+            })),
+            ...examsSnapshot.docs.map((examDoc) => ({
+              ...examDoc.data(),
+              id: examDoc.id,
+              collectionName: 'examenesSimulacros',
+              evaluationType: 'practiceExams'
+            }))
+          ].filter((evaluation) => studentIsAssigned(evaluation, student));
+
+          await Promise.all(evaluations.map(async (evaluation) => {
+            const subjectName = String(evaluation.materia || 'General').trim() || 'General';
+            const subjectKey = evaluation.materiaId || subjectName.toLocaleLowerCase();
+            let subject = null;
+            let unit = null;
+            let unitEvaluation = null;
+            if (evaluation.evaluationType === 'assignments') {
+              subject = subjects.get(subjectKey);
+              if (!subject) {
+                subject = { name: subjectName, assignments: [], units: new Map() };
+                subjects.set(subjectKey, subject);
+              }
+              const unitName = String(evaluation.unidad || '').trim();
+              if (unitName) {
+                const unitKey = unitName.toLocaleLowerCase();
+                unit = subject.units.get(unitKey);
+                if (!unit) {
+                  unit = { name: unitName, assignments: [], evaluations: [] };
+                  subject.units.set(unitKey, unit);
+                }
+              }
+              if (unit) {
+                unitEvaluation = {
+                  id: evaluation.id,
+                  aulaId: classroom.id,
+                  title: String(evaluation.titulo || evaluation.nombre || 'Tarea sin título'),
+                  score: null,
+                  maxScore: Number(evaluation.puntos ?? 100),
+                  includeInAverage: evaluation.considerarEnPromedio !== false
+                };
+                unit.evaluations.push(unitEvaluation);
+              }
+            }
+
+            const feedbackSnapshot = await getDoc(doc(
+              db,
+              'Aulas',
+              classroom.id,
+              evaluation.collectionName,
+              evaluation.id,
+              'calificaciones',
+              feedbackId
+            ));
+            const feedback = feedbackSnapshot.exists() ? feedbackSnapshot.data() : null;
+            const score = feedback ? Number(feedback.calificacion) : NaN;
+            const maxScore = Number(feedback?.puntosMaximos ?? evaluation.puntos ?? 100);
+            const hasValidGrade = Number.isFinite(score) && Number.isFinite(maxScore)
+              && maxScore > 0 && score >= 0 && score <= maxScore;
+            if (feedback && !hasValidGrade) {
+              console.error(`Se omitió una calificación inválida (${feedbackSnapshot.ref.path}).`);
+            }
+            if (evaluation.evaluationType === 'practiceExams') {
+              if (hasValidGrade && evaluation.considerarEnPromedio !== false) {
+                practiceExamScores.push(score);
+              }
+            } else {
+              if (unit) {
+                if (hasValidGrade) {
+                  unitEvaluation.score = score;
+                  unitEvaluation.maxScore = maxScore;
+                }
+              }
+              if (hasValidGrade && evaluation.considerarEnPromedio !== false) {
+                subject.assignments.push(score);
+                if (unit) unit.assignments.push(score);
+              }
+            }
+          }));
+        }
+
+        const formatAverage = (scores) => scores.length
+          ? new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 })
+            .format(scores.reduce((total, score) => total + score, 0) / scores.length)
+          : '—';
+        const subjectGroups = Array.from(subjects.values())
+          .sort((left, right) => left.name.localeCompare(right.name, 'es'));
+        const subjectRows = [];
+        subjectGroups.forEach((subject) => {
+          subjectRows.push({
+            values: [subject.name, 'Promedio general', formatAverage(subject.assignments)],
+            overall: true
+          });
+          const units = Array.from(subject.units.values())
+            .sort((left, right) => left.name.localeCompare(right.name, 'es', { numeric: true }));
+          units.forEach((unit) => subjectRows.push({
+            values: [subject.name, unit.name, formatAverage(unit.assignments)],
+            evaluations: unit.evaluations,
+            student,
+            user
+          }));
+        });
+        renderCourseGradeTable(
+          'Evaluaciones por materia y unidad',
+          ['Materia', 'Unidad', 'Promedio'],
+          subjectRows,
+          'Todavía no hay calificaciones por materia o unidad.'
+        );
+        renderCourseGradeTable(
+          'Exámenes simulacros · promedio independiente',
+          ['Evaluación', 'Alcance', 'Promedio'],
+          [{
+            values: ['Exámenes simulacros', 'Promedio general', formatAverage(practiceExamScores)],
+            overall: true
+          }],
+          'Aún no hay calificaciones de exámenes simulacros.'
+        );
+        courseGradesStatus.textContent = subjects.size || practiceExamScores.length
+          ? 'Los promedios por materia y unidad son independientes del promedio general de exámenes simulacros.'
+          : classrooms.length
+            ? 'Aún no hay evaluaciones asignadas para calcular tus promedios.'
+            : 'Aún no tienes aulas asignadas.';
+      } catch (error) {
+        console.error('No se pudieron cargar los promedios por materia:', error);
+        courseGradesStatus.textContent = 'No se pudieron cargar los promedios. Revisa la conexión y los permisos de Firestore.';
+      }
     }
 
     function getAttendanceState(record) {
@@ -1046,6 +1443,9 @@
         await calculateAndSaveProgress(studentSession, progressTarget);
       } else {
         actualizarAvance(null, 'No se encontró tu inscripción para registrar el avance.');
+      }
+      if (!absenceStatus?.isSuspended) {
+        await loadCourseGradeAverages(studentSession, user);
       }
       if (typeof lucide !== 'undefined') lucide.createIcons();
     });

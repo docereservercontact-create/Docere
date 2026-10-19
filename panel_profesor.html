@@ -289,7 +289,9 @@
     .task-inline-create button { min-height: 40px; }
     .practice-exam-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; width: min(100%, 756px); align-items: end; gap: 8px; }
     .practice-exam-form .task-field { min-width: 0; }
-    .practice-exam-form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .practice-exam-average-option { display: flex; grid-column: 1 / -1; align-items: center; gap: 9px; color: #475569; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .practice-exam-average-option input { width: 17px; height: 17px; flex: 0 0 17px; margin: 0; accent-color: #116e82; }
+    .practice-exam-form-actions { display: flex; grid-column: 1 / -1; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
     @media (max-width: 620px) {
       .practice-exam-form { grid-template-columns: minmax(0, 1fr); }
     }
@@ -2920,6 +2922,14 @@
       pointsInput.value = '100';
       pointsInput.required = true;
       pointsField.append(pointsInput);
+      const averageOption = document.createElement('label');
+      averageOption.className = 'practice-exam-average-option';
+      const includeInAverageInput = document.createElement('input');
+      includeInAverageInput.type = 'checkbox';
+      includeInAverageInput.checked = true;
+      const averageOptionText = document.createElement('span');
+      averageOptionText.textContent = 'Este examen cuenta para el promedio de simulacros';
+      averageOption.append(includeInAverageInput, averageOptionText);
       const createButton = addText(form, 'button', 'task-primary-button', 'Crear examen');
       createButton.type = 'submit';
       const cancelEditButton = addText(form, 'button', 'task-secondary-button', 'Cancelar edición');
@@ -2935,7 +2945,7 @@
       statusText.setAttribute('aria-live', 'polite');
       const examList = document.createElement('div');
       examList.className = 'task-list';
-      form.append(titleField, pointsField, formActions);
+      form.append(titleField, pointsField, averageOption, formActions);
       page.append(toolbar, form, statusText, examList);
 
       function resetExamForm() {
@@ -2943,6 +2953,7 @@
         editingExamMaxPoints = null;
         form.reset();
         pointsInput.value = '100';
+        includeInAverageInput.checked = true;
         createButton.textContent = 'Crear examen';
         cancelEditButton.hidden = true;
         statusText.textContent = '';
@@ -2974,6 +2985,7 @@
             editingExamMaxPoints = Number(exam.puntos ?? 100);
             titleInput.value = exam.titulo || '';
             pointsInput.value = String(exam.puntos ?? 100);
+            includeInAverageInput.checked = exam.considerarEnPromedio !== false;
             createButton.textContent = 'Guardar cambios';
             cancelEditButton.hidden = false;
             statusText.textContent = `Modificando "${exam.titulo || 'Examen simulacro'}". Las calificaciones actuales se conservarán.`;
@@ -3014,7 +3026,8 @@
           addText(examDetails, 'p', '', [
             exam.materia || 'General',
             exam.unidad || null,
-            `${exam.puntos ?? 100} puntos`
+            `${exam.puntos ?? 100} puntos`,
+            exam.considerarEnPromedio === false ? 'No cuenta para el promedio' : 'Cuenta para el promedio'
           ].filter(Boolean).join(' · '));
           const studentsList = document.createElement('div');
           studentsList.className = 'practice-exam-students';
@@ -3138,6 +3151,7 @@
           const examData = {
             titulo: title,
             puntos: points,
+            considerarEnPromedio: includeInAverageInput.checked,
             actualizadoEn: serverTimestamp()
           };
           if (examId) {
@@ -3169,7 +3183,6 @@
               materia: 'General',
               unidad: '',
               alumnosAsignados: students,
-              considerarEnPromedio: true,
               creadoEn: serverTimestamp()
             });
           }
