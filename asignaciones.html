@@ -69,7 +69,7 @@
     .assignment-manage[hidden] { display: none; }
     .assignment-submit:focus-visible, .assignment-dialog-close:focus-visible, .submission-upload:focus-visible { outline: 3px solid #41c9c4; outline-offset: 2px; }
     .empty { padding: 28px 18px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); text-align: center; }
-    dialog.assignment-dialog { width: min(620px, calc(100% - 28px)); max-height: min(82vh, 700px); padding: 0; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); box-shadow: 0 24px 70px rgba(15, 35, 58, .28); }
+    dialog.assignment-dialog { width: min(1600px, calc(100vw - 32px)); max-height: min(92vh, 900px); padding: 0; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); box-shadow: 0 24px 70px rgba(15, 35, 58, .28); }
     dialog.assignment-dialog::backdrop { background: rgba(13, 31, 51, .52); }
     .assignment-dialog-header, .assignment-dialog-body { padding: 20px 22px; }
     .assignment-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
@@ -78,6 +78,7 @@
     .assignment-instructions { line-height: 1.6; overflow-wrap: anywhere; }
     .assignment-instructions > :first-child { margin-top: 0; }
     .assignment-instructions > :last-child { margin-bottom: 0; }
+    .assignment-instructions mjx-container[display="true"], .assignment-feedback-comment mjx-container[display="true"] { max-width: 100%; overflow-x: auto; overflow-y: hidden; padding: 4px 0 8px; }
     .assignment-attachments { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
     .assignment-attachments a { color: var(--blue); overflow-wrap: anywhere; }
     .submission-form { display: grid; gap: 12px; margin-top: 22px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #f6fafc; }
@@ -109,6 +110,18 @@
       .assignment-analysis-metric strong { font-size: 19px; }
     }
   </style>
+  <script>
+    window.MathJax = {
+      tex: {
+        packages: { '[+]': ['ams'] },
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      startup: { typeset: false }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
   <link rel="stylesheet" href="student-panel-navigation.css">
   <link rel="stylesheet" href="panel-visual-theme.css">
   <script src="student-panel-navigation.js" defer></script>
@@ -252,6 +265,17 @@
       return safeContent.innerHTML;
     }
 
+    async function typesetMath(element) {
+      try {
+        const mathJax = window.MathJax;
+        if (mathJax?.startup?.promise) await mathJax.startup.promise;
+        if (!mathJax?.typesetPromise) throw new Error('MathJax no está disponible.');
+        await mathJax.typesetPromise([element]);
+      } catch (error) {
+        console.error('No se pudieron representar las expresiones matemáticas:', error);
+      }
+    }
+
     function formatDeadline(value) {
       if (!value) return 'Sin fecha de entrega';
       const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
@@ -360,6 +384,7 @@
         if (feedback.comentario) {
           const comment = addText(container, 'div', 'assignment-feedback-comment', '');
           comment.innerHTML = sanitizeRichHtml(feedback.comentario);
+          await typesetMath(comment);
         }
       } catch (error) {
         console.error(`No se pudo consultar la retroalimentación de la tarea ${task.id}:`, error);
@@ -627,7 +652,9 @@
         refreshSelectedTaskControls = updateControls;
         assignmentDialogTitle.textContent = task.titulo || 'Asignación';
         assignmentDialogContext.textContent = `${task.tema || 'Materia'} · ${task.puntos ?? 100} puntos · ${formatDeadline(task.fechaEntrega)}`;
+        window.MathJax?.typesetClear?.([assignmentDialogInstructions]);
         assignmentDialogInstructions.innerHTML = sanitizeRichHtml(task.instrucciones || 'El profesor no agregó instrucciones.');
+        void typesetMath(assignmentDialogInstructions);
         assignmentDialogAttachments.replaceChildren();
         (Array.isArray(task.adjuntos) ? task.adjuntos : []).forEach((attachment) => {
           try {

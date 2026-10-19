@@ -6,6 +6,18 @@
   <meta name="description" content="Aulas y alumnos asignados al profesor.">
   <title>Panel del profesor | Docére</title>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        packages: { '[+]': ['ams'] },
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      startup: { typeset: false }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
   <link rel="stylesheet" href="panel-visual-theme.css">
   <link rel="stylesheet" href="student-due-calendar.css">
   <style>
@@ -317,6 +329,11 @@
     .task-instructions { min-height: 180px; padding: 12px; border: 1px solid var(--line); border-radius: 5px; background: #f8fafc; line-height: 1.5; }
     .task-instructions:focus { outline: 2px solid #a9c4ff; }
     .task-instructions:empty::before { color: #94a3b8; content: attr(data-placeholder); pointer-events: none; }
+    .task-math-preview-title { margin: 14px 0 6px; font-size: 14px; }
+    .task-math-preview { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 5px; background: #fff; line-height: 1.6; overflow-wrap: anywhere; }
+    .task-math-preview[hidden], .task-math-preview-title[hidden] { display: none; }
+    .task-math-preview mjx-container[display="true"] { max-width: 100%; overflow-x: auto; overflow-y: hidden; padding: 4px 0 8px; }
+    .task-math-help { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
     .task-attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
     .task-attachment-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 16px; color: var(--blue); font-size: 12px; overflow-wrap: anywhere; }
     .task-add-link { margin-top: 12px; padding: 0; border: 0; background: transparent; color: var(--blue); font-weight: 650; cursor: pointer; }
@@ -2978,6 +2995,11 @@
         instructions.setAttribute('aria-multiline', 'true');
         instructions.dataset.placeholder = 'Instrucciones (opcional)';
         instructions.innerHTML = sanitizeRichHtml(editingTask?.instrucciones || '');
+        const mathPreviewTitle = addText(contentCard, 'h4', 'task-math-preview-title', 'Vista previa de las instrucciones');
+        mathPreviewTitle.hidden = true;
+        const mathPreview = document.createElement('div');
+        mathPreview.className = 'task-math-preview';
+        mathPreview.hidden = true;
         [
           ['bold', 'B', 'Negrita', 'font-weight:700'],
           ['italic', 'I', 'Cursiva', 'font-style:italic'],
@@ -2996,7 +3018,44 @@
             document.execCommand(command);
           });
         });
-        contentCard.append(titleInput, editorToolbar, instructions);
+        const mathHelp = addText(
+          contentCard,
+          'p',
+          'task-math-help',
+          String.raw`Para incluir operaciones, escribe LaTeX entre $$...$$; por ejemplo: $$\frac{1}{2}+\frac{3}{4}$$. La vista previa aparece debajo al pegar o escribir fórmulas.`
+        );
+        let mathPreviewRequest = 0;
+        let mathPreviewTimer;
+        function updateMathPreview() {
+          const requestId = ++mathPreviewRequest;
+          window.clearTimeout(mathPreviewTimer);
+          const containsMath = /\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)/.test(instructions.textContent || '');
+          mathPreview.hidden = !containsMath;
+          mathPreviewTitle.hidden = !containsMath;
+          if (!containsMath) {
+            window.MathJax?.typesetClear?.([mathPreview]);
+            mathPreview.replaceChildren();
+            return;
+          }
+
+          mathPreviewTimer = window.setTimeout(async () => {
+            try {
+              const mathJax = window.MathJax;
+              if (mathJax?.startup?.promise) await mathJax.startup.promise;
+              if (requestId !== mathPreviewRequest) return;
+              if (!mathJax?.typesetPromise) throw new Error('MathJax no está disponible.');
+              mathJax.typesetClear?.([mathPreview]);
+              mathPreview.innerHTML = sanitizeRichHtml(instructions.innerHTML);
+              await mathJax.typesetPromise([mathPreview]);
+            } catch (error) {
+              console.error('No se pudo actualizar la vista previa matemática:', error);
+            }
+          }, 200);
+        }
+        instructions.addEventListener('input', updateMathPreview);
+        instructions.addEventListener('paste', () => window.setTimeout(updateMathPreview, 0));
+        updateMathPreview();
+        contentCard.append(titleInput, editorToolbar, instructions, mathPreviewTitle, mathPreview, mathHelp);
 
         const attachmentsLabel = addText(contentCard, 'h4', '', 'Adjuntar');
         attachmentsLabel.style.margin = '16px 0 0';
