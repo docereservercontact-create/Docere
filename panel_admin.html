@@ -1044,6 +1044,8 @@
             ['Precio base', formatCurrency(data.precioBaseCurso ?? data.montoCurso ?? 0)],
             ['Recargo por financiamiento', formatCurrency(data.recargoFinanciamiento || 0)],
             ['Total del curso', formatCurrency(data.montoCurso || 0)],
+            ['Pago inicial', formatCurrency(data.pagoInicial || 0)],
+            ['Saldo en mensualidades', formatCurrency(Math.max(0, Number(data.montoCurso || 0) - Number(data.pagoInicial || 0)))],
             ['Recargo por cuota vencida', formatCurrency(data.cargoMoraPorCuota ?? Number(((data.precioBaseCurso ?? data.montoCurso ?? 0) * 0.05).toFixed(2)))],
             ['Forma de pago', data.formaPago || '—'],
             ['Persona', data.personaPago || '—'],

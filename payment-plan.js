@@ -36,7 +36,15 @@ export function calculatePaymentPlan(basePrice, months) {
   };
 }
 
-export function buildMonthlyPaymentSchedule({ basePrice, months, startDate, chargeDay, previousSchedule = [] }) {
+export function buildMonthlyPaymentSchedule({
+  basePrice,
+  months,
+  startDate,
+  chargeDay,
+  initialPayment = 0,
+  monthlyPayment,
+  previousSchedule = []
+}) {
   const plan = calculatePaymentPlan(basePrice, months);
   const firstDate = new Date(`${startDate}T12:00:00`);
   const paymentDay = Number(chargeDay);
@@ -45,15 +53,33 @@ export function buildMonthlyPaymentSchedule({ basePrice, months, startDate, char
   }
 
   const totalCents = Math.round(plan.totalPrice * 100);
-  const regularQuotaCents = Math.floor(totalCents / plan.months);
+  const initialPaymentCents = Math.round(Number(initialPayment || 0) * 100);
+  if (!Number.isFinite(initialPaymentCents) || initialPaymentCents < 0 || initialPaymentCents > totalCents) {
+    throw new RangeError('El pago inicial debe estar entre cero y el total financiado.');
+  }
+  const balanceCents = totalCents - initialPaymentCents;
+  const requestedMonthlyPayment = monthlyPayment == null || monthlyPayment === ''
+    ? balanceCents / 100 / plan.months
+    : Number(monthlyPayment);
+  if (!Number.isFinite(requestedMonthlyPayment) || requestedMonthlyPayment <= 0) {
+    throw new RangeError('La mensualidad debe ser mayor que cero.');
+  }
+  const monthlyPaymentCents = Math.round(requestedMonthlyPayment * 100);
+  if (plan.months > 1 && monthlyPaymentCents * (plan.months - 1) >= balanceCents) {
+    throw new RangeError('La mensualidad deja un saldo insuficiente para la última cuota. Reduce el monto o cambia el plazo.');
+  }
+  if (plan.months === 1 && monthlyPaymentCents !== balanceCents) {
+    throw new RangeError('A un mes, la mensualidad debe cubrir exactamente el saldo después del pago inicial.');
+  }
+
   let assignedCents = 0;
   return Array.from({ length: plan.months }, (_, index) => {
     const date = new Date(firstDate.getFullYear(), firstDate.getMonth() + index, 1);
     const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
     date.setDate(Math.min(paymentDay, lastDayOfMonth));
     const quotaCents = index === plan.months - 1
-      ? totalCents - assignedCents
-      : regularQuotaCents;
+      ? balanceCents - assignedCents
+      : monthlyPaymentCents;
     assignedCents += quotaCents;
     const previousQuota = previousSchedule[index];
     const state = previousQuota?.estado === 'pagado' || previousQuota?.status === 'pagado'
