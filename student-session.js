@@ -52,6 +52,101 @@
     return;
   }
 
+  function showActivityNotice() {
+    if (document.getElementById('studentActivityNotice')) return;
+    const style = document.createElement('style');
+    style.textContent = '#studentActivityNotice{padding:9px 16px;background:#eff6ff;border-bottom:1px solid #bfdbfe;color:#1e3a8a;font:600 13px/1.5 system-ui,sans-serif;text-align:center}';
+    document.head.append(style);
+    const notice = document.createElement('aside');
+    notice.id = 'studentActivityNotice';
+    notice.setAttribute('role', 'note');
+    notice.textContent = 'Toda actividad dentro de la plataforma tiene un registro';
+    document.body.prepend(notice);
+  }
+
+  function startActivityTracking() {
+    let student;
+    try {
+      student = JSON.parse(localStorage.getItem(sessionKey) || 'null');
+    } catch (error) {
+      console.error('No se pudo leer la sesión para registrar actividad del alumno:', error);
+      return;
+    }
+    const page = window.location.pathname.split('/').pop() || 'pagina';
+    import('./session-audit.js')
+      .then(({ startStudentPageVisit }) => startStudentPageVisit(student, page))
+      .then((visit) => {
+        if (!visit) return;
+        let visibleSince = document.visibilityState === 'visible' ? Date.now() : null;
+        let visibleMilliseconds = 0;
+        let ended = false;
+        const getVisibleSeconds = () => Math.floor(
+          (visibleMilliseconds + (visibleSince === null ? 0 : Date.now() - visibleSince)) / 1000
+        );
+        const persistDuration = (event) => visit.updateDuration(event, getVisibleSeconds());
+        const stopVisibleTimer = () => {
+          if (visibleSince === null) return;
+          visibleMilliseconds += Date.now() - visibleSince;
+          visibleSince = null;
+        };
+        const beginVisibleTimer = () => {
+          if (visibleSince !== null) return;
+          visibleSince = Date.now();
+        };
+        const finishVisit = () => {
+          if (ended) return;
+          ended = true;
+          stopVisibleTimer();
+          window.clearInterval(durationTimer);
+          void persistDuration('salida_pagina');
+        };
+
+        const durationTimer = window.setInterval(() => {
+          if (!ended) void persistDuration('actividad_pagina');
+        }, 30000);
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden') {
+            stopVisibleTimer();
+            void persistDuration('actividad_pagina');
+          } else {
+            beginVisibleTimer();
+          }
+        });
+        window.addEventListener('pagehide', finishVisit, { once: true });
+        document.addEventListener('click', (event) => {
+          if (!(event.target instanceof Element)) return;
+          const control = event.target.closest(
+            'a[href],button,input[type="button"],input[type="submit"],input[type="reset"],input[type="checkbox"],input[type="radio"],select,summary,[role="button"],[role="link"],[role="tab"],[role="checkbox"]'
+          );
+          if (!control) return;
+          const controlLabel = control.getAttribute('data-activity-label')
+            || control.getAttribute('aria-label')
+            || control.getAttribute('title')
+            || (control.matches('a,button,summary,[role="button"],[role="link"],[role="tab"]')
+              ? control.textContent
+              : '')
+            || control.id
+            || control.tagName.toLocaleLowerCase();
+          const label = controlLabel.replace(/\s+/g, ' ').trim().slice(0, 120);
+          void visit.recordClick(label || control.tagName.toLocaleLowerCase(), control.tagName.toLocaleLowerCase());
+        }, true);
+      })
+      .catch((error) => {
+        console.error('No se pudo iniciar el registro de actividad del alumno:', error);
+      });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      showActivityNotice();
+      startActivityTracking();
+    }, { once: true });
+  } else {
+    showActivityNotice();
+    startActivityTracking();
+  }
+
   const currentPage = window.location.pathname.split('/').pop();
   if (currentPage !== 'mis-cursos.html') {
     import('./student-access.js')

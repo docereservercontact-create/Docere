@@ -445,7 +445,7 @@
     <section class="page-heading">
       <div>
         <h1>Registros</h1>
-        <p>Consulta la información recibida en cada formulario.</p>
+        <p>Consulta los registros recibidos y la actividad reciente del alumnado.</p>
       </div>
     </section>
 
@@ -457,6 +457,7 @@
           <button class="tab" id="tabProfesores" type="button" role="tab" aria-selected="false" data-collection="Profesores">Profesores <span class="count" id="countProfesores">—</span></button>
           <button class="tab" id="tabAulas" type="button" role="tab" aria-selected="false" data-collection="Aulas">Aulas <span class="count" id="countAulas">—</span></button>
           <button class="tab" id="tabPagos" type="button" role="tab" aria-selected="false" data-collection="Pagos">Pagos <span class="count" id="countPagos">—</span></button>
+          <button class="tab" id="tabStudentActivity" type="button" role="tab" aria-selected="false" data-collection="registro_actividad_alumno">Actividad alumno <span class="count" id="countStudentActivity">—</span></button>
         </div>
         <a class="teacher-create" id="teacherCreateLink" href="Registro_profesorado.html" hidden>
           <i data-lucide="user-plus" aria-hidden="true"></i>
@@ -567,7 +568,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -605,9 +606,11 @@
       Cursos: { countId: 'countCursos', titleKeys: ['asp_nombre', 'nombre'], secondaryKeys: ['curso', 'email'] },
       Profesores: { countId: 'countProfesores', titleKeys: ['nombre'], secondaryKeys: ['apellidoPaterno', 'email'] },
       Aulas: { countId: 'countAulas', titleKeys: ['nombre'], secondaryKeys: ['curso'] },
-      Pagos: { countId: 'countPagos', titleKeys: ['curso'], secondaryKeys: ['alumno', 'frecuencia'] }
+      Pagos: { countId: 'countPagos', titleKeys: ['curso'], secondaryKeys: ['alumno', 'frecuencia'] },
+      registro_actividad_alumno: { countId: 'countStudentActivity', titleKeys: ['evento'], secondaryKeys: ['nombre', 'pagina', 'fechaCliente'] }
     };
     const cache = new Map();
+    const collectionLoadErrors = new Map();
     let activeCollection = 'aspirantes_admision';
     let activityTimer;
 
@@ -989,7 +992,15 @@
         const summaryContent = document.createElement('span');
         const title = document.createElement('span');
         title.className = 'record-title';
-        title.textContent = getValue(data, config.titleKeys) || 'Registro sin nombre';
+        const activityLabels = {
+          entrada_pagina: 'Entrada a página',
+          actividad_pagina: 'Actividad en página',
+          salida_pagina: 'Salida de página',
+          clic: 'Clic'
+        };
+        title.textContent = activeCollection === 'registro_actividad_alumno'
+          ? activityLabels[data.evento] || data.evento || 'Actividad del alumno'
+          : getValue(data, config.titleKeys) || 'Registro sin nombre';
         const secondary = document.createElement('span');
         secondary.className = 'record-meta';
         const approvalLabel = ['aspirantes_admision', 'Cursos'].includes(activeCollection)
@@ -997,7 +1008,15 @@
             ? ' · Acceso pendiente de aprobación'
             : data.accesoAprobado === true ? ' · Acceso aprobado' : ' · Registro anterior'
           : '';
-        secondary.textContent = `${getValue(data, config.secondaryKeys) || `Documento: ${id}`}${approvalLabel}`;
+        const activitySummary = activeCollection === 'registro_actividad_alumno'
+          ? [
+            data.nombre,
+            data.pagina,
+            data.control,
+            valueToText(data.ultimoRegistro || data.fechaHora || data.fechaCliente)
+          ].filter(Boolean).join(' · ')
+          : '';
+        secondary.textContent = `${activitySummary || getValue(data, config.secondaryKeys) || `Documento: ${id}`}${approvalLabel}`;
         summaryContent.append(title, document.createElement('br'), secondary);
         summary.append(summaryContent);
 
@@ -1416,24 +1435,36 @@
       recordsList.replaceChildren();
       try {
         if (!cache.has(name)) {
-          const snapshot = await getDocs(collection(db, name));
+          const snapshot = name === 'registro_actividad_alumno'
+            ? await getDocs(query(collection(db, name), orderBy('fechaHora', 'desc'), limit(500)))
+            : await getDocs(collection(db, name));
           const records = snapshot.docs.map((record) => ({ id: record.id, data: record.data() }));
           records.sort((left, right) => {
-            const leftDate = left.data.fechaRegistro?.toMillis?.() || 0;
-            const rightDate = right.data.fechaRegistro?.toMillis?.() || 0;
+            const leftDate = left.data.fechaHora?.toMillis?.() || left.data.fechaRegistro?.toMillis?.() || 0;
+            const rightDate = right.data.fechaHora?.toMillis?.() || right.data.fechaRegistro?.toMillis?.() || 0;
             return rightDate - leftDate;
           });
           cache.set(name, records);
-          document.getElementById(collections[name].countId).textContent = String(records.length);
+          collectionLoadErrors.delete(name);
+          document.getElementById(collections[name].countId).textContent = name === 'registro_actividad_alumno' && records.length === 500
+            ? '500+'
+            : String(records.length);
         }
-        statusLine.textContent = `${cache.get(name).length} registros`;
+        statusLine.textContent = name === 'registro_actividad_alumno'
+          ? `Mostrando los ${cache.get(name).length === 500 ? '500 registros más recientes' : `${cache.get(name).length} registros recientes`} de actividad`
+          : `${cache.get(name).length} registros`;
         renderRecords();
       } catch (error) {
         console.error(`No se pudieron cargar los registros de ${name}:`, error);
-        statusLine.textContent = 'No se pudieron cargar los datos. Revisa las reglas de acceso de Firestore.';
+        const permissionDenied = error?.code === 'permission-denied';
+        statusLine.textContent = permissionDenied
+          ? `Firestore denegó la lectura de ${name}. Revisa y publica las reglas de acceso del proyecto.`
+          : `No se pudieron cargar los registros de ${name}. Revisa la conexión con Firestore.`;
         const errorState = document.createElement('div');
         errorState.className = 'empty-state';
-        errorState.textContent = 'Acceso denegado o conexión no disponible.';
+        errorState.textContent = permissionDenied
+          ? `Sin permiso para leer ${name}. Comprueba las reglas de Firestore y publícalas en el proyecto conectado.`
+          : `No se pudo conectar para leer ${name}. Inténtalo de nuevo.`;
         recordsList.replaceChildren(errorState);
       }
     }
@@ -1441,6 +1472,7 @@
     document.querySelectorAll('.tab').forEach((tab) => {
       tab.addEventListener('click', () => {
         activeCollection = tab.dataset.collection;
+        if (activeCollection === 'registro_actividad_alumno') cache.delete(activeCollection);
         document.querySelectorAll('.tab').forEach((button) => button.setAttribute('aria-selected', String(button === tab)));
         teacherCreateLink.hidden = activeCollection !== 'Profesores';
         classroomForm.hidden = activeCollection !== 'Aulas';
@@ -1617,25 +1649,39 @@
           if (typeof lucide !== 'undefined') lucide.createIcons();
           await Promise.all(Object.entries(collections).map(async ([name, config]) => {
             try {
-              const snapshot = await getDocs(collection(db, name));
+              const snapshot = name === 'registro_actividad_alumno'
+                ? await getDocs(query(collection(db, name), orderBy('fechaHora', 'desc'), limit(500)))
+                : await getDocs(collection(db, name));
               const records = snapshot.docs.map((record) => ({ id: record.id, data: record.data() }));
-              records.sort((left, right) => (right.data.fechaRegistro?.toMillis?.() || 0) - (left.data.fechaRegistro?.toMillis?.() || 0));
+              records.sort((left, right) => {
+                const leftDate = left.data.fechaHora?.toMillis?.() || left.data.fechaRegistro?.toMillis?.() || Date.parse(left.data.fechaCliente || '') || 0;
+                const rightDate = right.data.fechaHora?.toMillis?.() || right.data.fechaRegistro?.toMillis?.() || Date.parse(right.data.fechaCliente || '') || 0;
+                return rightDate - leftDate;
+              });
               cache.set(name, records);
-              document.getElementById(config.countId).textContent = String(records.length);
+              document.getElementById(config.countId).textContent = name === 'registro_actividad_alumno' && records.length === 500
+                ? '500+'
+                : String(records.length);
             } catch (error) {
               console.error(`No se pudieron precargar los registros de ${name}:`, error);
               cache.set(name, []);
+              collectionLoadErrors.set(name, error);
               const countNode = document.getElementById(config.countId);
-              if (countNode) countNode.textContent = '0';
+              if (countNode) countNode.textContent = error?.code === 'permission-denied' ? '!' : '0';
             }
           }));
           populateAssignmentOptions();
           populatePaymentOptions();
           renderPaymentPreview();
-          const totalRecords = Object.keys(collections).reduce((sum, name) => sum + (cache.get(name)?.length || 0), 0);
-          statusLine.textContent = totalRecords > 0
-            ? `${totalRecords} registros cargados`
-            : 'No hay registros para mostrar o revisa las reglas de acceso de Firestore.';
+          const totalRecords = Object.keys(collections)
+            .filter((name) => name !== 'registro_actividad_alumno')
+            .reduce((sum, name) => sum + (cache.get(name)?.length || 0), 0);
+          const activityError = collectionLoadErrors.get('registro_actividad_alumno');
+          statusLine.textContent = activityError?.code === 'permission-denied'
+            ? 'Firestore denegó el acceso a la actividad del alumnado. Revisa y publica las reglas en el proyecto conectado.'
+            : totalRecords > 0
+              ? `${totalRecords} registros cargados`
+              : 'No hay registros para mostrar o revisa las reglas de acceso de Firestore.';
           renderRecords();
         }
       } catch (error) {

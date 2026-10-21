@@ -258,6 +258,47 @@
     .student { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; }
     .student-name { display: block; margin-bottom: 3px; font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
     .student-email { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    .registered-students { display: grid; gap: 14px; }
+    .registered-students-heading { margin: 0; font-size: 18px; }
+    .registered-students-status { margin: 0; color: var(--muted); font-size: 13px; }
+    .registered-attendance-overview { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .registered-attendance-overview h4, .registered-attendance-chart h4 { margin: 0; font-size: 15px; }
+    .registered-attendance-chart { display: grid; gap: 10px; }
+    .registered-attendance-chart-row { display: grid; grid-template-columns: minmax(90px, 120px) minmax(70px, 1fr) minmax(76px, auto); align-items: center; gap: 10px; font-size: 13px; }
+    .registered-attendance-chart-label { color: var(--muted); }
+    .registered-attendance-chart-track { height: 12px; overflow: hidden; border-radius: 999px; background: #e8edf3; }
+    .registered-attendance-chart-fill { height: 100%; border-radius: inherit; }
+    .registered-attendance-chart-fill.attendance-present { background: #16a34a; }
+    .registered-attendance-chart-fill.attendance-absent { background: #dc2626; }
+    .registered-attendance-chart-fill.attendance-late { background: #d97706; }
+    .registered-attendance-chart-fill.attendance-justified { background: #64748b; }
+    .registered-attendance-chart-value { text-align: right; font-weight: 700; white-space: nowrap; }
+    .registered-student-list { display: grid; gap: 9px; }
+    .registered-student-card { display: grid; grid-template-columns: minmax(150px, 1.4fr) repeat(5, minmax(70px, 1fr)) auto; align-items: center; gap: 12px; width: 100%; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); text-align: left; cursor: pointer; }
+    .registered-student-card:hover, .registered-student-card:focus-visible { border-color: #93c5fd; background: #f8fbff; }
+    .registered-student-card strong, .registered-student-card span { display: block; }
+    .registered-student-card strong { overflow-wrap: anywhere; font-size: 14px; }
+    .registered-student-card span { margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .registered-student-card .registered-student-metric { color: var(--ink); font-size: 13px; font-weight: 650; }
+    .registered-student-detail { display: grid; gap: 14px; }
+    .registered-student-back { justify-self: start; min-height: 36px; padding: 0 11px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); font-weight: 650; cursor: pointer; }
+    .registered-student-detail h4 { margin: 6px 0 0; font-size: 15px; }
+    .registered-student-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 9px; }
+    .registered-student-detail .registered-attendance-overview { margin-top: 2px; }
+    .registered-student-metric-card { padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: #f8fafc; }
+    .registered-student-metric-card strong { display: block; font-size: 19px; }
+    .registered-student-metric-card span { color: var(--muted); font-size: 12px; }
+    .registered-student-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 7px; }
+    .registered-student-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .registered-student-table th, .registered-student-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+    .registered-student-table th { background: #f1f5f9; font-size: 11px; text-transform: uppercase; }
+    .registered-student-table tr:last-child td { border-bottom: 0; }
+    @media (max-width: 760px) {
+      .registered-student-card { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    }
+    @media (max-width: 440px) {
+      .registered-attendance-chart-row { grid-template-columns: 86px minmax(45px, 1fr) 68px; gap: 7px; font-size: 12px; }
+    }
     .empty { grid-column: 1 / -1; padding: 32px 18px; border: 1px dashed var(--line); border-radius: 8px; background: rgba(255,255,255,.6); color: var(--muted); text-align: center; }
     .attendance { display: grid; gap: 12px; }
     .attendance-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; }
@@ -2967,6 +3008,313 @@
       return { tasks: evaluations, feedbackSnapshots };
     }
 
+    async function renderRegisteredStudents(aula) {
+      const page = document.createElement('section');
+      page.className = 'registered-students';
+      addText(page, 'h3', 'registered-students-heading', 'Alumnos registrados');
+      const statusText = addText(page, 'p', 'registered-students-status', 'Consultando asistencia y evaluaciones...');
+      statusText.setAttribute('role', 'status');
+      const attendanceOverview = document.createElement('section');
+      attendanceOverview.className = 'registered-attendance-overview';
+      attendanceOverview.setAttribute('aria-label', 'Porcentajes de asistencia del aula');
+      const studentList = document.createElement('div');
+      studentList.className = 'registered-student-list';
+      page.append(attendanceOverview, studentList);
+
+      try {
+        const [attendanceSnapshot, evaluationData] = await Promise.all([
+          getDocs(collection(db, 'Aulas', aula.id, 'asistencias')),
+          loadClassroomEvaluationData(aula)
+        ]);
+        const students = new Map();
+        (Array.isArray(aula.alumnos) ? aula.alumnos : []).forEach((student) => {
+          if (student.id == null || !student.coleccion) return;
+          const key = `${student.coleccion}/${student.id}`;
+          students.set(key, {
+            key,
+            nombre: student.nombre || 'Alumno',
+            email: student.email || student.correo || '',
+            attendance: [],
+            grades: new Map()
+          });
+        });
+
+        const attendanceSessions = attendanceSnapshot.docs
+          .map((attendanceDoc) => {
+            const data = attendanceDoc.data();
+            return {
+              fecha: data.fecha || attendanceDoc.id,
+              alumnos: Array.isArray(data.alumnos) ? data.alumnos : []
+            };
+          })
+          .sort((left, right) => right.fecha.localeCompare(left.fecha));
+        attendanceSessions.forEach((record) => {
+          record.alumnos.forEach((attendanceRecord) => {
+            const student = students.get(`${attendanceRecord.coleccion}/${attendanceRecord.id}`);
+            if (student) student.attendance.push({ fecha: record.fecha, estado: attendanceStatus(attendanceRecord) });
+          });
+        });
+
+        evaluationData.feedbackSnapshots.forEach((snapshot, taskIndex) => {
+          const evaluation = evaluationData.tasks[taskIndex];
+          snapshot.docs.forEach((feedbackDoc) => {
+            const feedback = feedbackDoc.data();
+            if (feedback.estudianteId == null || !feedback.estudianteColeccion) return;
+            const student = students.get(`${feedback.estudianteColeccion}/${feedback.estudianteId}`);
+            if (!student) return;
+            const score = Number(feedback.calificacion);
+            const maxScore = Number(feedback.puntosMaximos ?? evaluation.puntos ?? 100);
+            const hasValidGrade = Number.isFinite(score) && Number.isFinite(maxScore)
+              && maxScore > 0 && score >= 0 && score <= maxScore;
+            if (!hasValidGrade) return;
+            const feedbackText = new DOMParser().parseFromString(feedback.comentario || '', 'text/html')
+              .body.textContent.trim();
+            student.grades.set(`${evaluation.collectionName}/${evaluation.id}`, {
+              score,
+              maxScore,
+              includeInAverage: evaluation.considerarEnPromedio !== false,
+              notSubmitted: feedbackText.toLocaleLowerCase() === 'tarea no entregada.',
+              comentario: feedbackText
+            });
+          });
+        });
+
+        const evaluationsByStudent = new Map();
+        students.forEach((student) => {
+          const assignedEvaluations = evaluationData.tasks.filter((evaluation) =>
+            !Array.isArray(evaluation.alumnosAsignados)
+            || evaluation.alumnosAsignados.some((assigned) =>
+              `${assigned.coleccion}/${assigned.id}` === student.key
+            )
+          );
+          const grades = assignedEvaluations
+            .map((evaluation) => ({
+              evaluation,
+              grade: student.grades.get(`${evaluation.collectionName}/${evaluation.id}`)
+            }));
+          evaluationsByStudent.set(student.key, grades);
+        });
+
+        const attendanceLabels = {
+          asistencia: 'Asistencia',
+          falta: 'Falta',
+          retardo: 'Retardo',
+          justificado: 'Justificado'
+        };
+        const attendanceClasses = {
+          asistencia: 'attendance-present',
+          falta: 'attendance-absent',
+          retardo: 'attendance-late',
+          justificado: 'attendance-justified'
+        };
+        const formatNumber = (value) => new Intl.NumberFormat('es-MX', { maximumFractionDigits: 1 }).format(value);
+        const createAttendanceChart = (counts, recordedSessions, title, description) => {
+          const chart = document.createElement('div');
+          chart.className = 'registered-attendance-chart';
+          chart.setAttribute('role', 'img');
+          chart.setAttribute('aria-label', description);
+          addText(chart, 'h4', '', title);
+          Object.keys(attendanceLabels).forEach((state) => {
+            const count = counts[state];
+            const percent = recordedSessions ? (count / recordedSessions) * 100 : null;
+            const row = document.createElement('div');
+            row.className = 'registered-attendance-chart-row';
+            addText(row, 'span', 'registered-attendance-chart-label', attendanceLabels[state]);
+            const track = document.createElement('div');
+            track.className = 'registered-attendance-chart-track';
+            track.setAttribute('aria-hidden', 'true');
+            const fill = document.createElement('div');
+            fill.className = `registered-attendance-chart-fill ${attendanceClasses[state]}`;
+            fill.style.width = `${percent ?? 0}%`;
+            track.append(fill);
+            row.append(track);
+            addText(row, 'strong', 'registered-attendance-chart-value', percent === null
+              ? '—'
+              : `${formatNumber(percent)}% (${count})`);
+            chart.append(row);
+          });
+          return chart;
+        };
+        const getMetrics = (student) => {
+          const counts = { asistencia: 0, falta: 0, retardo: 0, justificado: 0 };
+          student.attendance.forEach(({ estado }) => { counts[estado] += 1; });
+          const recordedSessions = student.attendance.length;
+          const attendancePercentages = Object.fromEntries(
+            Object.keys(attendanceLabels).map((state) => [
+              state,
+              recordedSessions ? (counts[state] / recordedSessions) * 100 : null
+            ])
+          );
+          const grades = evaluationsByStudent.get(student.key) || [];
+          const graded = grades.filter(({ grade }) => grade);
+          const includedGrades = graded.filter(({ evaluation, grade }) =>
+            evaluation.considerarEnPromedio !== false && grade.includeInAverage
+          );
+          const average = includedGrades.length
+            ? includedGrades.reduce((total, { grade }) => total + (grade.score / grade.maxScore) * 100, 0) / includedGrades.length
+            : null;
+          return { counts, recordedSessions, attendancePercentages, grades, graded, average };
+        };
+
+        const createTable = (headers, rows, emptyMessage) => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'registered-student-table-wrap';
+          const table = document.createElement('table');
+          table.className = 'registered-student-table';
+          const head = document.createElement('thead');
+          const headerRow = document.createElement('tr');
+          headers.forEach((label) => addText(headerRow, 'th', '', label));
+          head.append(headerRow);
+          const body = document.createElement('tbody');
+          if (!rows.length) {
+            const row = document.createElement('tr');
+            const cell = addText(row, 'td', '', emptyMessage);
+            cell.colSpan = headers.length;
+            body.append(row);
+          } else {
+            rows.forEach((values) => {
+              const row = document.createElement('tr');
+              values.forEach((value) => addText(row, 'td', '', value));
+              body.append(row);
+            });
+          }
+          table.append(head, body);
+          wrapper.append(table);
+          return wrapper;
+        };
+
+        const renderStudentDetail = (student) => {
+          const metrics = getMetrics(student);
+          const attendanceOverview = document.createElement('section');
+          attendanceOverview.className = 'registered-attendance-overview';
+          attendanceOverview.append(createAttendanceChart(
+            metrics.counts,
+            metrics.recordedSessions,
+            'Porcentajes de asistencia',
+            `Asistencia de ${student.nombre}: ${Object.keys(attendanceLabels).map((state) =>
+              `${attendanceLabels[state]} ${metrics.attendancePercentages[state] === null
+                ? 'sin datos'
+                : `${formatNumber(metrics.attendancePercentages[state])}%`}`
+            ).join(', ')}`
+          ));
+          const detail = document.createElement('section');
+          detail.className = 'registered-student-detail';
+          const backButton = addText(detail, 'button', 'registered-student-back', '← Volver a alumnos');
+          backButton.type = 'button';
+          backButton.addEventListener('click', () => {
+            detail.replaceWith(studentList);
+            statusText.textContent = `${students.size} alumno(s) registrado(s) en esta aula. Selecciona un alumno para consultar su desglose.`;
+          });
+          addText(detail, 'h3', 'registered-students-heading', student.nombre);
+          if (student.email) addText(detail, 'p', 'registered-students-status', student.email);
+
+          const metricsContainer = document.createElement('div');
+          metricsContainer.className = 'registered-student-metrics';
+          [
+            ['Sesiones registradas', String(metrics.recordedSessions), 'Fechas con asistencia capturada'],
+            ['Promedio evaluado', metrics.average === null ? '—' : `${formatNumber(metrics.average)}%`, 'Evaluaciones que cuentan para el promedio'],
+            ['Evaluaciones calificadas', `${metrics.graded.length} / ${metrics.grades.length}`, 'Tareas y exámenes asignados']
+          ].forEach(([label, value, description]) => {
+            const card = document.createElement('div');
+            card.className = 'registered-student-metric-card';
+            addText(card, 'strong', '', value);
+            addText(card, 'span', '', `${label} · ${description}`);
+            metricsContainer.append(card);
+          });
+          detail.append(metricsContainer);
+          detail.append(attendanceOverview);
+
+          addText(detail, 'h4', '', 'Asistencia por fecha');
+          detail.append(createTable(
+            ['Fecha', 'Estado'],
+            student.attendance.map(({ fecha, estado }) => [
+              formatAttendanceDate(fecha),
+              attendanceLabels[estado] || 'Sin registro'
+            ]),
+            'No hay asistencias registradas para este alumno.'
+          ));
+          addText(detail, 'h4', '', 'Tareas y exámenes');
+          detail.append(createTable(
+            ['Evaluación', 'Tipo', 'Calificación', 'Estado', 'Retroalimentación'],
+            metrics.grades.map(({ evaluation, grade }) => [
+              evaluation.titulo || evaluation.nombre || 'Evaluación sin título',
+              evaluation.tipoEvaluacion === 'simulacro' || evaluation.collectionName === 'examenesSimulacros'
+                ? 'Examen simulacro'
+                : 'Tarea',
+              grade ? `${formatNumber(grade.score)} / ${formatNumber(grade.maxScore)}` : '—',
+              grade?.notSubmitted ? 'No entregada' : grade ? 'Calificada' : 'Pendiente',
+              grade?.comentario || '—'
+            ]),
+            'No hay tareas ni exámenes asignados a este alumno.'
+          ));
+          return detail;
+        };
+
+        const sortedStudents = Array.from(students.values())
+          .sort((left, right) => left.nombre.localeCompare(right.nombre, 'es'));
+        const classroomTotals = { asistencia: 0, falta: 0, retardo: 0, justificado: 0 };
+        let classroomRecordedSessions = 0;
+        sortedStudents.forEach((student) => {
+          const metrics = getMetrics(student);
+          classroomRecordedSessions += metrics.recordedSessions;
+          Object.keys(classroomTotals).forEach((state) => { classroomTotals[state] += metrics.counts[state]; });
+          const card = document.createElement('button');
+          card.type = 'button';
+          card.className = 'registered-student-card';
+          const identity = document.createElement('span');
+          identity.className = 'registered-student-identity';
+          addText(identity, 'strong', '', student.nombre);
+          addText(identity, 'span', '', student.email || 'Alumno registrado');
+          card.append(identity);
+          Object.keys(attendanceLabels).forEach((state) => {
+            const attendance = document.createElement('span');
+            attendance.className = 'registered-student-metric';
+            attendance.textContent = `${attendanceLabels[state]}: ${metrics.attendancePercentages[state] === null
+              ? '—'
+              : `${formatNumber(metrics.attendancePercentages[state])}%`}`;
+            card.append(attendance);
+          });
+          const average = document.createElement('span');
+          average.className = 'registered-student-metric';
+          average.textContent = `Promedio: ${metrics.average === null ? '—' : `${formatNumber(metrics.average)}%`}`;
+          const action = document.createElement('span');
+          action.className = 'registered-student-metric';
+          action.textContent = 'Ver detalle →';
+          card.append(average, action);
+          card.addEventListener('click', () => {
+            studentList.replaceWith(renderStudentDetail(student));
+            statusText.textContent = 'Desglose individual de asistencia y evaluaciones.';
+          });
+          studentList.append(card);
+        });
+
+        attendanceOverview.replaceChildren();
+        attendanceOverview.append(createAttendanceChart(
+          classroomTotals,
+          classroomRecordedSessions,
+          'Asistencia general del aula',
+          `Porcentajes generales del aula: ${Object.keys(attendanceLabels).map((state) =>
+            `${attendanceLabels[state]} ${classroomRecordedSessions
+              ? `${formatNumber((classroomTotals[state] / classroomRecordedSessions) * 100)}%`
+              : 'sin datos'}`
+          ).join(', ')}`
+        ));
+
+        if (!sortedStudents.length) {
+          addText(studentList, 'p', 'empty', 'No hay alumnos registrados en esta aula.');
+          statusText.textContent = 'No hay alumnos asignados a esta aula.';
+        } else {
+          statusText.textContent = `${sortedStudents.length} alumno(s) registrado(s) en esta aula. Selecciona un alumno para consultar su desglose.`;
+        }
+      } catch (error) {
+        console.error(`No se pudo cargar el progreso de los alumnos del aula ${aula.id}:`, error);
+        studentList.replaceChildren();
+        statusText.textContent = 'No se pudo cargar el progreso de los alumnos. Revisa la conexión y los permisos de lectura de Firestore.';
+      }
+
+      return page;
+    }
+
     async function renderPracticeExams(aula) {
       const page = document.createElement('section');
       page.className = 'tasks-page';
@@ -4291,6 +4639,7 @@
         { id: 'publications', label: 'Eventos' },
         { id: 'study-materials', label: 'Material de estudio' },
         { id: 'attendance', label: 'Lista de asistencias' },
+        { id: 'registered-students', label: 'Alumnos registrados' },
         { id: 'grades', label: 'Lista de calificaciones' },
         { id: 'tasks', label: 'Tareas' },
         { id: 'practice-exams', label: 'Exámenes simulacros' }
@@ -4313,6 +4662,8 @@
           content.append(await renderStudyMaterials(aula));
         } else if (selectedId === 'attendance') {
           content.append(await renderAttendance(aula));
+        } else if (selectedId === 'registered-students') {
+          content.append(await renderRegisteredStudents(aula));
         } else if (selectedId === 'grades') {
           content.append(await renderGrades(aula));
         } else if (selectedId === 'tasks') {
