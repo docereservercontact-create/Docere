@@ -293,6 +293,41 @@
     .registered-student-table th, .registered-student-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
     .registered-student-table th { background: #f1f5f9; font-size: 11px; text-transform: uppercase; }
     .registered-student-table tr:last-child td { border-bottom: 0; }
+    .teacher-payments { display: grid; gap: 14px; }
+    .teacher-payment-list { display: grid; gap: 12px; }
+    .teacher-payment-card { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .teacher-payment-card h3 { margin: 0; font-size: 16px; }
+    .teacher-payment-meta { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .teacher-payment-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 9px; }
+    .teacher-payment-item { padding: 10px; border-radius: 6px; background: #f8fafc; }
+    .teacher-payment-item span, .teacher-payment-item strong { display: block; }
+    .teacher-payment-item span { margin-bottom: 4px; color: var(--muted); font-size: 11px; }
+    .teacher-payment-item strong { font-size: 13px; overflow-wrap: anywhere; }
+    .teacher-payment-breakdown { margin: 0; padding-left: 20px; color: var(--muted); font-size: 12px; }
+    .teacher-payment-breakdown li { margin: 5px 0; }
+    .teacher-payment-status-button { margin-left: 8px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 5px; background: #fff5e5; color: #a16207; cursor: pointer; font: inherit; font-size: 11px; font-weight: 650; }
+    .teacher-payment-status-button.is-paid { background: #e6f9f0; color: #0a7a4f; }
+    .teacher-payment-status-button:disabled { opacity: .6; cursor: wait; }
+    .teacher-payment-status-error { margin-left: 8px; color: var(--red); }
+    .teacher-payment-form { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .teacher-payment-form h4 { margin: 0; font-size: 16px; }
+    .teacher-payment-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+    .teacher-payment-form label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 650; }
+    .teacher-payment-form input, .teacher-payment-form select { width: 100%; min-height: 38px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
+    .teacher-payment-monthly { display: flex !important; align-items: center; gap: 8px !important; color: var(--ink) !important; }
+    .teacher-payment-monthly input { width: 17px; min-height: 17px; }
+    .teacher-payment-preview { padding: 12px; border-radius: 6px; background: #f8fafc; }
+    .teacher-payment-preview h5 { margin: 0 0 7px; font-size: 13px; }
+    .teacher-payment-preview ul { display: grid; gap: 5px; margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; }
+    .teacher-payment-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .teacher-payment-actions button { min-height: 38px; padding: 0 13px; border: 0; border-radius: 5px; background: var(--blue); color: #fff; font-weight: 650; cursor: pointer; }
+    .teacher-payment-actions button:disabled { opacity: .6; cursor: wait; }
+    .teacher-payment-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .teacher-payment-card-actions button { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font-size: 12px; font-weight: 650; cursor: pointer; }
+    .teacher-payment-card-actions button.liquidated { border-color: #a7f3d0; background: #e6f9f0; color: #0a7a4f; }
+    .teacher-payment-card-actions button:disabled { opacity: .65; cursor: wait; }
+    .teacher-payment-form-status { min-height: 18px; margin: 0; color: var(--muted); font-size: 13px; }
+    .teacher-payment-breakdown strong { color: var(--ink); }
     @media (max-width: 760px) {
       .registered-student-card { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     }
@@ -529,11 +564,12 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDoc, query, where, getDocs, onSnapshot, setDoc, updateDoc, deleteDoc, deleteField, writeBatch, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, query, where, getDocs, onSnapshot, setDoc, updateDoc, deleteDoc, deleteField, writeBatch, runTransaction, serverTimestamp, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getDownloadURL, getMetadata, getStorage, listAll, ref } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
     import { logSessionEvent } from './session-audit.js';
     import { authApp, signOutPortalUser } from './portal-auth.js';
     import { createStudentDueCalendar } from './student-due-calendar.js';
+    import { buildMonthlyPaymentSchedule, calculatePaymentPlan, getInstallmentLateFee } from './payment-plan.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -3008,6 +3044,534 @@
       return { tasks: evaluations, feedbackSnapshots };
     }
 
+    async function renderClassroomPayments(aula) {
+      const page = document.createElement('section');
+      page.className = 'teacher-payments';
+      addText(page, 'h3', 'registered-students-heading', 'Pagos del aula');
+      const statusText = addText(page, 'p', 'registered-students-status', 'Consultando esquemas de pago...');
+      statusText.setAttribute('role', 'status');
+      const paymentForm = document.createElement('form');
+      paymentForm.className = 'teacher-payment-form';
+      const formHeading = addText(paymentForm, 'h4', '', 'Agregar esquema de pago');
+      const formGrid = document.createElement('div');
+      formGrid.className = 'teacher-payment-form-grid';
+      const createField = (labelText, name, type, options = {}) => {
+        const label = document.createElement('label');
+        label.append(document.createTextNode(labelText));
+        const input = type === 'select' ? document.createElement('select') : document.createElement('input');
+        input.name = name;
+        if (type !== 'select') input.type = type;
+        if (options.required) input.required = true;
+        if (options.placeholder) input.placeholder = options.placeholder;
+        if (options.value !== undefined) input.value = options.value;
+        if (options.min !== undefined) input.min = options.min;
+        if (options.max !== undefined) input.max = options.max;
+        if (options.step !== undefined) input.step = options.step;
+        if (options.maxLength !== undefined) input.maxLength = options.maxLength;
+        if (type === 'select') {
+          options.choices.forEach(([value, text]) => input.add(new Option(text, value)));
+        }
+        label.append(input);
+        formGrid.append(label);
+        return input;
+      };
+      const studentSelect = createField('Alumno *', 'alumno', 'select', {
+        required: true,
+        choices: [['', 'Selecciona un alumno'], ...aula.alumnos
+          .filter((student) => student.id != null && student.coleccion)
+          .map((student) => [`${student.coleccion}/${student.id}`, student.nombre || student.email || 'Alumno'])]
+      });
+      const courseInput = createField('Curso *', 'curso', 'text', {
+        required: true,
+        maxLength: 120,
+        value: aula.curso || '',
+        placeholder: 'Nombre del curso'
+      });
+      const amountInput = createField('Precio base del curso *', 'montoCurso', 'number', {
+        required: true,
+        min: '0.01',
+        step: '0.01',
+        placeholder: 'Ej. 4200'
+      });
+      const paymentMethodSelect = createField('Forma de pago *', 'formaPago', 'select', {
+        required: true,
+        choices: [
+          ['', 'Selecciona'],
+          ['Transferencia', 'Transferencia'],
+          ['Tarjeta', 'Tarjeta'],
+          ['Efectivo', 'Efectivo'],
+          ['Depósito', 'Depósito'],
+          ['Otro', 'Otro']
+        ]
+      });
+      const payerInput = createField('Persona a quien sale la forma de pago *', 'personaPago', 'text', {
+        required: true,
+        maxLength: 120,
+        placeholder: 'Nombre de la persona'
+      });
+      const methodSelect = createField('Método de pago *', 'metodoPago', 'select', {
+        required: true,
+        choices: [
+          ['', 'Selecciona'],
+          ['Bancario', 'Bancario'],
+          ['Tarjeta', 'Tarjeta'],
+          ['Transferencia', 'Transferencia'],
+          ['Efectivo', 'Efectivo'],
+          ['Crédito', 'Crédito'],
+          ['Otro', 'Otro']
+        ]
+      });
+      const startDateInput = createField('Fecha de inicio *', 'fechaInicio', 'date', {
+        required: true,
+        value: getLocalDateString()
+      });
+      const periodsInput = createField('Plazo (meses) *', 'numeroCuotas', 'select', {
+        required: true,
+        choices: [
+          ['1', 'Contado (1 mes)'],
+          ['3', '3 meses sin intereses'],
+          ['6', '6 meses sin intereses'],
+          ...Array.from({ length: 9 }, (_, index) => {
+            const months = index + 7;
+            return [String(months), `${months} meses`];
+          })
+        ]
+      });
+      const chargeDayInput = createField('Día de cobro *', 'diaCobro', 'number', {
+        required: true,
+        min: '1',
+        max: '31',
+        step: '1',
+        value: String(new Date().getDate())
+      });
+      const preview = document.createElement('div');
+      preview.className = 'teacher-payment-preview';
+      let editingPayment = null;
+      const updatePreview = () => {
+        preview.replaceChildren();
+        addText(preview, 'h5', '', 'Previsualización de cuotas');
+        const basePrice = Number(amountInput.value);
+        const periods = Number(periodsInput.value);
+        const startDate = startDateInput.value;
+        if (!Number.isFinite(basePrice) || basePrice <= 0 || !Number.isInteger(periods)
+            || (![1, 3, 6].includes(periods) && (periods < 7 || periods > 15)) || !startDate) {
+          addText(preview, 'p', 'teacher-payment-form-status', 'Completa el monto, la fecha y el número de cuotas para ver el desglose.');
+          return;
+        }
+        const baseDate = new Date(`${startDate}T12:00:00`);
+        const chargeDay = Number(chargeDayInput.value);
+        if (Number.isNaN(baseDate.getTime()) || !Number.isInteger(chargeDay) || chargeDay < 1 || chargeDay > 31) {
+          addText(preview, 'p', 'teacher-payment-form-status', 'Verifica la fecha de inicio y el día de cobro.');
+          return;
+        }
+        const plan = calculatePaymentPlan(basePrice, periods);
+        const schedule = buildMonthlyPaymentSchedule({
+          basePrice,
+          months: periods,
+          startDate,
+          chargeDay,
+          previousSchedule: editingPayment?.desglose || []
+        });
+        const currency = (value) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value);
+        addText(preview, 'p', 'teacher-payment-form-status', `Precio base: ${currency(plan.basePrice)} · Recargo por financiamiento: ${currency(plan.surchargeAmount)} · Total: ${currency(plan.totalPrice)} · Mensualidad estimada: ${currency(schedule[0]?.monto || 0)}. Contado, 3 y 6 meses no generan intereses; de 7 a 15 se agrega 4.5455% del precio base por cada mes después del sexto. Cada cuota vencida genera una sola vez un recargo de 5% del precio base.`);
+        const list = document.createElement('ul');
+        schedule.slice(0, 6).forEach((item) => {
+          const row = document.createElement('li');
+          row.textContent = `${new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date(`${item.fecha}T12:00:00`))} · ${item.label}: ${currency(item.monto)}`;
+          list.append(row);
+        });
+        if (schedule.length > 6) addText(preview, 'p', 'teacher-payment-form-status', `Y ${schedule.length - 6} cuota(s) más.`);
+        preview.append(list);
+      };
+      [amountInput, startDateInput, periodsInput, chargeDayInput].forEach((input) => {
+        input.addEventListener('input', updatePreview);
+        input.addEventListener('change', updatePreview);
+      });
+      updatePreview();
+      const formActions = document.createElement('div');
+      formActions.className = 'teacher-payment-actions';
+      const savePaymentButton = addText(formActions, 'button', '', 'Guardar esquema');
+      savePaymentButton.type = 'submit';
+      const cancelEditButton = addText(formActions, 'button', '', 'Cancelar edición');
+      cancelEditButton.type = 'button';
+      cancelEditButton.hidden = true;
+      const formStatus = addText(formActions, 'p', 'teacher-payment-form-status', '');
+      formStatus.setAttribute('role', 'status');
+      paymentForm.append(formGrid, preview, formActions);
+      const paymentList = document.createElement('div');
+      paymentList.className = 'teacher-payment-list';
+      page.append(paymentForm, paymentList);
+
+      const students = Array.isArray(aula.alumnos) ? aula.alumnos.filter((student) =>
+        student.id != null && student.coleccion
+      ) : [];
+      if (!students.length) {
+        statusText.textContent = 'No hay alumnos registrados en esta aula.';
+        paymentForm.hidden = true;
+        return page;
+      }
+
+      const resetPaymentForm = () => {
+        editingPayment = null;
+        paymentForm.reset();
+        studentSelect.disabled = false;
+        courseInput.value = aula.curso || '';
+        startDateInput.value = getLocalDateString();
+        periodsInput.value = '1';
+        chargeDayInput.value = String(new Date().getDate());
+        formHeading.textContent = 'Agregar esquema de pago';
+        savePaymentButton.textContent = 'Guardar esquema';
+        cancelEditButton.hidden = true;
+        formStatus.textContent = '';
+        updatePreview();
+      };
+      const beginPaymentEdit = (payment) => {
+        editingPayment = payment;
+        studentSelect.value = `${payment.alumnoColeccion}/${payment.alumnoId}`;
+        studentSelect.disabled = true;
+        courseInput.value = payment.curso || aula.curso || '';
+        amountInput.value = String(payment.precioBaseCurso ?? payment.montoCurso ?? '');
+        paymentMethodSelect.value = payment.formaPago || '';
+        payerInput.value = payment.personaPago || '';
+        methodSelect.value = payment.metodoPago || '';
+        startDateInput.value = payment.fechaInicio || '';
+        periodsInput.value = String(payment.numeroCuotas || payment.desglose?.length || 1);
+        chargeDayInput.value = String(payment.diaCobro || new Date().getDate());
+        formHeading.textContent = `Editar esquema de ${payment.alumno || 'alumno'}`;
+        savePaymentButton.textContent = 'Guardar cambios';
+        cancelEditButton.hidden = false;
+        formStatus.textContent = '';
+        updatePreview();
+        paymentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+      cancelEditButton.addEventListener('click', resetPaymentForm);
+
+      paymentForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!paymentForm.reportValidity()) return;
+        const studentKey = studentSelect.value;
+        const student = students.find((item) => `${item.coleccion}/${item.id}` === studentKey);
+        const basePrice = Number(amountInput.value);
+        const periods = Number(periodsInput.value);
+        const chargeDay = Number(chargeDayInput.value);
+        const startDate = startDateInput.value;
+        if (!student || !Number.isFinite(basePrice) || basePrice <= 0
+            || !Number.isInteger(periods) || (![1, 3, 6].includes(periods) && (periods < 7 || periods > 15))
+            || !Number.isInteger(chargeDay) || chargeDay < 1 || chargeDay > 31
+            || Number.isNaN(new Date(`${startDate}T12:00:00`).getTime())) {
+          formStatus.textContent = 'Revisa el alumno, monto, fecha, número de cuotas y día de cobro.';
+          return;
+        }
+
+        const plan = calculatePaymentPlan(basePrice, periods);
+        const schedule = buildMonthlyPaymentSchedule({
+          basePrice,
+          months: periods,
+          startDate,
+          chargeDay,
+          previousSchedule: editingPayment?.desglose || []
+        });
+        const isLiquidated = schedule.length > 0 && schedule.every((item) => item.estado === 'pagado');
+        const payload = {
+          alumno: student.nombre || student.email || 'Alumno',
+          alumnoColeccion: student.coleccion,
+          alumnoId: student.id,
+          curso: courseInput.value.trim(),
+          montoCurso: plan.totalPrice,
+          precioBaseCurso: plan.basePrice,
+          recargoFinanciamiento: plan.surchargeAmount,
+          porcentajeRecargoFinanciamiento: plan.surchargePercent,
+          cargoMoraPorCuota: Number((plan.basePrice * 0.05).toFixed(2)),
+          formaPago: paymentMethodSelect.value,
+          personaPago: payerInput.value.trim(),
+          metodoPago: methodSelect.value,
+          esPorMeses: periods > 1,
+          frecuencia: 'mensual',
+          fechaInicio: startDate,
+          numeroCuotas: periods,
+          diaCobro: chargeDay,
+          desglose: schedule,
+          montoPorPago: schedule[0]?.monto || 0,
+          totalPagado: schedule.reduce((sum, item) => sum + item.monto, 0),
+          liquidado: isLiquidated,
+          liquidadoEn: isLiquidated ? serverTimestamp() : null,
+          profesorDocId: session.teacherDocId,
+          profesorEmail: session.email || '',
+          aulaId: aula.id,
+          aulaNombre: aula.nombre || ''
+        };
+
+        savePaymentButton.disabled = true;
+        formStatus.textContent = 'Guardando esquema de pago...';
+        try {
+          let paymentId;
+          if (editingPayment) {
+            paymentId = editingPayment.id;
+            await updateDoc(doc(db, 'Pagos', paymentId), {
+              ...payload,
+              actualizadoEn: serverTimestamp()
+            });
+          } else {
+            const paymentRef = await addDoc(collection(db, 'Pagos'), {
+              ...payload,
+              fechaRegistro: serverTimestamp()
+            });
+            paymentId = paymentRef.id;
+            try {
+              await notifyStudents([student], {
+                id: paymentId,
+                aulaId: aula.id,
+                aulaNombre: 'Pagos',
+                titulo: payload.curso,
+                tipo: 'pago',
+                tipoTexto: 'Nuevo esquema de pago',
+                curso: payload.curso,
+                montoCurso: payload.montoCurso,
+                notificationDocId: `pago_portal_${paymentId}`
+              });
+            } catch (error) {
+              console.error(`El esquema ${paymentId} se guardó, pero no se pudo notificar al alumno:`, error);
+            }
+          }
+          const wasEditing = Boolean(editingPayment);
+          resetPaymentForm();
+          formStatus.textContent = wasEditing ? 'Esquema de pago actualizado.' : 'Esquema guardado.';
+          const refreshedPage = await renderClassroomPayments(aula);
+          page.replaceWith(refreshedPage);
+          refreshedPage.querySelector('.teacher-payment-form-status[role="status"]').textContent = wasEditing
+            ? 'Esquema de pago actualizado.'
+            : 'Esquema guardado.';
+        } catch (error) {
+          console.error(`No se pudo guardar el esquema de pago para el aula ${aula.id}:`, error);
+          formStatus.textContent = error?.code === 'permission-denied'
+            ? 'No tienes permisos para guardar pagos en Firestore.'
+            : 'No se pudo guardar el esquema. Revisa la conexión y los permisos de Firestore.';
+          savePaymentButton.disabled = false;
+        }
+      });
+
+      try {
+        const paymentsByStudent = await Promise.all(students.map(async (student) => {
+          const paymentsSnapshot = await getDocs(query(
+            collection(db, 'Pagos'),
+            where('alumnoId', '==', student.id)
+          ));
+          return {
+            student,
+            payments: paymentsSnapshot.docs
+              .map((paymentDoc) => ({ id: paymentDoc.id, ...paymentDoc.data() }))
+              .filter((payment) => payment.alumnoColeccion === student.coleccion)
+          };
+        }));
+        const payments = paymentsByStudent.flatMap(({ student, payments: studentPayments }) =>
+          studentPayments.map((payment) => ({ student, payment }))
+        ).sort((left, right) => {
+          const leftDate = left.payment.fechaRegistro?.toMillis?.() || 0;
+          const rightDate = right.payment.fechaRegistro?.toMillis?.() || 0;
+          return rightDate - leftDate;
+        });
+        const actionStatus = (message, isError = false) => {
+          statusText.textContent = message;
+          statusText.style.color = isError ? 'var(--red)' : '';
+        };
+        const currency = (amount) => new Intl.NumberFormat('es-MX', {
+          style: 'currency',
+          currency: 'MXN'
+        }).format(Number.isFinite(Number(amount)) ? Number(amount) : 0);
+        payments.forEach(({ student, payment }) => {
+          const card = document.createElement('article');
+          card.className = 'teacher-payment-card';
+          const heading = addText(card, 'h3', '', payment.curso || aula.curso || 'Curso sin especificar');
+          heading.setAttribute('aria-label', `Pago de ${student.nombre || payment.alumno || 'alumno'}`);
+          addText(card, 'p', 'teacher-payment-meta', `${student.nombre || payment.alumno || 'Alumno'} · ${aula.nombre || 'Aula'}`);
+          const details = document.createElement('div');
+          details.className = 'teacher-payment-details';
+          [
+            ['Alumno', payment.alumno || student.nombre || '—'],
+            ['Persona a quien sale la forma de pago', payment.personaPago || '—'],
+            ['Plazo', `${Number(payment.numeroCuotas || 1)} mes(es)`],
+            ['Forma de pago', payment.formaPago || '—'],
+            ['Método de pago', payment.metodoPago || '—'],
+            ['Precio base del curso', currency(payment.precioBaseCurso ?? payment.montoCurso)],
+            ['Recargo por financiamiento', currency(payment.recargoFinanciamiento || 0)],
+            ['Total del curso', currency(payment.montoCurso)],
+            ['Pago mensual', currency(payment.montoPorPago)],
+            ['Recargo por cuota vencida', currency(payment.cargoMoraPorCuota ?? Number(((payment.precioBaseCurso ?? payment.montoCurso) * 0.05).toFixed(2)))]
+          ].forEach(([label, value]) => {
+            const item = document.createElement('div');
+            item.className = 'teacher-payment-item';
+            addText(item, 'span', '', label);
+            addText(item, 'strong', '', value);
+            details.append(item);
+          });
+          card.append(details);
+          const quotaSchedule = Array.isArray(payment.desglose) ? payment.desglose : [];
+          const isLiquidated = payment.liquidado === true
+            || (quotaSchedule.length > 0 && quotaSchedule.every((item) =>
+              item.estado === 'pagado' || item.status === 'pagado'
+            ));
+          const cardActions = document.createElement('div');
+          cardActions.className = 'teacher-payment-card-actions';
+          const editButton = addText(cardActions, 'button', '', 'Editar esquema');
+          editButton.type = 'button';
+          editButton.addEventListener('click', () => beginPaymentEdit(payment));
+          const liquidateButton = addText(
+            cardActions,
+            'button',
+            isLiquidated ? 'liquidated' : '',
+            isLiquidated ? '✓ Liquidado' : 'Marcar como liquidado'
+          );
+          liquidateButton.type = 'button';
+          liquidateButton.disabled = isLiquidated;
+          liquidateButton.setAttribute('aria-label', isLiquidated
+            ? `Esquema de ${payment.alumno || student.nombre} liquidado`
+            : `Marcar como liquidado el esquema de ${payment.alumno || student.nombre}`);
+          const actionError = addText(cardActions, 'span', 'teacher-payment-status-error', '');
+          actionError.setAttribute('role', 'status');
+          liquidateButton.addEventListener('click', async () => {
+            if (!quotaSchedule.length) {
+              actionError.textContent = 'Este esquema no tiene cuotas para liquidar.';
+              return;
+            }
+            liquidateButton.disabled = true;
+            actionError.textContent = 'Actualizando esquema...';
+            const basePrice = payment.precioBaseCurso ?? payment.montoCurso;
+            const paidSchedule = quotaSchedule.map((item) => ({
+              ...item,
+              cargoMora: Math.max(
+                Number(item.cargoMora) || 0,
+                getInstallmentLateFee(basePrice, item)
+              ),
+              estado: 'pagado',
+              status: 'pagado'
+            }));
+            try {
+              await updateDoc(doc(db, 'Pagos', payment.id), {
+                desglose: paidSchedule,
+                liquidado: true,
+                liquidadoEn: serverTimestamp(),
+                actualizadoEn: serverTimestamp()
+              });
+              payment.desglose = paidSchedule;
+              payment.liquidado = true;
+              const refreshedPage = await renderClassroomPayments(aula);
+              page.replaceWith(refreshedPage);
+              actionStatus(`El esquema de ${payment.alumno || student.nombre} quedó liquidado.`);
+            } catch (error) {
+              console.error(`No se pudo liquidar el esquema de pago ${payment.id}:`, error);
+              actionError.textContent = error?.code === 'permission-denied'
+                ? 'Sin permiso para actualizar este esquema.'
+                : 'No se pudo liquidar el esquema.';
+              liquidateButton.disabled = false;
+            }
+          });
+          card.append(cardActions);
+
+          if (Array.isArray(payment.desglose) && payment.desglose.length) {
+            const breakdown = document.createElement('details');
+            const breakdownSummary = addText(
+              breakdown,
+              'summary',
+              '',
+              `Desglose de pagos (${payment.desglose.length})`
+            );
+            breakdownSummary.style.cursor = 'pointer';
+            const list = document.createElement('ol');
+            list.className = 'teacher-payment-breakdown';
+            payment.desglose.forEach((item, itemIndex) => {
+              const row = document.createElement('li');
+              const date = item.fecha?.toDate
+                ? item.fecha.toDate()
+                : new Date(`${item.fecha || ''}T12:00:00`);
+              const dateLabel = Number.isNaN(date.getTime())
+                ? item.fecha || 'Fecha no disponible'
+                : new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(date);
+              const statusButton = addText(row, 'button', 'teacher-payment-status-button', '');
+              statusButton.type = 'button';
+              const statusError = addText(row, 'span', 'teacher-payment-status-error', '');
+              statusError.setAttribute('role', 'status');
+              const lateFee = getInstallmentLateFee(
+                payment.precioBaseCurso ?? payment.montoCurso,
+                item
+              );
+              const renderQuotaStatus = (state) => {
+                const isPaid = state === 'pagado';
+                statusButton.textContent = `${isPaid ? 'Pagado' : 'Pendiente'}${lateFee ? ` · Recargo ${currency(lateFee)}` : ''} · Marcar ${isPaid ? 'pendiente' : 'pagado'}`;
+                statusButton.classList.toggle('is-paid', isPaid);
+                statusButton.setAttribute(
+                  'aria-label',
+                  `${dateLabel}, ${currency(item.monto)}${lateFee ? ` más recargo de ${currency(lateFee)}` : ''}. Actualmente ${isPaid ? 'pagado' : 'pendiente'}. Cambiar estado`
+                );
+                statusError.textContent = '';
+              };
+              const initialState = item.estado === 'pagado' || item.status === 'pagado'
+                ? 'pagado'
+                : 'pendiente';
+              row.prepend(document.createTextNode(`${dateLabel} · ${currency(item.monto)}${lateFee ? ` + recargo único ${currency(lateFee)}` : ''} · `));
+              renderQuotaStatus(initialState);
+              statusButton.addEventListener('click', async () => {
+                const nextState = (item.estado === 'pagado' || item.status === 'pagado')
+                  ? 'pendiente'
+                  : 'pagado';
+                const updatedSchedule = payment.desglose.map((quota, quotaIndex) => quotaIndex === itemIndex
+                  ? {
+                    ...quota,
+                    cargoMora: Math.max(
+                      Number(quota.cargoMora) || 0,
+                      nextState === 'pagado'
+                        ? getInstallmentLateFee(payment.precioBaseCurso ?? payment.montoCurso, quota)
+                        : 0
+                    ),
+                    estado: nextState,
+                    status: nextState
+                  }
+                  : quota);
+                statusButton.disabled = true;
+                statusError.textContent = 'Guardando...';
+                try {
+                  const allQuotasPaid = updatedSchedule.length > 0
+                    && updatedSchedule.every((quota) => quota.estado === 'pagado' || quota.status === 'pagado');
+                  await updateDoc(doc(db, 'Pagos', payment.id), {
+                    desglose: updatedSchedule,
+                    liquidado: allQuotasPaid,
+                    liquidadoEn: allQuotasPaid ? serverTimestamp() : null,
+                    actualizadoEn: serverTimestamp()
+                  });
+                  payment.desglose = updatedSchedule;
+                  payment.liquidado = allQuotasPaid;
+                  item.estado = nextState;
+                  item.status = nextState;
+                  renderQuotaStatus(nextState);
+                } catch (error) {
+                  console.error(`No se pudo cambiar el estado de la cuota ${itemIndex + 1} del pago ${payment.id}:`, error);
+                  statusError.textContent = error?.code === 'permission-denied'
+                    ? 'Sin permiso para actualizar esta cuota.'
+                    : 'No se pudo guardar el cambio.';
+                } finally {
+                  statusButton.disabled = false;
+                }
+              });
+              list.append(row);
+            });
+            breakdown.append(list);
+            card.append(breakdown);
+          }
+          paymentList.append(card);
+        });
+
+        const totalPayments = payments.length;
+        statusText.textContent = totalPayments
+          ? `${totalPayments} esquema(s) de pago de los alumnos de esta aula.`
+          : 'No hay esquemas de pago registrados para los alumnos de esta aula.';
+      } catch (error) {
+        console.error(`No se pudieron cargar los pagos de los alumnos del aula ${aula.id}:`, error);
+        statusText.textContent = error?.code === 'permission-denied'
+          ? 'No se pudieron consultar los pagos por falta de permisos de lectura en Firestore.'
+          : 'No se pudieron cargar los pagos. Revisa la conexión y los permisos de Firestore.';
+      }
+      return page;
+    }
+
     async function renderRegisteredStudents(aula) {
       const page = document.createElement('section');
       page.className = 'registered-students';
@@ -4640,6 +5204,7 @@
         { id: 'study-materials', label: 'Material de estudio' },
         { id: 'attendance', label: 'Lista de asistencias' },
         { id: 'registered-students', label: 'Alumnos registrados' },
+        { id: 'payments', label: 'Pagos' },
         { id: 'grades', label: 'Lista de calificaciones' },
         { id: 'tasks', label: 'Tareas' },
         { id: 'practice-exams', label: 'Exámenes simulacros' }
@@ -4664,6 +5229,8 @@
           content.append(await renderAttendance(aula));
         } else if (selectedId === 'registered-students') {
           content.append(await renderRegisteredStudents(aula));
+        } else if (selectedId === 'payments') {
+          content.append(await renderClassroomPayments(aula));
         } else if (selectedId === 'grades') {
           content.append(await renderGrades(aula));
         } else if (selectedId === 'tasks') {

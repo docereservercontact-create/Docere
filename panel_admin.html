@@ -503,8 +503,8 @@
           <label>Curso *
             <input name="curso" type="text" maxlength="120" placeholder="Ej. Admisión UNAM" required>
           </label>
-          <label>Monto del curso *
-            <input name="montoCurso" type="number" min="0" step="0.01" placeholder="Ej. 4200" required>
+          <label>Precio base del curso *
+            <input name="montoCurso" type="number" min="0.01" step="0.01" placeholder="Ej. 11000" required>
           </label>
           <label>Forma de pago *
             <select name="formaPago" required>
@@ -530,22 +530,24 @@
               <option value="Otro">Otro</option>
             </select>
           </label>
-          <label class="checkbox-field">
-            <input type="checkbox" name="esPorMeses">
-            <span>¿Se va a pagar a meses?</span>
-          </label>
-          <label>Frecuencia de pago *
-            <select name="frecuencia" required>
-              <option value="mensual">Mensual</option>
-              <option value="semanal">Semanal</option>
-              <option value="quincenal">Quincenal</option>
-            </select>
-          </label>
           <label>Fecha de inicio de pago *
             <input name="fechaInicio" type="date" required>
           </label>
-          <label>Número de cuotas / periodos *
-            <input name="numeroCuotas" type="number" min="1" step="1" placeholder="Ej. 6" required>
+          <label>Plazo (meses) *
+            <select name="numeroCuotas" required>
+              <option value="1">Contado (1 mes)</option>
+              <option value="3">3 meses sin intereses</option>
+              <option value="6">6 meses sin intereses</option>
+              <option value="7">7 meses</option>
+              <option value="8">8 meses</option>
+              <option value="9">9 meses</option>
+              <option value="10">10 meses</option>
+              <option value="11">11 meses</option>
+              <option value="12">12 meses</option>
+              <option value="13">13 meses</option>
+              <option value="14">14 meses</option>
+              <option value="15">15 meses</option>
+            </select>
           </label>
           <label>Día de cobro *
             <input name="diaCobro" type="number" min="1" max="31" placeholder="Ej. 15" required>
@@ -569,6 +571,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { buildMonthlyPaymentSchedule, calculatePaymentPlan, getInstallmentLateFee } from './payment-plan.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -808,70 +811,32 @@
       return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
     }
 
-    function buildPaymentSchedule({ totalAmount, frequency, startDate, periods, chargeDay }) {
-      const numericTotal = Number(totalAmount || 0);
-      const numericPeriods = Math.max(1, Number(periods || 1));
-      const formattedFrequency = (frequency || 'mensual').toLowerCase();
-      const baseDate = startDate ? new Date(`${startDate}T12:00:00`) : new Date();
-      const paymentDay = Math.min(Math.max(Number(chargeDay || baseDate.getDate()), 1), 31);
-      const schedule = [];
-      let remaining = numericTotal;
-
-      for (let index = 0; index < numericPeriods; index += 1) {
-        let currentDate = new Date(baseDate);
-
-        if (formattedFrequency === 'mensual') {
-          currentDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + index, 1);
-          const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-          currentDate.setDate(Math.min(paymentDay, daysInMonth));
-        } else if (formattedFrequency === 'semanal') {
-          currentDate.setDate(baseDate.getDate() + (index * 7));
-        } else {
-          currentDate.setDate(baseDate.getDate() + (index * 14));
-        }
-
-        let quota = Number((numericTotal / numericPeriods).toFixed(2));
-        if (index === numericPeriods - 1) {
-          quota = Number((remaining).toFixed(2));
-        }
-        remaining = Number((remaining - quota).toFixed(2));
-
-        schedule.push({
-          index: index + 1,
-          label: `Pago ${index + 1}`,
-          fecha: currentDate.toISOString().slice(0, 10),
-          monto: quota,
-          estado: 'pendiente',
-          status: 'pendiente'
-        });
-      }
-
-      return schedule;
-    }
-
     function renderPaymentPreview() {
-      const amount = Number(paymentForm.elements.montoCurso.value || 0);
-      const frequency = paymentForm.elements.frecuencia.value || 'mensual';
+      const basePrice = Number(paymentForm.elements.montoCurso.value || 0);
       const startDate = paymentForm.elements.fechaInicio.value;
       const periods = Number(paymentForm.elements.numeroCuotas.value || 1);
       const chargeDay = Number(paymentForm.elements.diaCobro.value || 1);
-      const isValid = amount > 0 && startDate && periods > 0 && chargeDay >= 1;
+      const isSupportedTerm = [1, 3, 6].includes(periods) || (periods >= 7 && periods <= 15);
+      const validSchedule = basePrice > 0 && startDate && Number.isInteger(periods) && isSupportedTerm
+        && Number.isInteger(chargeDay)
+        && chargeDay >= 1 && chargeDay <= 31;
 
-      if (!isValid) {
+      if (!validSchedule) {
         paymentSchedulePreview.innerHTML = `
           <h3>Previsualización del desglose</h3>
-          <p class="classroom-form-message">Completa los datos para generar las fechas y monto por pago.</p>
+          <p class="classroom-form-message">Selecciona contado, 3 o 6 meses sin intereses, o un plazo de 7 a 15 meses; completa también el precio base, fecha y día de cobro.</p>
         `;
         return;
       }
 
-      const schedule = buildPaymentSchedule({ totalAmount: amount, frequency, startDate, periods, chargeDay });
+      const plan = calculatePaymentPlan(basePrice, periods);
+      const schedule = buildMonthlyPaymentSchedule({ basePrice, months: periods, startDate, chargeDay });
       const firstQuota = schedule[0]?.monto || 0;
-      const total = schedule.reduce((sum, item) => sum + item.monto, 0);
 
       paymentSchedulePreview.innerHTML = `
         <h3>Previsualización del desglose</h3>
-        <p class="classroom-form-message">Total del curso: <strong>${formatCurrency(total)}</strong> · Frecuencia: ${frequency} · Cuota estimada: <strong>${formatCurrency(firstQuota)}</strong></p>
+        <p class="classroom-form-message">Precio base: <strong>${formatCurrency(plan.basePrice)}</strong> · Recargo por financiamiento: <strong>${formatCurrency(plan.surchargeAmount)}</strong> (${plan.surchargePercent}%) · Total del curso: <strong>${formatCurrency(plan.totalPrice)}</strong> · Mensualidad estimada: <strong>${formatCurrency(firstQuota)}</strong>.</p>
+        <p class="classroom-form-message">Contado, 3 y 6 meses no generan intereses. De 7 a 15 meses se agrega 4.5455% del precio base por cada mes posterior al sexto. Cada mensualidad vencida genera una sola vez un recargo de 5% del precio base.</p>
         <ul class="payment-breakdown">
           ${schedule.slice(0, 8).map((item) => `
             <li>
@@ -880,7 +845,7 @@
             </li>
           `).join('')}
         </ul>
-        ${schedule.length > 8 ? '<p class="classroom-form-message">Y el resto del esquema continúa según la frecuencia seleccionada.</p>' : ''}
+        ${schedule.length > 8 ? '<p class="classroom-form-message">Y el resto de las mensualidades continúa según el calendario.</p>' : ''}
       `;
     }
 
@@ -974,6 +939,15 @@
       if (!visibleRecords.length) {
         const emptyState = document.createElement('div');
         emptyState.className = 'empty-state';
+        const loadError = collectionLoadErrors.get(activeCollection);
+        if (loadError) {
+          const permissionDenied = loadError.code === 'permission-denied';
+          emptyState.textContent = permissionDenied
+            ? `Firestore denegó la lectura de ${activeCollection}. Revisa las reglas del proyecto conectado y vuelve a pulsar esta pestaña para reintentar.`
+            : `No se pudieron cargar los registros de ${activeCollection}. Revisa la conexión y vuelve a pulsar esta pestaña para reintentar.`;
+          recordsList.append(emptyState);
+          return;
+        }
         const isAccessBlocked = (cache.get(activeCollection) || []).length === 0 && !searchTerm;
         emptyState.textContent = searchTerm
           ? 'No hay registros que coincidan con la búsqueda.'
@@ -1067,13 +1041,16 @@
           paymentGrid.className = 'payment-card-grid';
           [
             ['Alumno', data.alumno || '—'],
-            ['Monto total', formatCurrency(data.montoCurso || 0)],
+            ['Precio base', formatCurrency(data.precioBaseCurso ?? data.montoCurso ?? 0)],
+            ['Recargo por financiamiento', formatCurrency(data.recargoFinanciamiento || 0)],
+            ['Total del curso', formatCurrency(data.montoCurso || 0)],
+            ['Recargo por cuota vencida', formatCurrency(data.cargoMoraPorCuota ?? Number(((data.precioBaseCurso ?? data.montoCurso ?? 0) * 0.05).toFixed(2)))],
             ['Forma de pago', data.formaPago || '—'],
             ['Persona', data.personaPago || '—'],
             ['Método', data.metodoPago || '—'],
             ['Frecuencia', data.frecuencia || '—'],
             ['Inicio', formatShortDate(data.fechaInicio)],
-            ['Cuotas', `${Number(data.numeroCuotas || 0)} periodos`],
+            ['Plazo', `${Number(data.numeroCuotas || 0)} meses`],
             ['Cobro', `${Number(data.diaCobro || 0)} del mes`] 
           ].forEach(([label, value]) => {
             const item = document.createElement('div');
@@ -1098,6 +1075,7 @@
               const listItem = document.createElement('li');
               const itemStatus = item.estado || item.status || 'pendiente';
               const statusLabel = itemStatus === 'pagado' ? 'Pagado' : 'Pendiente';
+              const lateFee = getInstallmentLateFee(data.precioBaseCurso ?? data.montoCurso, item);
               const button = document.createElement('button');
               button.type = 'button';
               button.style.marginLeft = '8px';
@@ -1112,7 +1090,17 @@
                 const updatedDesglose = items.map((entry, entryIndex) => {
                   if (entryIndex !== index) return { ...entry, estado: entry.estado || entry.status || 'pendiente', status: entry.status || entry.estado || 'pendiente' };
                   const nextState = entry.estado === 'pagado' || entry.status === 'pagado' ? 'pendiente' : 'pagado';
-                  return { ...entry, estado: nextState, status: nextState };
+                  return {
+                    ...entry,
+                    cargoMora: Math.max(
+                      Number(entry.cargoMora) || 0,
+                      nextState === 'pagado'
+                        ? getInstallmentLateFee(data.precioBaseCurso ?? data.montoCurso, entry)
+                        : 0
+                    ),
+                    estado: nextState,
+                    status: nextState
+                  };
                 });
                 try {
                   await updateDoc(doc(db, 'Pagos', id), { desglose: updatedDesglose, actualizadoEn: serverTimestamp() });
@@ -1126,7 +1114,7 @@
                   }, 1200);
                 }
               });
-              listItem.innerHTML = `${formatShortDate(item.fecha)} — ${formatCurrency(item.monto)} <strong>(${statusLabel})</strong>`;
+              listItem.innerHTML = `${formatShortDate(item.fecha)} — ${formatCurrency(item.monto)}${lateFee ? ` + recargo único ${formatCurrency(lateFee)}` : ''} <strong>(${statusLabel})</strong>`;
               listItem.append(button);
               breakdown.append(listItem);
             });
@@ -1463,8 +1451,12 @@
         const errorState = document.createElement('div');
         errorState.className = 'empty-state';
         errorState.textContent = permissionDenied
-          ? `Sin permiso para leer ${name}. Comprueba las reglas de Firestore y publícalas en el proyecto conectado.`
-          : `No se pudo conectar para leer ${name}. Inténtalo de nuevo.`;
+          ? `Sin permiso para leer ${name}. Comprueba las reglas de Firestore y publícalas en el proyecto conectado; vuelve a pulsar la pestaña para reintentar.`
+          : `No se pudo conectar para leer ${name}. Revisa la conexión y vuelve a pulsar la pestaña para reintentar.`;
+        collectionLoadErrors.set(name, error);
+        cache.delete(name);
+        const countNode = document.getElementById(collections[name].countId);
+        if (countNode) countNode.textContent = permissionDenied ? '!' : '—';
         recordsList.replaceChildren(errorState);
       }
     }
@@ -1561,23 +1553,31 @@
         return;
       }
 
-      const totalAmount = Number(paymentForm.elements.montoCurso.value || 0);
-      const frequency = paymentForm.elements.frecuencia.value;
+      const basePrice = Number(paymentForm.elements.montoCurso.value || 0);
       const startDate = paymentForm.elements.fechaInicio.value;
       const periods = Number(paymentForm.elements.numeroCuotas.value || 1);
       const chargeDay = Number(paymentForm.elements.diaCobro.value || 1);
-      const schedule = buildPaymentSchedule({ totalAmount, frequency, startDate, periods, chargeDay });
+      if (!Number.isInteger(periods) || (![1, 3, 6].includes(periods) && (periods < 7 || periods > 15))) {
+        paymentFormMessage.textContent = 'Selecciona contado, 3 o 6 meses sin intereses, o un plazo de 7 a 15 meses.';
+        return;
+      }
+      const plan = calculatePaymentPlan(basePrice, periods);
+      const schedule = buildMonthlyPaymentSchedule({ basePrice, months: periods, startDate, chargeDay });
       const payload = {
         alumno: displayStudentName(student.data),
         alumnoColeccion: student.collectionName,
         alumnoId: student.id,
         curso: paymentForm.elements.curso.value.trim(),
-        montoCurso: totalAmount,
+        montoCurso: plan.totalPrice,
+        precioBaseCurso: plan.basePrice,
+        recargoFinanciamiento: plan.surchargeAmount,
+        porcentajeRecargoFinanciamiento: plan.surchargePercent,
+        cargoMoraPorCuota: Number((plan.basePrice * 0.05).toFixed(2)),
         formaPago: paymentForm.elements.formaPago.value,
         personaPago: paymentForm.elements.personaPago.value.trim(),
         metodoPago: paymentForm.elements.metodoPago.value,
-        esPorMeses: paymentForm.elements.esPorMeses.checked,
-        frecuencia,
+        esPorMeses: periods > 1,
+        frecuencia: 'mensual',
         fechaInicio: startDate,
         numeroCuotas: periods,
         diaCobro: chargeDay,
@@ -1664,7 +1664,6 @@
                 : String(records.length);
             } catch (error) {
               console.error(`No se pudieron precargar los registros de ${name}:`, error);
-              cache.set(name, []);
               collectionLoadErrors.set(name, error);
               const countNode = document.getElementById(config.countId);
               if (countNode) countNode.textContent = error?.code === 'permission-denied' ? '!' : '0';

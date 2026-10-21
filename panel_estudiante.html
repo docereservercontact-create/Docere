@@ -957,6 +957,7 @@
     import { getStudentAbsenceStatus, getSuspensionMessage } from './student-access.js';
     import { auth, authApp } from './portal-auth.js';
     import { bindStudentClassMeetingButton } from './student-class-meeting.js';
+    import { getInstallmentLateFee } from './payment-plan.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyC64X_uSvL_Sn1WQLw7ZV9QDme2aOfV5ag",
@@ -1510,7 +1511,10 @@
           const details = document.createElement('div');
           details.className = 'payment-details';
           const detailEntries = [
-            ['Monto total', formatMoney(payment.montoCurso || 0)],
+            ['Precio base', formatMoney(payment.precioBaseCurso ?? payment.montoCurso ?? 0)],
+            ['Recargo por financiamiento', formatMoney(payment.recargoFinanciamiento || 0)],
+            ['Total del curso', formatMoney(payment.montoCurso || 0)],
+            ['Recargo por cuota vencida', formatMoney(payment.cargoMoraPorCuota ?? Number(((payment.precioBaseCurso ?? payment.montoCurso ?? 0) * 0.05).toFixed(2)))],
             ['Forma de pago', payment.formaPago || '—'],
             ['Método', payment.metodoPago || '—'],
             ['Persona', payment.personaPago || '—']
@@ -1539,7 +1543,8 @@
               item.className = 'payment-installment';
               const info = document.createElement('div');
               const title = document.createElement('strong');
-              title.textContent = `${installment.label || 'Pago'} · ${formatMoney(installment.monto || 0)}`;
+              const lateFee = getInstallmentLateFee(payment.precioBaseCurso ?? payment.montoCurso, installment);
+              title.textContent = `${installment.label || 'Pago'} · ${formatMoney(installment.monto || 0)}${lateFee ? ` + recargo único ${formatMoney(lateFee)}` : ''}`;
               const date = document.createElement('small');
               date.textContent = formatPaymentDate(installment.fecha);
               info.append(title, date);
