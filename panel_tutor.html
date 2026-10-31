@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel del padre o tutor - Docere</title>
+  <script>
+    try {
+      const parentSession = JSON.parse(localStorage.getItem('parentSession') || 'null');
+      window.location.replace(parentSession?.studentId
+        ? 'panel_estudiante.html?modo=tutor'
+        : 'login.html');
+    } catch (error) {
+      console.error('No se pudo abrir el panel del padre o tutor:', error);
+      window.location.replace('login.html');
+    }
+  </script>
+</head>
+<body>
+  <p>Abriendo el panel del padre o tutor…</p>
+</body>
+</html>

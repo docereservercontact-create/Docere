@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Iniciar Sesión - Portal del Estudiante</title>
+  <title>Iniciar Sesión - Portal Docere</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -153,7 +153,7 @@
       <img src="logon.png" alt="Logo">
     </div>
     
-    <h2>Portal del Estudiante</h2>
+    <h2>Portal Docere</h2>
     <p class="subtitle">Ingresa con tus credenciales registradas</p>
     
     <form id="loginForm">
@@ -177,6 +177,9 @@
             </svg>
           </button>
         </div>
+        <p class="subtitle" style="text-align:left;margin:8px 0 0">
+          Padres o tutores: usen la fecha de nacimiento del alumno (AAAA-MM-DD).
+        </p>
       </div>
 
       <div class="options-row">
@@ -275,6 +278,54 @@
         || null;
     }
 
+    async function buscarTutor(email, fechaNacimiento) {
+      const colecciones = ['Cursos', 'aspirantes_admision', 'users'];
+      const matchingStudents = [];
+
+      for (const collectionName of colecciones) {
+        const tutorQuery = query(
+          collection(db, collectionName),
+          where('tutorEmail', '==', email)
+        );
+        const snapshot = await getDocs(tutorQuery);
+        snapshot.docs.forEach((studentDoc) => {
+          const student = studentDoc.data();
+          if (student.fechaNacimiento !== fechaNacimiento) return;
+          matchingStudents.push({
+            id: studentDoc.id,
+            coleccion: collectionName,
+            student
+          });
+        });
+      }
+
+      const match = matchingStudents.find(({ student }) => student.accesoAprobado !== false)
+        || matchingStudents[0];
+      if (!match) return null;
+
+      const { id, coleccion, student } = match;
+      const tutorNombre = [
+          student.tutor_nombre,
+          student.tutor_apellido1,
+          student.tutor_apellido2
+        ].filter(Boolean).join(' ').trim();
+      const alumnoNombre = [
+          student.asp_nombre || student.nombre,
+          student.asp_apellido1 || student.primerApellido,
+          student.asp_apellido2 || student.segundoApellido
+        ].filter(Boolean).join(' ').trim();
+
+      return {
+        id,
+        coleccion,
+        email,
+        nombre: tutorNombre || 'Padre o tutor',
+        alumnoNombre: alumnoNombre || 'Alumno',
+        studentEmail: student.email || student.correo || '',
+        curso: student.curso || student.datosAcademicos?.curso || 'UNAM'
+      };
+    }
+
     async function buscarAdministrador(email, password) {
       const adminQuery = query(
         collection(db, 'admins'),
@@ -338,6 +389,8 @@
           localStorage.removeItem('studentSessionLastActivity');
           localStorage.removeItem('teacherSession');
           localStorage.removeItem('teacherSessionLastActivity');
+          localStorage.removeItem('parentSession');
+          localStorage.removeItem('parentSessionLastActivity');
           localStorage.removeItem('saved_student_email');
           localStorage.removeItem('saved_student_password');
           localStorage.setItem('adminSession', JSON.stringify({
@@ -362,6 +415,8 @@
           localStorage.removeItem('studentSessionLastActivity');
           localStorage.removeItem('adminSession');
           localStorage.removeItem('adminSessionLastActivity');
+          localStorage.removeItem('parentSession');
+          localStorage.removeItem('parentSessionLastActivity');
           localStorage.setItem('teacherSession', JSON.stringify(profesor));
           localStorage.setItem('teacherSessionLastActivity', String(Date.now()));
           await logSessionEvent(profesor, 'inicio_sesion', 'profesor');
@@ -372,6 +427,31 @@
           return;
         }
 
+        const tutor = await buscarTutor(email, password);
+        if (tutor) {
+          await signOutPortalUser();
+          localStorage.removeItem('studentSession');
+          localStorage.removeItem('studentSessionLastActivity');
+          localStorage.removeItem('teacherSession');
+          localStorage.removeItem('teacherSessionLastActivity');
+          localStorage.removeItem('adminSession');
+          localStorage.removeItem('adminSessionLastActivity');
+          localStorage.removeItem('parentSession');
+          localStorage.removeItem('parentSessionLastActivity');
+          localStorage.removeItem('saved_student_email');
+          localStorage.removeItem('saved_student_password');
+          const tutorSession = {
+            ...tutor,
+            studentId: tutor.id
+          };
+          localStorage.setItem('parentSession', JSON.stringify(tutorSession));
+          localStorage.setItem('parentSessionLastActivity', String(Date.now()));
+          await logSessionEvent(tutorSession, 'inicio_sesion', 'tutor');
+          showMessage('Acceso correcto. Redirigiendo...');
+          window.location.href = 'panel_tutor.html';
+          return;
+        }
+
         const estudiante = await buscarEstudiante(email, password);
 
         if (estudiante) {
@@ -379,7 +459,8 @@
             showMessage('Tu registro fue recibido. El administrador debe aprobar tu acceso antes de iniciar sesión.');
             return;
           }
-
+          localStorage.removeItem('parentSession');
+          localStorage.removeItem('parentSessionLastActivity');
           try {
             await authenticatePortalUser(email, password);
           } catch (error) {

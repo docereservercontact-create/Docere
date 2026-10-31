@@ -1,6 +1,13 @@
 (() => {
-  const sessionKey = 'studentSession';
-  const activityKey = 'studentSessionLastActivity';
+  let parentSession = null;
+  try {
+    parentSession = JSON.parse(localStorage.getItem('parentSession') || 'null');
+  } catch (error) {
+    console.error('No se pudo leer la sesión del padre o tutor:', error);
+  }
+  const isParentSession = Boolean(parentSession?.studentId && parentSession?.coleccion);
+  const sessionKey = isParentSession ? 'parentSession' : 'studentSession';
+  const activityKey = isParentSession ? 'parentSessionLastActivity' : 'studentSessionLastActivity';
   const idleLimit = 60 * 60 * 1000;
   let redirecting = false;
   let lastRecordedActivity = Number(localStorage.getItem(activityKey));
@@ -8,18 +15,18 @@
   async function redirectToLogin() {
     if (redirecting) return;
     redirecting = true;
-    let student = null;
+    let session = null;
     try {
-      student = JSON.parse(localStorage.getItem(sessionKey) || 'null');
+      session = JSON.parse(localStorage.getItem(sessionKey) || 'null');
     } catch {
-      student = null;
+      session = null;
     }
-    if (student) {
+    if (session) {
       try {
         const { logSessionEvent } = await import('./session-audit.js');
-        await logSessionEvent(student, 'cierre_sesion', 'alumno', 'inactividad');
+        await logSessionEvent(session, 'cierre_sesion', isParentSession ? 'tutor' : 'alumno', 'inactividad');
       } catch (error) {
-        console.error('No se pudo registrar el cierre de sesión del alumno:', error);
+        console.error('No se pudo registrar el cierre de sesión:', error);
       }
     }
     try {
@@ -30,6 +37,10 @@
     }
     localStorage.removeItem(sessionKey);
     localStorage.removeItem(activityKey);
+    localStorage.removeItem('studentSession');
+    localStorage.removeItem('studentSessionLastActivity');
+    localStorage.removeItem('parentSession');
+    localStorage.removeItem('parentSessionLastActivity');
     window.location.replace('login.html');
   }
 
@@ -74,6 +85,7 @@
       return;
     }
     localStorage.setItem(activityKey, String(now));
+    if (isParentSession) localStorage.setItem('studentSessionLastActivity', String(now));
     lastRecordedActivity = now;
   }
 

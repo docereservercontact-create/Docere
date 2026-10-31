@@ -278,7 +278,8 @@
     .task-subject-group { display: grid; gap: 8px; }
     .task-subject-heading { margin: 8px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 18px; }
     .task-unit-group { display: grid; width: 100%; gap: 10px; margin: 0; padding: 4px 0 2px; }
-    .task-unit-heading { display: flex; width: 100%; min-height: 30px; box-sizing: border-box; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 4px 0; color: var(--muted); font: inherit; font-size: 14px; font-weight: 600; line-height: 20px; text-align: left; cursor: pointer; list-style: none; }
+    .task-unit-group[open] { gap: 0; }
+    .task-unit-heading { display: flex; width: 100%; min-height: 42px; box-sizing: border-box; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 8px 0; color: #35506f; font: inherit; font-size: 14px; font-weight: 500; line-height: 20px; text-align: left; cursor: pointer; list-style: none; }
     .task-unit-count { margin-left: auto; font-size: 13px; font-weight: 500; white-space: nowrap; }
     .task-unit-heading::marker { content: ""; }
     .task-unit-heading::-webkit-details-marker { display: none; }
@@ -310,18 +311,32 @@
     .practice-exam-student button { min-height: 42px; }
     .practice-exam-student .attendance-status { grid-column: 1 / -1; }
     .task-list { display: grid; gap: 10px; }
-    .task-card { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 12px 24px; padding: 16px 20px; border: 1px solid #dbe5ee; border-left: 4px solid #10a6a1; border-radius: 12px; background: linear-gradient(115deg, #fff, #f9fcfd); box-shadow: 0 4px 12px rgba(29, 68, 103, .035); }
+    .task-card { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 12px 24px; padding: 16px 20px; border: 1px solid #dbe5ee; border-left: 3px solid #dbe5ee; border-radius: 10px; background: #fff; }
     .task-card-main { min-width: 0; }
-    .task-card h4 { margin: 0 0 6px; font-size: 19px; font-weight: 550; overflow-wrap: anywhere; }
+    .task-card h4 { margin: 0 0 6px; font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
     .task-card p { margin: 5px 0; color: var(--muted); font-size: 13px; }
     .task-card-details { display: grid; align-content: start; justify-items: end; gap: 5px; text-align: right; }
     .task-card-due-label { color: var(--ink); font-size: 15px; }
     .task-card-due { color: var(--muted); font-size: 13px; }
-    .task-submissions { grid-column: 1 / -1; display: grid; gap: 7px; margin-top: 2px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #f8fbfd; }
-    .task-submissions-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--ink); font-size: 13px; font-weight: 700; cursor: pointer; list-style: none; }
-    .task-submissions-summary::-webkit-details-marker { display: none; }
-    .task-submissions-summary::after { width: 8px; height: 8px; flex: 0 0 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; content: ""; transform: rotate(45deg) translateY(-2px); }
-    .task-submissions[open] > .task-submissions-summary::after { transform: rotate(225deg) translateY(-2px); }
+    .task-submissions-open { grid-column: 1 / -1; display: flex; width: 100%; min-height: 46px; align-items: center; justify-content: space-between; gap: 10px; margin-top: 2px; padding: 10px 12px; border: 1px solid #d8e3f0; border-radius: 8px; background: #f8fbff; color: var(--ink); font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
+    .task-submissions-open:hover { border-color: #9cb8dc; background: #f0f6ff; }
+    .task-review-dialog { width: min(1120px, 96vw); max-width: none; height: min(860px, 90vh); max-height: 90vh; margin: auto; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); box-shadow: 0 20px 50px rgba(15, 23, 42, .25); }
+    .task-review-dialog[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+    .task-review-dialog::backdrop { background: rgba(15, 23, 42, .55); }
+    .task-review-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--line); background: #fff; }
+    .task-review-dialog-header h3 { min-width: 0; margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+    .task-review-close { flex: 0 0 auto; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); font: inherit; cursor: pointer; }
+    .task-review-columns { display: grid; min-height: 0; grid-template-columns: minmax(260px, .75fr) minmax(0, 1.25fr); }
+    .task-review-assignment, .task-review-submissions { min-width: 0; overflow-y: auto; padding: 20px; }
+    .task-review-assignment { border-right: 1px solid var(--line); background: #f8fafc; }
+    .task-review-submissions { display: grid; align-content: start; gap: 10px; }
+    .task-review-assignment h4, .task-review-submissions h4 { margin: 0; font-size: 16px; }
+    .task-review-assignment-meta { display: grid; gap: 6px; margin: 12px 0; color: var(--muted); font-size: 13px; }
+    .task-review-instructions { line-height: 1.6; overflow-wrap: anywhere; }
+    .task-review-instructions:empty::before { color: var(--muted); content: "El profesor no agregó instrucciones."; }
+    .task-review-attachments { display: grid; gap: 7px; margin-top: 14px; }
+    .task-review-attachments a { color: var(--blue); font-size: 13px; overflow-wrap: anywhere; }
+    .task-submissions-summary { margin: 0; color: var(--ink); font-size: 13px; font-weight: 700; }
     .task-submissions-status { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
     .task-submission-list { display: grid; gap: 6px; }
     .task-submission-link { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 12px; color: var(--blue); font-size: 12px; overflow-wrap: anywhere; }
@@ -341,7 +356,7 @@
     .task-submission-review button { min-height: 34px; padding: 0 10px; border: 1px solid var(--blue); border-radius: 5px; background: var(--blue); color: #fff; font-weight: 650; cursor: pointer; }
     .task-submission-review-status { margin: 0; color: var(--muted); font-size: 12px; }
     .task-card-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 0; }
-    .task-card-actions button { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; }
+    .task-card-actions button { min-height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; }
     .task-card-actions .task-delete-button { border-color: #f3b4b0; color: var(--red); }
     .task-composer { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
     .task-composer-main, .task-composer-sidebar { display: grid; gap: 14px; }
@@ -401,11 +416,15 @@
       .footer-top { grid-template-columns: 1fr; gap: 28px; }
     }
     @media (max-width: 620px) {
-      .topbar { align-items: flex-start; padding: 11px 14px; }
+      .topbar { min-width: 0; align-items: center; padding: 11px 14px; }
+      .brand.brand-logo { min-width: 0; flex: 0 1 auto; }
+      body.teacher-dashboard .topbar .brand-logo img { display: block; width: clamp(100px, 34vw, 140px); height: auto; }
       .brand { gap: 7px; font-size: 14px; }
       .brand-icon { width: 32px; height: 32px; flex: 0 0 32px; }
-      .identity { gap: 8px; font-size: 12px; }
-      .logout { min-height: 36px; padding: 0 8px; }
+      .identity { min-width: 0; flex: 0 1 auto; gap: 6px; font-size: 12px; }
+      .teacher-greeting { display: none; }
+      .teacher-name { min-width: 0; max-width: clamp(56px, 20vw, 96px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .logout { width: 36px; min-width: 36px; min-height: 36px; flex: 0 0 36px; justify-content: center; padding: 0; }
       .logout span { display: none; }
       .class-sidebar { padding: 12px; }
       .class-workspace { padding: 16px 12px 24px; }
@@ -425,6 +444,11 @@
       .task-composer-card { padding: 14px; }
       .task-card { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px; }
       .task-card-details { justify-items: start; text-align: left; }
+      .task-review-dialog { width: 100vw; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; }
+      .task-review-dialog-header { padding: 12px 14px; }
+      .task-review-columns { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, auto) minmax(0, 1fr); }
+      .task-review-assignment, .task-review-submissions { padding: 14px; }
+      .task-review-assignment { max-height: 34vh; border-right: 0; border-bottom: 1px solid var(--line); }
       .tasks-toolbar { align-items: flex-start; flex-direction: column; }
       .tasks-toolbar button,
       .announcement-submit,
@@ -3363,15 +3387,74 @@
           addText(taskDetails, 'span', 'task-card-due', formatTaskDeadline(task.fechaEntrega));
           addText(taskDetails, 'span', 'task-card-due', `${task.puntos ?? 100} puntos`);
           card.append(taskDetails);
-          const submissions = document.createElement('details');
-          submissions.className = 'task-submissions';
-          submissions.open = false;
-          const submissionSummary = addText(submissions, 'summary', 'task-submissions-summary', '');
-          const submissionStatus = addText(submissions, 'p', 'task-submissions-status', 'Consultando entregas...');
+          const submissionsButton = addText(card, 'button', 'task-submissions-open', 'Ver asignación y tareas de alumnos');
+          submissionsButton.type = 'button';
+          submissionsButton.setAttribute('aria-haspopup', 'dialog');
+          const submissionDialog = document.createElement('dialog');
+          submissionDialog.className = 'task-review-dialog';
+          submissionDialog.setAttribute('aria-label', `Asignación y entregas: ${task.titulo || 'Tarea sin título'}`);
+          const dialogHeader = document.createElement('header');
+          dialogHeader.className = 'task-review-dialog-header';
+          addText(dialogHeader, 'h3', '', task.titulo || 'Tarea sin título');
+          const closeDialogButton = addText(dialogHeader, 'button', 'task-review-close', 'Cerrar');
+          closeDialogButton.type = 'button';
+          closeDialogButton.addEventListener('click', () => submissionDialog.close());
+          const dialogColumns = document.createElement('div');
+          dialogColumns.className = 'task-review-columns';
+          const assignmentPanel = document.createElement('section');
+          assignmentPanel.className = 'task-review-assignment';
+          addText(assignmentPanel, 'h4', '', 'Asignación');
+          const assignmentMeta = addText(assignmentPanel, 'div', 'task-review-assignment-meta', '');
+          [
+            `Materia: ${task.materia || 'General'}`,
+            `Unidad: ${String(task.unidad || '').trim() || 'Sin unidad'}`,
+            `Fecha de entrega: ${formatTaskDeadline(task.fechaEntrega)}`,
+            `${task.puntos ?? 100} puntos`
+          ].forEach((detail) => addText(assignmentMeta, 'span', '', detail));
+          const assignmentInstructions = addText(assignmentPanel, 'div', 'task-review-instructions', '');
+          assignmentInstructions.innerHTML = sanitizeRichHtml(task.instrucciones || '');
+          if (Array.isArray(task.adjuntos) && task.adjuntos.length) {
+            const attachmentList = document.createElement('div');
+            attachmentList.className = 'task-review-attachments';
+            task.adjuntos.forEach(({ url, nombre }) => {
+              if (typeof url !== 'string') return;
+              let parsedUrl;
+              try {
+                parsedUrl = new URL(url);
+              } catch {
+                return;
+              }
+              if (!['http:', 'https:'].includes(parsedUrl.protocol)) return;
+              const link = addText(attachmentList, 'a', '', nombre || parsedUrl.hostname);
+              link.href = parsedUrl.href;
+              link.target = '_blank';
+              link.rel = 'noopener noreferrer';
+            });
+            if (attachmentList.childElementCount) {
+              addText(assignmentPanel, 'h4', '', 'Material adjunto');
+              assignmentPanel.append(attachmentList);
+            }
+          }
+          const submissionsPanel = document.createElement('section');
+          submissionsPanel.className = 'task-review-submissions';
+          addText(submissionsPanel, 'h4', '', 'Tareas de cada alumno');
+          const submissionSummary = addText(submissionsPanel, 'p', 'task-submissions-summary', '');
+          const submissionStatus = addText(submissionsPanel, 'p', 'task-submissions-status', 'Consultando entregas...');
           const submissionList = document.createElement('div');
           submissionList.className = 'task-submission-list';
-          submissions.append(submissionList);
-          card.append(submissions);
+          submissionsPanel.append(submissionList);
+          dialogColumns.append(assignmentPanel, submissionsPanel);
+          submissionDialog.append(dialogHeader, dialogColumns);
+          submissionsButton.addEventListener('click', () => {
+            submissionDialog.showModal();
+            const mathJax = window.MathJax;
+            if (mathJax?.typesetPromise) {
+              mathJax.typesetPromise([assignmentInstructions]).catch((error) => {
+                console.error(`No se pudo mostrar el formato matemático de la tarea ${task.id}:`, error);
+              });
+            }
+          });
+          card.append(submissionDialog);
           loadTaskSubmissions({ ...task, aulaId: aula.id }, submissionList, submissionStatus, submissionSummary);
           const actions = document.createElement('div');
           actions.className = 'task-card-actions';

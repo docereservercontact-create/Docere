@@ -24,7 +24,7 @@ export async function logSessionEvent(session, event, role, reason = 'usuario') 
       usuarioId: session.teacherDocId || session.id || session.uid || null,
       nombre: session.nombre || 'Sin nombre',
       correo: session.email || '',
-      rol,
+      rol: role,
       evento: event,
       motivo: reason,
       fechaHora: serverTimestamp(),

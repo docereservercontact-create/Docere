@@ -27,6 +27,19 @@ function getStudentNotificationKey(student) {
   return `${encodeURIComponent(student.coleccion || 'users')}_${encodeURIComponent(student.id || student.email || 'student')}`;
 }
 
+function getNotificationStudentSession() {
+  const parentSession = JSON.parse(localStorage.getItem('parentSession') || 'null');
+  if (parentSession?.studentId && parentSession?.coleccion) {
+    return {
+      id: parentSession.studentId,
+      coleccion: parentSession.coleccion,
+      email: parentSession.studentEmail || '',
+      nombre: parentSession.alumnoNombre || 'Alumno'
+    };
+  }
+  return JSON.parse(localStorage.getItem('studentSession') || 'null');
+}
+
 function isStudentInClassroom(classroom, student) {
   if (!Array.isArray(classroom.alumnos)) return false;
   const email = String(student.email || '').trim().toLowerCase();
@@ -383,7 +396,7 @@ function startReminderScheduler(student) {
 }
 
 export function initializeStudentNotifications() {
-  const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+  const student = getNotificationStudentSession();
   if (!student?.id || !student?.coleccion) return;
   const currentPage = window.location.pathname.split('/').pop() || 'panel_estudiante.html';
   if (currentPage !== 'panel_estudiante.html') initializeNotificationBell(student);

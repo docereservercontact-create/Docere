@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Asignaciones de tus aulas.">
   <title>Mis asignaciones | Docére</title>
+  <script>
+    try {
+      if (JSON.parse(localStorage.getItem('parentSession') || 'null')?.studentId) {
+        document.documentElement.classList.add('tutor-session');
+      }
+    } catch (error) {
+      console.error('No se pudo identificar la sesión del padre o tutor:', error);
+    }
+  </script>
   <script src="student-session.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -96,6 +105,8 @@
     .submission-file-delete, .submission-cancel { min-height: 34px; padding: 0 10px; border: 1px solid #f3b4b0; border-radius: 7px; background: #fff; color: #b42318; font-weight: 650; cursor: pointer; }
     .submission-file-delete:disabled, .submission-cancel:disabled { opacity: .6; cursor: wait; }
     .submission-cancel[hidden] { display: none; }
+    .tutor-submission-notice { margin: 18px 0 0; padding: 12px 14px; border: 1px solid #d7e3ee; border-radius: 9px; background: #f4f8fb; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .tutor-submission-notice[hidden], .tutor-session .submission-form { display: none; }
     @media (max-width: 700px) {
       .page { width: min(100% - 28px, 1200px); padding: 20px 0 36px; }
       .page-banner { min-height: 140px; margin-bottom: 16px; padding: 24px; border-radius: 16px; }
@@ -173,6 +184,7 @@
     <div class="assignment-dialog-body">
       <div class="assignment-instructions" id="assignmentDialogInstructions"></div>
       <div class="assignment-attachments" id="assignmentDialogAttachments"></div>
+      <p class="tutor-submission-notice" id="tutorSubmissionNotice" hidden>El envío de esta actividad debe realizarlo el alumno desde su cuenta.</p>
       <form class="submission-form" id="submissionForm">
         <label for="submissionFile">Entrega tus archivos en PDF</label>
         <input id="submissionFile" name="submissionFile" type="file" accept=".pdf,application/pdf" multiple required>
@@ -214,6 +226,9 @@
     const submissionStatus = document.getElementById('submissionStatus');
     const submissionUploadButton = document.getElementById('submissionUploadButton');
     const submissionCancelButton = document.getElementById('submissionCancelButton');
+    const tutorSubmissionNotice = document.getElementById('tutorSubmissionNotice');
+    const parentSession = JSON.parse(localStorage.getItem('parentSession') || 'null');
+    const isTutorSession = Boolean(parentSession?.studentId);
     let selectedTask = null;
     let refreshSelectedTaskControls = null;
     let assignmentAnalysisRequest = 0;
@@ -293,7 +308,7 @@
 
     function isSubmissionClosed(task) {
       const deadline = getDeadlineDate(task?.fechaEntrega);
-      return Boolean(deadline && Date.now() > deadline.getTime());
+      return Boolean(task?.cerrarEntregas === true && deadline && Date.now() > deadline.getTime());
     }
 
     function getLocalStudentSession() {
@@ -619,14 +634,19 @@
       const closed = isSubmissionClosed(task);
       const submissionState = addText(details, 'span', 'assignment-submission-state', '');
       submissionState.hidden = true;
-      const deliverButton = addText(details, 'button', 'assignment-submit', closed ? 'Entrega cerrada' : 'Cargando entrega...');
-      deliverButton.type = 'button';
-      deliverButton.disabled = true;
-      const manageButton = addText(details, 'button', 'assignment-manage', 'Ver / agregar archivos');
+      const deliverButton = isTutorSession
+        ? null
+        : addText(details, 'button', 'assignment-submit', closed ? 'Entrega cerrada' : 'Cargando entrega...');
+      if (deliverButton) {
+        deliverButton.type = 'button';
+        deliverButton.disabled = true;
+      }
+      const manageButton = addText(details, 'button', 'assignment-manage', isTutorSession ? 'Ver actividad' : 'Ver / agregar archivos');
       manageButton.type = 'button';
-      manageButton.hidden = true;
+      manageButton.hidden = !isTutorSession;
 
       function updateControls(hasSubmission, submissionClosed) {
+        if (isTutorSession) return;
         const expired = Boolean(submissionClosed && isSubmissionClosed(task));
         submissionState.hidden = !(hasSubmission || expired);
         if (expired) {
@@ -657,6 +677,7 @@
         assignmentDialogInstructions.innerHTML = sanitizeRichHtml(task.instrucciones || 'El profesor no agregó instrucciones.');
         void typesetMath(assignmentDialogInstructions);
         assignmentDialogAttachments.replaceChildren();
+        tutorSubmissionNotice.hidden = !isTutorSession;
         (Array.isArray(task.adjuntos) ? task.adjuntos : []).forEach((attachment) => {
           try {
             const url = new URL(attachment.url);
@@ -669,6 +690,13 @@
             return;
           }
         });
+        if (isTutorSession) {
+          submissionForm.reset();
+          submissionFiles.replaceChildren();
+          submissionStatus.replaceChildren();
+          assignmentDialog.showModal();
+          return;
+        }
         submissionForm.reset();
         submissionFiles.replaceChildren();
         submissionStatus.replaceChildren();
@@ -690,16 +718,25 @@
         }
       }
 
-      deliverButton.addEventListener('click', async () => {
-        if (deliverButton.dataset.hasSubmission === 'true') {
-          selectedTask = task;
-          refreshSelectedTaskControls = updateControls;
-          await cancelSubmission(task, deliverButton);
-          return;
-        }
-        await openSubmissionDialog();
-      });
+      if (deliverButton) {
+        deliverButton.addEventListener('click', async () => {
+          if (deliverButton.dataset.hasSubmission === 'true') {
+            selectedTask = task;
+            refreshSelectedTaskControls = updateControls;
+            await cancelSubmission(task, deliverButton);
+            return;
+          }
+          await openSubmissionDialog();
+        });
+      }
       manageButton.addEventListener('click', openSubmissionDialog);
+
+      if (isTutorSession) {
+        submissionState.hidden = false;
+        submissionState.textContent = 'Solo consulta · entrega desde la cuenta del alumno';
+        card.append(content, details);
+        return card;
+      }
 
       getAuthenticatedStudent()
         .then((user) => getStudentSubmissionFiles(task, user))
@@ -730,6 +767,7 @@
 
     submissionForm.addEventListener('submit', async (event) => {
       event.preventDefault();
+      if (isTutorSession) return;
       if (!selectedTask || isSubmissionClosed(selectedTask)) {
         submissionStatus.textContent = 'La fecha límite para entregar esta tarea ya pasó.';
         return;
@@ -822,15 +860,22 @@
     });
 
     const studentSession = JSON.parse(localStorage.getItem('studentSession') || 'null');
-    document.getElementById('userNameLabel').textContent = studentSession?.nombre || 'Alumno';
+    document.getElementById('userNameLabel').textContent = isTutorSession
+      ? parentSession.nombre || 'Padre o tutor'
+      : studentSession?.nombre || 'Alumno';
+    document.querySelector('.user-role').textContent = isTutorSession ? 'Padre / Tutor' : 'Estudiante';
     if (typeof lucide !== 'undefined') lucide.createIcons();
     document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
       if (!confirm('¿Deseas cerrar sesión?')) return;
       try {
         const { logSessionEvent } = await import('./session-audit.js');
-        await logSessionEvent(studentSession, 'cierre_sesion', 'alumno');
+        await logSessionEvent(
+          isTutorSession ? parentSession : studentSession,
+          'cierre_sesion',
+          isTutorSession ? 'tutor' : 'alumno'
+        );
       } catch (error) {
-        console.error('No se pudo registrar el cierre de sesión del alumno:', error);
+        console.error('No se pudo registrar el cierre de sesión:', error);
       }
       try {
         await signOutPortalUser();
@@ -839,7 +884,9 @@
       }
       localStorage.removeItem('studentSession');
       localStorage.removeItem('studentSessionLastActivity');
-      window.location.href = 'index.html';
+      localStorage.removeItem('parentSession');
+      localStorage.removeItem('parentSessionLastActivity');
+      window.location.href = isTutorSession ? 'login.html' : 'index.html';
     });
 
     async function loadAssignments() {
@@ -912,7 +959,7 @@
           if (targetAssignment) {
             targetAssignment.closest('details')?.setAttribute('open', '');
             targetAssignment.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            targetAssignment.querySelector('.assignment-submit')?.click();
+            targetAssignment.querySelector(isTutorSession ? '.assignment-manage' : '.assignment-submit')?.click();
             window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
           }
 

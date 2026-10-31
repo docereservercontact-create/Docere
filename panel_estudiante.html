@@ -4,6 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel del Alumno</title>
+  <script>
+    try {
+      const parentSession = JSON.parse(localStorage.getItem('parentSession') || 'null');
+      if (parentSession?.studentId && parentSession?.coleccion) {
+        localStorage.setItem('studentSession', JSON.stringify({
+          id: parentSession.studentId,
+          coleccion: parentSession.coleccion,
+          email: parentSession.studentEmail || '',
+          nombre: parentSession.alumnoNombre || 'Alumno',
+          curso: parentSession.curso || 'UNAM',
+          tutor: true
+        }));
+        localStorage.setItem(
+          'studentSessionLastActivity',
+          localStorage.getItem('parentSessionLastActivity') || String(Date.now())
+        );
+        document.title = 'Panel del Padre o Tutor';
+      }
+    } catch (error) {
+      console.error('No se pudo preparar la sesión del padre o tutor:', error);
+      localStorage.removeItem('studentSession');
+      localStorage.removeItem('studentSessionLastActivity');
+      window.location.replace('login.html');
+    }
+  </script>
   <script src="student-session.js"></script>
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -200,15 +225,6 @@
       color: var(--text-secondary);
       text-align: center;
     }
-    .student-feedback-list { display: grid; gap: 10px; margin-top: 14px; }
-    .student-feedback-card { display: grid; gap: 6px; padding: 13px 14px; border: 1px solid var(--border); border-radius: 9px; background: #f8fafc; }
-    .student-feedback-card strong { font-size: 14px; }
-    .student-feedback-meta { color: var(--text-secondary); font-size: 12px; }
-    .student-feedback-grade { color: #1d4ed8; font-weight: 750; }
-    .student-feedback-comment { margin: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
-    .student-feedback-comment > :first-child { margin-top: 0; }
-    .student-feedback-comment > :last-child { margin-bottom: 0; }
-    .student-feedback-empty { padding: 15px; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-secondary); font-size: 13px; text-align: center; }
 
     .nav-actions {
       display: flex;
@@ -853,16 +869,6 @@
           <p class="wall-status" id="announcementWallStatus" role="status">Cargando anuncios de tus clases...</p>
           <div class="announcement-wall-list" id="announcementWall"></div>
         </section>
-        <section class="announcement-wall" aria-labelledby="studentFeedbackTitle">
-          <div class="wall-header">
-            <div class="wall-title">
-              <i data-lucide="message-square-text" style="color: var(--accent);"></i>
-              <h2 id="studentFeedbackTitle">Calificaciones y retroalimentación</h2>
-            </div>
-          </div>
-          <p class="wall-status" id="studentFeedbackStatus" role="status">Cargando tus calificaciones...</p>
-          <div class="student-feedback-list" id="studentFeedbackList"></div>
-        </section>
       </div>
 
       <div class="dashboard-events-column">
@@ -970,8 +976,6 @@
 
     const announcementWall = document.getElementById('announcementWall');
     const announcementWallStatus = document.getElementById('announcementWallStatus');
-    const studentFeedbackStatus = document.getElementById('studentFeedbackStatus');
-    const studentFeedbackList = document.getElementById('studentFeedbackList');
     const studentPaymentsList = document.getElementById('studentPaymentsList');
     const upcomingEventsContainer = document.getElementById('upcomingEventsList');
     const calendarMonth = document.getElementById('calendarMonth');
@@ -1089,6 +1093,19 @@
       return `${encodeURIComponent(student.coleccion || 'users')}_${encodeURIComponent(student.id || student.email || 'student')}`;
     }
 
+    function getNotificationStudentSession() {
+      const parentSession = JSON.parse(localStorage.getItem('parentSession') || 'null');
+      if (parentSession?.studentId && parentSession?.coleccion) {
+        return {
+          id: parentSession.studentId,
+          coleccion: parentSession.coleccion,
+          email: parentSession.studentEmail || '',
+          nombre: parentSession.alumnoNombre || 'Alumno'
+        };
+      }
+      return JSON.parse(localStorage.getItem('studentSession') || 'null');
+    }
+
     function renderNotifications() {
       notificationList.replaceChildren();
       if (!notifications.length) {
@@ -1139,7 +1156,7 @@
 
     async function markNotificationAsRead(notification) {
       if (notification.leida || !notification.notificationDocId) return true;
-      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      const student = getNotificationStudentSession();
       try {
         await updateDoc(doc(db, 'Notificaciones', getStudentNotificationKey(student), 'items', notification.notificationDocId), {
           leida: true,
@@ -1190,7 +1207,7 @@
     }
 
     function subscribeStudentNotificationHistory() {
-      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      const student = getNotificationStudentSession();
       if (!student?.id || !student?.coleccion) return;
       let initialSnapshot = true;
       return onSnapshot(
@@ -1231,7 +1248,7 @@
       notificationButton.setAttribute('aria-expanded', String(!notificationPanel.hidden));
     });
     document.getElementById('notificationMarkRead').addEventListener('click', async () => {
-      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+      const student = getNotificationStudentSession();
       if (!student?.id || !student?.coleccion) return;
       const unread = notifications.filter((notification) => !notification.leida && notification.notificationDocId);
       for (let offset = 0; offset < unread.length; offset += 450) {
@@ -1560,80 +1577,6 @@
       }
     }
 
-    async function loadStudentFeedback() {
-      const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
-      studentFeedbackList.replaceChildren();
-      if (!student?.id || !student?.coleccion) {
-        studentFeedbackStatus.textContent = 'Inicia sesión para consultar tus calificaciones.';
-        return;
-      }
-
-      try {
-        const classroomsSnapshot = await getDocs(collection(db, 'Aulas'));
-        const classrooms = classroomsSnapshot.docs
-          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
-          .filter((classroom) => isStudentInClassroom(classroom, student));
-        const feedbackRecords = [];
-        for (const classroom of classrooms) {
-          const [tasksSnapshot, examsSnapshot] = await Promise.all([
-            getDocs(collection(db, 'Aulas', classroom.id, 'tareas')),
-            getDocs(collection(db, 'Aulas', classroom.id, 'examenesSimulacros'))
-          ]);
-          const assignedEvaluations = [
-            ...tasksSnapshot.docs.map((taskDoc) => ({
-              ...taskDoc.data(),
-              id: taskDoc.id,
-              collectionName: 'tareas'
-            })),
-            ...examsSnapshot.docs.map((examDoc) => ({
-              ...examDoc.data(),
-              id: examDoc.id,
-              collectionName: 'examenesSimulacros',
-              tipoEvaluacion: 'simulacro'
-            }))
-          ]
-            .filter((task) => isTaskAssignedToStudent(task, student));
-          const feedbackSnapshots = await Promise.all(assignedEvaluations.map((task) => {
-            const feedbackId = `${student.coleccion}_${student.id}`;
-            return getDoc(doc(db, 'Aulas', classroom.id, task.collectionName, task.id, 'calificaciones', feedbackId))
-              .then((snapshot) => ({ task, snapshot }));
-          }));
-          feedbackSnapshots.forEach(({ task, snapshot }) => {
-            if (!snapshot.exists()) return;
-            feedbackRecords.push({ task, classroom, ...snapshot.data() });
-          });
-        }
-
-        feedbackRecords.sort((left, right) =>
-          (right.actualizadoEn?.toMillis?.() || 0) - (left.actualizadoEn?.toMillis?.() || 0)
-        );
-        if (!feedbackRecords.length) {
-          addWallText(studentFeedbackList, 'p', 'student-feedback-empty', 'Todavía no tienes calificaciones ni retroalimentación.');
-          studentFeedbackStatus.textContent = '';
-          return;
-        }
-
-        feedbackRecords.forEach((feedback) => {
-          const card = document.createElement('article');
-          card.className = 'student-feedback-card';
-          addWallText(card, 'strong', '', feedback.task.tipoEvaluacion === 'simulacro'
-            ? `Examen simulacro: ${feedback.task.titulo || 'Sin título'}`
-            : feedback.task.titulo || 'Asignación');
-          addWallText(card, 'span', 'student-feedback-meta', `${feedback.classroom.nombre || 'Aula'} · ${feedback.classroom.curso || feedback.task.curso || 'Curso'}`);
-          addWallText(card, 'span', 'student-feedback-grade', `Calificación: ${feedback.calificacion} / ${feedback.puntosMaximos ?? feedback.task.puntos ?? 100}${feedback.task.tipoEvaluacion === 'simulacro' && feedback.task.considerarEnPromedio === false ? ' · No cuenta para el promedio' : ''}`);
-          if (feedback.comentario) {
-            const comment = addWallText(card, 'div', 'student-feedback-comment', '');
-            comment.innerHTML = sanitizeAnnouncement(feedback.comentario);
-          }
-          studentFeedbackList.append(card);
-        });
-        studentFeedbackStatus.textContent = `${feedbackRecords.length} calificación(es) recibida(s).`;
-      } catch (error) {
-        console.error('No se pudieron cargar las calificaciones del alumno:', error);
-        studentFeedbackStatus.textContent = 'No se pudieron cargar las calificaciones. Revisa la conexión y los permisos.';
-      }
-    }
-
     function isStudentInClassroom(classroom, student) {
       if (!Array.isArray(classroom.alumnos)) return false;
       return classroom.alumnos.some((assignedStudent) =>
@@ -1659,7 +1602,7 @@
 
     function isSubmissionClosed(task) {
       const deadline = getTaskDeadline(task?.fechaEntrega);
-      return Boolean(deadline && Date.now() > deadline.getTime());
+      return Boolean(task?.cerrarEntregas === true && deadline && Date.now() > deadline.getTime());
     }
 
     function formatTaskDeadline(value) {
@@ -1753,11 +1696,31 @@
       try {
         const [classroomsSnapshot, user] = await Promise.all([
           getDocs(collection(db, 'Aulas')),
-          getAuthenticatedStudent()
+          student.tutor ? Promise.resolve(null) : getAuthenticatedStudent()
         ]);
         const classrooms = classroomsSnapshot.docs
           .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
           .filter((classroom) => isStudentInClassroom(classroom, student));
+        const tutorSubmissions = new Set();
+        if (student.tutor) {
+          await Promise.all(classrooms.map(async (classroom) => {
+            const notificationsSnapshot = await getDocs(collection(
+              db,
+              'Aulas',
+              classroom.id,
+              'notificacionesProfesor'
+            ));
+            notificationsSnapshot.docs.forEach((notificationDoc) => {
+              const notification = notificationDoc.data();
+              if (notification.tipo === 'entrega'
+                && String(notification.estudianteId) === String(student.id)
+                && notification.estudianteColeccion === student.coleccion
+                && notification.tareaId) {
+                tutorSubmissions.add(`${classroom.id}/${notification.tareaId}`);
+              }
+            });
+          }));
+        }
         const classroomTasks = await Promise.all(classrooms.map(async (classroom) => {
           const snapshot = await getDocs(collection(db, 'Aulas', classroom.id, 'tareas'));
           return snapshot.docs
@@ -1773,6 +1736,12 @@
         calendarAssignments = tasks;
         renderCalendar();
         const results = await Promise.all(tasks.map(async (task) => {
+          if (student.tutor) {
+            return {
+              task,
+              submitted: tutorSubmissions.has(`${task.aulaId}/${task.id}`)
+            };
+          }
           try {
             return { task, submitted: await hasTaskSubmission(task, user) };
           } catch (error) {
@@ -2007,7 +1976,6 @@
     loadStudentAnnouncements();
     loadUpcomingEvents();
     loadStudentPayments();
-    loadStudentFeedback();
     loadPendingTasks();
   </script>
 
@@ -2019,12 +1987,14 @@
       if (sessionRaw) {
         try {
           const session = JSON.parse(sessionRaw);
+          const parentSession = JSON.parse(localStorage.getItem('parentSession') || 'null');
           if (session && session.nombre) {
             const userNameLabel = document.getElementById('userNameLabel');
             const welcomeTitle = document.getElementById('welcomeTitle');
+            const displayName = parentSession?.nombre || session.nombre;
 
-            if (userNameLabel) userNameLabel.textContent = session.nombre;
-            if (welcomeTitle) welcomeTitle.textContent = `¡Bienvenido, ${session.nombre}! 👋`;
+            if (userNameLabel) userNameLabel.textContent = displayName;
+            if (welcomeTitle) welcomeTitle.textContent = `¡Bienvenido, ${displayName}! 👋`;
           }
         } catch (e) {
           console.error("Error al parsear la sesión:", e);
@@ -2041,12 +2011,14 @@
       if (btnCerrarSesion) {
         btnCerrarSesion.addEventListener('click', async () => {
           if (confirm('¿Deseas cerrar sesión?')) {
-            const student = JSON.parse(localStorage.getItem('studentSession') || 'null');
+            const parentSession = JSON.parse(localStorage.getItem('parentSession') || 'null');
+            const student = parentSession || JSON.parse(localStorage.getItem('studentSession') || 'null');
+            const role = parentSession ? 'tutor' : 'alumno';
             try {
               const { logSessionEvent } = await import('./session-audit.js');
-              await logSessionEvent(student, 'cierre_sesion', 'alumno');
+              await logSessionEvent(student, 'cierre_sesion', role);
             } catch (error) {
-              console.error('No se pudo registrar el cierre de sesión del alumno:', error);
+              console.error('No se pudo registrar el cierre de sesión:', error);
             }
             try {
               const { signOutPortalUser } = await import('./portal-auth.js');
@@ -2056,7 +2028,9 @@
             }
             localStorage.removeItem('studentSession');
             localStorage.removeItem('studentSessionLastActivity');
-            window.location.href = 'index.html';
+            localStorage.removeItem('parentSession');
+            localStorage.removeItem('parentSessionLastActivity');
+            window.location.href = parentSession ? 'login.html' : 'index.html';
           }
         });
       }
