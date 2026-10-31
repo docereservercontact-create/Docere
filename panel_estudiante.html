@@ -359,6 +359,22 @@
     .dashboard-main { min-width: 0; }
     .dashboard-sidebar { display: grid; gap: 20px; min-width: 0; }
     .dashboard-events-column { display: grid; gap: 20px; min-width: 0; }
+    .student-performance { margin-bottom: 24px; padding: 22px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card); box-shadow: 0 5px 18px rgba(29, 68, 103, .045); }
+    .student-performance-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+    .student-performance-header h2 { font-size: 1.15rem; }
+    .student-performance-status, .student-performance-note { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+    .student-performance-note { margin-bottom: 14px; }
+    .student-performance-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 10px; margin-bottom: 14px; }
+    .student-performance-metric { display: grid; gap: 5px; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: #f8fafc; }
+    .student-performance-metric span { color: var(--text-secondary); font-size: 12px; }
+    .student-performance-metric strong { font-size: 20px; }
+    .student-performance-table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+    .student-performance-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .student-performance-table th, .student-performance-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; }
+    .student-performance-table th { background: #f1f5f9; font-weight: 700; }
+    .student-performance-table td:not(:first-child), .student-performance-table th:not(:first-child) { text-align: center; white-space: nowrap; }
+    .student-performance-table tbody tr:last-child td { border-bottom: 0; }
+    .student-performance-empty { padding: 14px; color: var(--text-secondary); font-size: 13px; }
 
     .dashboard-widget {
       min-width: 0;
@@ -857,6 +873,14 @@
             <h1 id="welcomeTitle">¡Bienvenido a tu panel de alumno! 👋</h1>
             <p>Presiona el botón "Entrar a clase" en el menú para conectarte a tu clase en vivo.</p>
           </div>
+        </section>
+
+        <section class="student-performance" aria-labelledby="studentPerformanceTitle">
+          <div class="student-performance-header">
+            <h2 id="studentPerformanceTitle">Mi aprovechamiento</h2>
+          </div>
+          <p class="student-performance-status" id="studentPerformanceStatus" role="status" aria-live="polite">Cargando tus promedios...</p>
+          <div id="studentPerformanceContent"></div>
         </section>
 
         <section class="announcement-wall" aria-labelledby="announcementWallTitle">
@@ -1602,6 +1626,170 @@
       );
     }
 
+    async function loadStudentPerformance() {
+      const status = document.getElementById('studentPerformanceStatus');
+      const content = document.getElementById('studentPerformanceContent');
+      const student = getNotificationStudentSession();
+      const parentSession = JSON.parse(localStorage.getItem('parentSession') || 'null');
+      document.getElementById('studentPerformanceTitle').textContent = parentSession?.studentId
+        ? `Aprovechamiento de ${student?.nombre || 'tu alumno'}`
+        : 'Mi aprovechamiento';
+      content.replaceChildren();
+      if (!student?.id || !student?.coleccion) {
+        status.textContent = 'No se encontró la sesión del alumno para consultar sus promedios.';
+        return;
+      }
+
+      try {
+        const classroomSnapshot = await getDocs(collection(db, 'Aulas'));
+        const classrooms = classroomSnapshot.docs
+          .map((classroomDoc) => ({ id: classroomDoc.id, ...classroomDoc.data() }))
+          .filter((classroom) => isStudentInClassroom(classroom, student));
+        if (!classrooms.length) {
+          status.textContent = 'Aún no tienes aulas asignadas para consultar tus promedios.';
+          return;
+        }
+
+        const feedbackId = `${student.coleccion}_${student.id}`;
+        const evaluationsByClass = await Promise.all(classrooms.map(async (classroom) => {
+          const [tasksSnapshot, examsSnapshot] = await Promise.all([
+            getDocs(collection(db, 'Aulas', classroom.id, 'tareas')),
+            getDocs(collection(db, 'Aulas', classroom.id, 'examenesSimulacros'))
+          ]);
+          const evaluations = [
+            ...tasksSnapshot.docs.map((evaluationDoc) => ({
+              ...evaluationDoc.data(),
+              id: evaluationDoc.id,
+              collectionName: 'tareas',
+              evaluationType: 'assignments'
+            })),
+            ...examsSnapshot.docs.map((evaluationDoc) => ({
+              ...evaluationDoc.data(),
+              id: evaluationDoc.id,
+              collectionName: 'examenesSimulacros',
+              evaluationType: 'practiceExams'
+            }))
+          ].filter((evaluation) => isTaskAssignedToStudent(evaluation, student));
+          return Promise.all(evaluations.map(async (evaluation) => {
+            const gradeSnapshot = await getDoc(doc(
+              db,
+              'Aulas',
+              classroom.id,
+              evaluation.collectionName,
+              evaluation.id,
+              'calificaciones',
+              feedbackId
+            ));
+            const feedback = gradeSnapshot.exists() ? gradeSnapshot.data() : null;
+            const score = feedback?.calificacion === '' || feedback?.calificacion == null
+              ? null
+              : Number(feedback.calificacion);
+            const maxScore = Number(feedback?.puntosMaximos ?? evaluation.puntos ?? 100);
+            const validScore = Number.isFinite(score) && Number.isFinite(maxScore)
+              && maxScore > 0 && score >= 0 && score <= maxScore;
+            if (feedback && !validScore) {
+              console.error(`Se omitió una calificación inválida (${gradeSnapshot.ref.path}).`);
+            }
+            return {
+              evaluation,
+              score: validScore ? score : null,
+              maxScore,
+              includeInAverage: evaluation.considerarEnPromedio !== false
+            };
+          }));
+        }));
+        const evaluations = evaluationsByClass.flat();
+        const countableEvaluations = evaluations.filter((item) =>
+          item.includeInAverage && item.score !== null
+        );
+        const getPerformance = (records) => {
+          if (!records.length) return null;
+          const achievement = records.reduce((total, item) =>
+            total + item.score / item.maxScore * 100, 0) / records.length;
+          return {
+            average: achievement / 10,
+            achievement,
+            count: records.length
+          };
+        };
+        const formatPerformance = (performance) => performance
+          ? `${new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(performance.average)} / 10`
+          : '—';
+        const formatPercent = (performance) => performance
+          ? `${new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(performance.achievement)}%`
+          : '—';
+        const summary = document.createElement('div');
+        summary.className = 'student-performance-summary';
+        const coursePerformance = getPerformance(countableEvaluations);
+        [
+          ['Promedio total del curso', formatPerformance(coursePerformance)],
+          ['Aprovechamiento total', formatPercent(coursePerformance)],
+          ['Evaluaciones calificadas', String(countableEvaluations.length)]
+        ].forEach(([label, value]) => {
+          const metric = document.createElement('div');
+          metric.className = 'student-performance-metric';
+          addWallText(metric, 'span', '', label);
+          addWallText(metric, 'strong', '', value);
+          summary.append(metric);
+        });
+        content.append(summary);
+
+        const subjectEvaluations = new Map();
+        evaluations.forEach((item) => {
+          if (item.evaluation.evaluationType !== 'assignments') return;
+          const name = String(item.evaluation.materia || 'General').trim() || 'General';
+          const key = name.toLocaleLowerCase();
+          if (!subjectEvaluations.has(key)) subjectEvaluations.set(key, { name, records: [] });
+          if (item.includeInAverage && item.score !== null) {
+            subjectEvaluations.get(key).records.push(item);
+          }
+        });
+        if (subjectEvaluations.size) {
+          const note = addWallText(
+            content,
+            'p',
+            'student-performance-note',
+            'Los promedios incluyen evaluaciones calificadas que cuentan para el promedio. El porcentaje expresa aprovechamiento académico, no una probabilidad de admisión.'
+          );
+          note.setAttribute('role', 'note');
+          const tableWrap = document.createElement('div');
+          tableWrap.className = 'student-performance-table-wrap';
+          const table = document.createElement('table');
+          table.className = 'student-performance-table';
+          const head = document.createElement('thead');
+          const headerRow = document.createElement('tr');
+          ['Materia', 'Promedio', 'Aprovechamiento', 'Calificadas'].forEach((label) =>
+            addWallText(headerRow, 'th', '', label)
+          );
+          head.append(headerRow);
+          const body = document.createElement('tbody');
+          Array.from(subjectEvaluations.values())
+            .sort((left, right) => left.name.localeCompare(right.name, 'es'))
+            .forEach((subject) => {
+              const performance = getPerformance(subject.records);
+              const row = document.createElement('tr');
+              addWallText(row, 'td', '', subject.name);
+              addWallText(row, 'td', '', formatPerformance(performance));
+              addWallText(row, 'td', '', formatPercent(performance));
+              addWallText(row, 'td', '', String(performance?.count || 0));
+              body.append(row);
+            });
+          table.append(head, body);
+          tableWrap.append(table);
+          content.append(tableWrap);
+        } else {
+          addWallText(content, 'p', 'student-performance-empty', 'Aún no hay materias con asignaciones para mostrar.');
+        }
+        status.textContent = countableEvaluations.length
+          ? `Promedios calculados con ${countableEvaluations.length} evaluación(es) calificada(s).`
+          : 'Aún no tienes evaluaciones calificadas que cuenten para el promedio.';
+      } catch (error) {
+        console.error('No se pudieron cargar los promedios del alumno:', error);
+        status.textContent = 'No se pudieron cargar tus promedios. Revisa la conexión y los permisos de Firestore.';
+        content.replaceChildren();
+      }
+    }
+
     function getTaskDeadline(value) {
       if (!value) return null;
       const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
@@ -1985,6 +2173,7 @@
     loadUpcomingEvents();
     loadStudentPayments();
     loadPendingTasks();
+    loadStudentPerformance();
   </script>
 
   <!-- JAVASCRIPT -->

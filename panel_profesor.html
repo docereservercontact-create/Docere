@@ -228,6 +228,7 @@
     .grades-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
     .grades-average { display: inline-flex; align-items: baseline; gap: 8px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: #f8fbfd; color: var(--muted); font-size: 13px; }
     .grades-average strong { color: var(--ink); font-size: 18px; }
+    .grades-explanation { margin: -4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
     .grades-table-wrap { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; border: 1px solid var(--line); border-radius: 8px; }
     .grades-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
     .grades-table th, .grades-table td { padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: left; }
@@ -5039,6 +5040,12 @@
       const statusText = addText(gradesPage, 'p', 'attendance-status', 'Cargando calificaciones...');
       const summary = document.createElement('div');
       summary.className = 'grades-summary';
+      addText(
+        gradesPage,
+        'p',
+        'grades-explanation',
+        'El aprovechamiento es el porcentaje del puntaje obtenido sobre el máximo en las evaluaciones calificadas. No representa una probabilidad de ingreso; estimarla requiere puntajes objetivo por carrera y resultados históricos comparables.'
+      );
       const gradesList = document.createElement('div');
       gradesList.className = 'grades-list';
       gradesPage.append(summary, gradesList);
@@ -5093,6 +5100,10 @@
               maxScore,
               includeInAverage,
               evaluationType: task.tipoEvaluacion === 'simulacro' ? 'practiceExams' : 'assignments',
+              subjectKey: task.tipoEvaluacion === 'simulacro'
+                ? null
+                : task.materiaId || (String(task.materia || 'General').trim() || 'General').toLocaleLowerCase(),
+              subjectName: String(task.materia || 'General').trim() || 'General',
               notSubmitted: feedbackText.toLocaleLowerCase() === 'tarea no entregada.',
               comentario: sanitizeAnnouncementHtml(feedback.comentario || '')
             });
@@ -5116,13 +5127,23 @@
         const formatGrade = (value) => new Intl.NumberFormat('es-MX', {
           maximumFractionDigits: 2
         }).format(value);
-        const getStudentAverage = (student, evaluationType) => {
-          const includedGrades = Array.from(student.grades.values())
-            .filter((grade) => grade.includeInAverage && grade.evaluationType === evaluationType);
-          return includedGrades.length
-            ? includedGrades.reduce((sum, grade) => sum + grade.score, 0) / includedGrades.length
-            : null;
+        const getStudentPerformance = (grades) => {
+          const includedGrades = grades.filter((grade) => grade.includeInAverage);
+          if (!includedGrades.length) return null;
+          return {
+            average: includedGrades.reduce((sum, grade) =>
+              sum + (grade.score / grade.maxScore) * 10, 0) / includedGrades.length,
+            achievement: includedGrades.reduce((sum, grade) =>
+              sum + (grade.score / grade.maxScore) * 100, 0) / includedGrades.length,
+            count: includedGrades.length
+          };
         };
+        const subjectOptions = new Map();
+        tasks.filter((task) => task.tipoEvaluacion !== 'simulacro').forEach((task) => {
+          const name = String(task.materia || 'General').trim() || 'General';
+          const key = task.materiaId || name.toLocaleLowerCase();
+          if (!subjectOptions.has(key)) subjectOptions.set(key, name);
+        });
         [
           { key: 'assignments', label: 'Promedio de asignaciones' },
           { key: 'practiceExams', label: 'Promedio de exámenes simulacros' }
@@ -5191,14 +5212,31 @@
           const studentHeader = document.createElement('div');
           studentHeader.className = 'grades-student-header';
           addText(studentHeader, 'span', '', student.nombre);
-          const assignmentAverage = getStudentAverage(student, 'assignments');
-          const practiceExamAverage = getStudentAverage(student, 'practiceExams');
-          addText(studentHeader, 'span', 'grades-student-average', assignmentAverage === null
-            ? 'Asignaciones: —'
-            : `Asignaciones: ${formatGrade(assignmentAverage)}`);
-          addText(studentHeader, 'span', 'grades-student-average', practiceExamAverage === null
-            ? 'Simulacros: —'
-            : `Simulacros: ${formatGrade(practiceExamAverage)}`);
+          const studentGrades = Array.from(student.grades.values());
+          const coursePerformance = getStudentPerformance(studentGrades);
+          addText(studentHeader, 'span', 'grades-student-average', coursePerformance === null
+            ? 'Curso total: sin calificar'
+            : `Curso total: ${formatGrade(coursePerformance.average)} / 10 · ${formatGrade(coursePerformance.achievement)}% (${coursePerformance.count} evaluaciones)`);
+          subjectOptions.forEach((subjectName, subjectKey) => {
+            const subjectPerformance = getStudentPerformance(studentGrades.filter((grade) =>
+              grade.subjectKey === subjectKey
+            ));
+            addText(studentHeader, 'span', 'grades-student-average', subjectPerformance === null
+              ? `${subjectName}: sin calificar`
+              : `${subjectName}: ${formatGrade(subjectPerformance.average)} / 10 · ${formatGrade(subjectPerformance.achievement)}% (${subjectPerformance.count})`);
+          });
+          const assignmentPerformance = getStudentPerformance(studentGrades.filter((grade) =>
+            grade.evaluationType === 'assignments'
+          ));
+          const practiceExamPerformance = getStudentPerformance(studentGrades.filter((grade) =>
+            grade.evaluationType === 'practiceExams'
+          ));
+          addText(studentHeader, 'span', 'grades-student-average', assignmentPerformance === null
+            ? 'Asignaciones: sin calificar'
+            : `Asignaciones: ${formatGrade(assignmentPerformance.average)} / 10 · ${formatGrade(assignmentPerformance.achievement)}% (${assignmentPerformance.count})`);
+          addText(studentHeader, 'span', 'grades-student-average', practiceExamPerformance === null
+            ? 'Simulacros: sin calificar'
+            : `Simulacros: ${formatGrade(practiceExamPerformance.average)} / 10 · ${formatGrade(practiceExamPerformance.achievement)}% (${practiceExamPerformance.count})`);
           header.append(studentHeader);
           headerRow.append(header);
         });
